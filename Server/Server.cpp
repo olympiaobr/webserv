@@ -4,6 +4,9 @@ Server::Server() {
 }
 
 Server::~Server() {
+	for (size_t i = 0; i < socketsSize(); ++i) {
+		close(_fds[i].fd);
+	}
 }
 
 void Server::addPollfd(int socket_fd, short events) {
@@ -17,10 +20,20 @@ void Server::_push(pollfd client_pollfd) {
 	_fds.push_back(client_pollfd);
 }
 
-void Server::initMainSocket(int main_socketfd, sockaddr_in address) {
-	_main_socketfd = main_socketfd;
-	_address = address;
-	_address_len = sizeof(address);
+void Server::initEndpoint(short port) {
+	_main_socketfd = socket(PF_INET, SOCK_STREAM, 0);
+
+	if (_main_socketfd < 0) {
+		throw InitialisationException("server socket endpoint is not created");
+	}
+	_address.sin_family = AF_INET;
+	_address.sin_addr.s_addr = INADDR_ANY;
+	_address.sin_port = htons(port);
+	_address_len = sizeof(_address);
+
+	setSocketOpt();
+	setSocketNonblock();
+	bindSocketName();
 }
 
 void Server::pollfds() {
@@ -29,7 +42,7 @@ void Server::pollfds() {
 	poll_count = poll(_fds.data(), _fds.size(), -1);
 	if (poll_count == -1) {
 		close(_main_socketfd);
-		throw PollingErrorException("error from poll() function");
+		throw PollingErrorException(strerror(errno));
 	}
 }
 
@@ -37,18 +50,8 @@ size_t Server::socketsSize() {
 	return _fds.size();
 }
 
-Server::PollingErrorException::PollingErrorException(const char *error_place)
-{
-	strncpy(_error, "Pooling error: ", 15);
-	strlcat(_error, error_place, 256);
-}
-
-const char *Server::PollingErrorException::what() const throw()
-{
-	return _error;
-}
-
-/*	Loop through fds to check if the event happend.
+/*
+*	Loop through fds to check if the event happend.
 *	If event happend it revents is set accordingly.
 *	From poll mannual:
 *		struct pollfd {
@@ -69,7 +72,7 @@ void Server::pollLoop() {
 				int client_socket = accept(_main_socketfd, (struct sockaddr *)&_address, (socklen_t*)&_address_len);
 				if (client_socket < 0) {
 						close(_main_socketfd);
-						throw PollingErrorException("error from accept() function");
+						throw PollingErrorException(strerror(errno));
 					}
 				addPollfd(client_socket, POLLIN);
 				std::cout << "New connection established on fd: " << client_socket << std::endl;
@@ -89,4 +92,70 @@ void Server::pollLoop() {
 			}
 		}
 	}
+}
+
+void Server::setSocketOpt() {
+	int opt = 1;
+	if (setsockopt(_main_socketfd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt))) {
+		throw InitialisationException(strerror(errno));
+	}
+}
+
+void Server::setSocketNonblock() {
+	int flags = fcntl(_main_socketfd, F_GETFL, 0); //getting current flags
+	if (flags == -1) {
+		throw InitialisationException(strerror(errno));
+	}
+	if (fcntl(_main_socketfd, F_SETFL, flags | O_NONBLOCK) == -1) {
+		throw InitialisationException(strerror(errno));
+	}
+}
+
+void Server::bindSocketName() {
+	if (bind(_main_socketfd, (struct sockaddr *)&_address, sizeof(_address)) < 0) {
+		throw InitialisationException(strerror(errno));
+	}
+}
+
+void Server::listenPort(int backlog)
+{
+	if (listen(_main_socketfd, backlog) < 0) {
+		ListenErrorException(strerror(errno));
+	}
+}
+
+
+/*Exceptions*/
+
+Server::PollingErrorException::PollingErrorException(const char *error_msg)
+{
+	strncpy(_error, "Pooling error: ", 15);
+	strlcat(_error, error_msg, 256);
+}
+
+const char *Server::PollingErrorException::what() const throw()
+{
+	return _error;
+}
+
+Server::InitialisationException::InitialisationException(const char *error_msg)
+{
+	strncpy(_error, "Pooling error: ", 15);
+	strlcat(_error, error_msg, 256);
+}
+
+const char *Server::InitialisationException::what() const throw()
+{
+	return _error;
+}
+
+Server::ListenErrorException::ListenErrorException(const char *error_msg)
+{
+	strncpy(_error, "Pooling error: ", 15);
+	strlcat(_error, error_msg, 256);
+}
+
+const char *Server::ListenErrorException::what() const throw()
+{
+	return _error;
 }
