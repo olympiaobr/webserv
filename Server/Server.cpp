@@ -1,7 +1,11 @@
 #include "Server.hpp"
 
 Server::Server() {
+
 }
+
+// Server::Server(std::string &hostname): _hostname(hostname) {
+// }
 
 Server::~Server() {
 	for (size_t i = 0; i < socketsSize(); ++i) {
@@ -20,9 +24,10 @@ void Server::_push(pollfd client_pollfd) {
 	_fds.push_back(client_pollfd);
 }
 
-void Server::initEndpoint(short port) {
+void Server::initEndpoint(HostList &hosts, short port) {
+	_port = port;
+	_hosts = hosts;
 	_main_socketfd = socket(PF_INET, SOCK_STREAM, 0);
-
 	if (_main_socketfd < 0) {
 		throw InitialisationException("server socket endpoint is not created");
 	}
@@ -30,7 +35,7 @@ void Server::initEndpoint(short port) {
 	_address.sin_addr.s_addr = INADDR_ANY;
 	_address.sin_port = htons(port);
 	_address_len = sizeof(_address);
-
+	addPollfd(_main_socketfd, POLLIN);
 	setSocketOpt();
 	setSocketNonblock();
 	bindSocketName();
@@ -39,7 +44,7 @@ void Server::initEndpoint(short port) {
 void Server::pollfds() {
 	int poll_count;
 
-	poll_count = poll(_fds.data(), _fds.size(), -1);
+	poll_count = poll(_fds.data(), _fds.size(), 0);
 	if (poll_count == -1) {
 		close(_main_socketfd);
 		throw PollingErrorException(strerror(errno));
