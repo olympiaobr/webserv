@@ -53,6 +53,7 @@ class Server
 		int					_main_socketfd;
 		sockaddr_in			_address;
 		int					_address_len;
+
 		void _push(pollfd client_pollfd); //called when setPollfd is called
 		void setSocketOpt();
 		void setSocketNonblock();
