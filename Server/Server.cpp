@@ -8,7 +8,7 @@ Server::Server() {
 // }
 
 Server::~Server() {
-	for (size_t i = 0; i < socketsSize(); ++i) {
+	for (size_t i = 0; i < getSocketsSize(); ++i) {
 		close(_fds[i].fd);
 	}
 }
@@ -51,7 +51,7 @@ void Server::pollfds() {
 	}
 }
 
-size_t Server::socketsSize() {
+size_t Server::getSocketsSize() const {
 	return _fds.size();
 }
 
@@ -66,7 +66,7 @@ size_t Server::socketsSize() {
 *	};
 */
 void Server::pollLoop() {
-	for (size_t i = 0; i < socketsSize(); ++i) {			//loop to ckeck if revent is set
+	for (size_t i = 0; i < getSocketsSize(); ++i) {			//loop to ckeck if revent is set
 		if (_fds[i].revents & POLLERR) {					//man poll
 			close(_main_socketfd);
 			throw PollingErrorException("error from poll() function");
@@ -122,8 +122,7 @@ void Server::bindSocketName() {
 	}
 }
 
-void Server::listenPort(int backlog)
-{
+void Server::listenPort(int backlog) {
 	if (listen(_main_socketfd, backlog) < 0) {
 		ListenErrorException(strerror(errno));
 	}
@@ -132,35 +131,48 @@ void Server::listenPort(int backlog)
 
 /*Exceptions*/
 
-Server::PollingErrorException::PollingErrorException(const char *error_msg)
-{
+Server::PollingErrorException::PollingErrorException(const char *error_msg) {
 	strncpy(_error, "Pooling error: ", 15);
 	strlcat(_error, error_msg, 256);
 }
 
-const char *Server::PollingErrorException::what() const throw()
-{
+const char *Server::PollingErrorException::what() const throw() {
 	return _error;
 }
 
-Server::InitialisationException::InitialisationException(const char *error_msg)
-{
+Server::InitialisationException::InitialisationException(const char *error_msg) {
 	strncpy(_error, "Pooling error: ", 15);
 	strlcat(_error, error_msg, 256);
 }
 
-const char *Server::InitialisationException::what() const throw()
-{
+const char *Server::InitialisationException::what() const throw() {
 	return _error;
 }
 
-Server::ListenErrorException::ListenErrorException(const char *error_msg)
-{
+Server::ListenErrorException::ListenErrorException(const char *error_msg) {
 	strncpy(_error, "Pooling error: ", 15);
 	strlcat(_error, error_msg, 256);
 }
 
-const char *Server::ListenErrorException::what() const throw()
-{
+const char *Server::ListenErrorException::what() const throw() {
 	return _error;
+}
+
+std::ostream &operator<<(std::ostream &os, const Server &server) {
+	os << "------------------------------" << std::endl;
+	os << "Server data: " << std::endl;
+	os << "Server port: " << server.getPort() << std::endl;
+	os << "Server hostnames:";
+	if (server.getHostList().size() == 0)
+		os << "empty" << std::endl;
+	for (size_t i = 0; i < server.getHostList().size(); ++i)
+		os << " " << server.getHostList()[i] << std::endl;
+	os << "Server sockets:";
+	if (server.getSocketsSize() == 0)
+		os << "empty" << std::endl;
+	for (size_t i = 0; i < server.getSocketsSize(); ++i)
+		os << server.getSockets()[i].fd << std::endl;
+	os << "end of server data" << std::endl;
+	os << "------------------------------" << std::endl;
+	return os;
 }
