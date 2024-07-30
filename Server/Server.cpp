@@ -130,6 +130,25 @@ void Server::listenPort(int backlog) {
 	}
 }
 
+const HostList &Server::getHostList() const
+{
+	return _hosts;
+}
+
+short Server::getPort() const
+{
+	return _port;
+}
+
+int Server::getMainSocketFd() const
+{
+	return _main_socketfd;
+}
+
+const std::vector<pollfd> &Server::getSockets() const
+{
+	return _fds;
+}
 
 /*Exceptions*/
 

@@ -51,10 +51,10 @@ class Server
 		size_t getSocketsSize() const;
 		void listenPort(int backlog);
 		/* Getters */
-		const HostList getHostList() const;
+		const HostList &getHostList() const;
 		short getPort() const;
 		int getMainSocketFd() const;
-		const std::vector<pollfd> getSockets() const;
+		const std::vector<pollfd> &getSockets() const;
 	private:
 		/*Variables*/
 		HostList			_hosts;

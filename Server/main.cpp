@@ -15,7 +15,10 @@
 #define BACKLOG 3
 
 int	main() {
-	HostList hosts = {"www.example.com", "api.example.com", "www.mysite.com"};
+	HostList hosts;
+	hosts.push_back( "www.example.com");
+	hosts.push_back("api.example.com");
+	hosts.push_back("www.mysite.com");
 	Server server;
 	Server server2;
 
