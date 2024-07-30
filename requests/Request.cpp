@@ -17,19 +17,19 @@ bool Request::parse() {
     std::string request;
     int bytesRead;
     bool headersComplete = false;
+    size_t headerEnd;
 
     // Set socket to non-blocking mode
     fcntl(_clientSocket, F_SETFL, O_NONBLOCK);
 
     while (true) {
-
         // Read from socket
         bytesRead = recv(_clientSocket, buffer, sizeof(buffer) - 1, 0);
-        
         if (bytesRead > 0) {
             buffer[bytesRead] = '\0';
             request += buffer;
-            if (request.find("\r\n\r\n") != std::string::npos) {
+            headerEnd = request.find("\r\n\r\n");
+            if (headerEnd != std::string::npos) {
                 headersComplete = true;
                 break;
             }
@@ -47,20 +47,22 @@ bool Request::parse() {
         return false;
     }
 
-    std::istringstream requestStream(request);
+    // Parse headers
+    std::istringstream requestStream(request.substr(0, headerEnd));
     std::string line;
     if (std::getline(requestStream, line)) {
         _parseRequestLine(line);
     }
-
     while (std::getline(requestStream, line) && line != "\r") {
         _parseHeader(line);
     }
 
+    // Handle body
     std::map<std::string, std::string>::const_iterator it = _headers.find("Content-Length");
     if (it != _headers.end()) {
         int contentLength = atoi(it->second.c_str());
-        _readBody(contentLength);
+        std::string initialBodyData = request.substr(headerEnd + 4); // +4 to skip "\r\n\r\n"
+        _readBody(contentLength, initialBodyData);
     }
 
     return true;
@@ -85,15 +87,22 @@ void Request::_parseHeader(const std::string& line) {
     }
 }
 
-void Request::_readBody(int contentLength) {
-    char* body = new char[contentLength + 1];
-    int bytesRead = read(_clientSocket, body, contentLength);
-	std::cout << "Body bytes read: " << bytesRead << std::endl;
-    if (bytesRead > 0) {
-        body[bytesRead] = '\0';
-        _body = body;
+void Request::_readBody(int contentLength, const std::string& initialData) {
+    _body = initialData;
+    int remainingBytes = contentLength - initialData.length();
+
+    if (remainingBytes > 0) {
+        char* buffer = new char[remainingBytes + 1];
+        int bytesRead = read(_clientSocket, buffer, remainingBytes);
+        std::cout << "Additional body bytes read: " << bytesRead << std::endl;
+        if (bytesRead > 0) {
+            buffer[bytesRead] = '\0';
+            _body += buffer;
+        }
+        delete[] buffer;
     }
-    delete[] body;
+
+    std::cout << "Total body length: " << _body.length() << std::endl;
 }
 
 std::string Request::getMethod() const {

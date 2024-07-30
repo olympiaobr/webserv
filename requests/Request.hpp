@@ -16,7 +16,7 @@ private:
 
     void _parseRequestLine(const std::string& line);
     void _parseHeader(const std::string& line);
-    void _readBody(int contentLength);
+	void _readBody(int contentLength, const std::string& initialData);
 
 public:
     Request(int clientSocket);
