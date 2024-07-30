@@ -1,4 +1,6 @@
 #include "Server.hpp"
+// #include "../responses/Response.hpp"
+#include "../requests/Request.hpp"
 
 Server::Server() {
 
@@ -82,18 +84,15 @@ void Server::pollLoop() {
 				addPollfd(client_socket, POLLIN);
 				std::cout << "New connection established on fd: " << client_socket << std::endl;
 			} else {										//if it is existing connection
-				/* HERE GOES REQUEST PARSING PART*/
-				char	request_buffer[1024];				//this must be part of Request class
-				int bytes_read = read(client_socket, request_buffer, 1024);	//1024 is maximum Content-lenght, adjust accordingly
-				if (bytes_read <= 0) {						// is it possible that request is 0 bytes??
-					std::cerr << "Error on reading request" << std::endl;
-				} else {
-					/* HERE GOES RESPONSE PARSING PART*/
-					std::cout << "Received request:\n" << request_buffer << std::endl;
-					const char *response = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 36\n\nResponse sent and connection closed!";
-					send(client_socket, response, strlen(response), 0);
-					std::cout << "Response sent and connection closed" << std::endl;
-				}
+				Request req(client_socket);
+				req.parse();
+				std::cout << "Request parsed:\n\n" << req << std::endl;
+				// std::cout << "Received request:\n" << request_buffer << std::endl;
+				// Response res(req);
+				// const char* response = res.build();
+				const char *response = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 36\n\nResponse sent and connection closed!\n";
+				send(client_socket, response, strlen(response), 0);
+				std::cout << "Response sent and connection closed" << std::endl;
 				close(client_socket);						//Should be closed only after xx sec according to config file;
 				_fds.erase(_fds.begin() + i);
 			}
