@@ -132,7 +132,7 @@ void Server::listenPort(int backlog)
 Server::PollingErrorException::PollingErrorException(const char *error_msg)
 {
 	strncpy(_error, "Pooling error: ", 15);
-	strlcat(_error, error_msg, 256);
+	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
 const char *Server::PollingErrorException::what() const throw()
@@ -143,7 +143,7 @@ const char *Server::PollingErrorException::what() const throw()
 Server::InitialisationException::InitialisationException(const char *error_msg)
 {
 	strncpy(_error, "Pooling error: ", 15);
-	strlcat(_error, error_msg, 256);
+	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
 const char *Server::InitialisationException::what() const throw()
@@ -154,7 +154,7 @@ const char *Server::InitialisationException::what() const throw()
 Server::ListenErrorException::ListenErrorException(const char *error_msg)
 {
 	strncpy(_error, "Pooling error: ", 15);
-	strlcat(_error, error_msg, 256);
+	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
 const char *Server::ListenErrorException::what() const throw()
