@@ -2,12 +2,14 @@ CC := c++
 CPPFLAGS := -Wall -Wextra -Werror -std=c++98 -g
 TARGET := ./webserv
 INCLUDES :=	-I./server \
-			-I./responses
+			-I./responses \
+			-I./requests
 RM := rm -f
 SRC_DIR :=
 SOURCE :=	main.cpp \
 			server/Server.cpp \
-			responses/Response.cpp
+			responses/Response.cpp \
+			requests/Request.cpp
 SRC := $(addprefix $(SRC_DIR), $(SOURCE))
 OBJ := $(SRC:.cpp=.o)
 
