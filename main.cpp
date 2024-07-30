@@ -7,7 +7,7 @@
 #include <poll.h>
 #include <fcntl.h>
 #include <vector>
-#include "Server.hpp"
+#include "server/Server.hpp"
 
 #define PORT_1 8080
 #define PORT_2 8081
