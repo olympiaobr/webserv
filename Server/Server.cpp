@@ -1,10 +1,14 @@
 #include "Server.hpp"
 
 Server::Server() {
+
 }
 
+// Server::Server(std::string &hostname): _hostname(hostname) {
+// }
+
 Server::~Server() {
-	for (size_t i = 0; i < socketsSize(); ++i) {
+	for (size_t i = 0; i < getSocketsSize(); ++i) {
 		close(_fds[i].fd);
 	}
 }
@@ -20,9 +24,10 @@ void Server::_push(pollfd client_pollfd) {
 	_fds.push_back(client_pollfd);
 }
 
-void Server::initEndpoint(short port) {
+void Server::initEndpoint(HostList &hosts, short port) {
+	_port = port;
+	_hosts = hosts;
 	_main_socketfd = socket(PF_INET, SOCK_STREAM, 0);
-
 	if (_main_socketfd < 0) {
 		throw InitialisationException("server socket endpoint is not created");
 	}
@@ -30,7 +35,7 @@ void Server::initEndpoint(short port) {
 	_address.sin_addr.s_addr = INADDR_ANY;
 	_address.sin_port = htons(port);
 	_address_len = sizeof(_address);
-
+	addPollfd(_main_socketfd, POLLIN);
 	setSocketOpt();
 	setSocketNonblock();
 	bindSocketName();
@@ -39,14 +44,14 @@ void Server::initEndpoint(short port) {
 void Server::pollfds() {
 	int poll_count;
 
-	poll_count = poll(_fds.data(), _fds.size(), -1);
+	poll_count = poll(_fds.data(), _fds.size(), 0);
 	if (poll_count == -1) {
 		close(_main_socketfd);
 		throw PollingErrorException(strerror(errno));
 	}
 }
 
-size_t Server::socketsSize() {
+size_t Server::getSocketsSize() const {
 	return _fds.size();
 }
 
@@ -61,7 +66,7 @@ size_t Server::socketsSize() {
 *	};
 */
 void Server::pollLoop() {
-	for (size_t i = 0; i < socketsSize(); ++i) {			//loop to ckeck if revent is set
+	for (size_t i = 0; i < getSocketsSize(); ++i) {			//loop to ckeck if revent is set
 		if (_fds[i].revents & POLLERR) {					//man poll
 			close(_main_socketfd);
 			throw PollingErrorException("error from poll() function");
@@ -119,45 +124,76 @@ void Server::bindSocketName() {
 	}
 }
 
-void Server::listenPort(int backlog)
-{
+void Server::listenPort(int backlog) {
 	if (listen(_main_socketfd, backlog) < 0) {
 		ListenErrorException(strerror(errno));
 	}
 }
 
+const HostList &Server::getHostList() const
+{
+	return _hosts;
+}
+
+short Server::getPort() const
+{
+	return _port;
+}
+
+int Server::getMainSocketFd() const
+{
+	return _main_socketfd;
+}
+
+const std::vector<pollfd> &Server::getSockets() const
+{
+	return _fds;
+}
 
 /*Exceptions*/
 
-Server::PollingErrorException::PollingErrorException(const char *error_msg)
-{
+Server::PollingErrorException::PollingErrorException(const char *error_msg) {
 	strncpy(_error, "Pooling error: ", 15);
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
-const char *Server::PollingErrorException::what() const throw()
-{
+const char *Server::PollingErrorException::what() const throw() {
 	return _error;
 }
 
-Server::InitialisationException::InitialisationException(const char *error_msg)
-{
+Server::InitialisationException::InitialisationException(const char *error_msg) {
 	strncpy(_error, "Pooling error: ", 15);
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
-const char *Server::InitialisationException::what() const throw()
-{
+const char *Server::InitialisationException::what() const throw() {
 	return _error;
 }
 
-Server::ListenErrorException::ListenErrorException(const char *error_msg)
-{
+Server::ListenErrorException::ListenErrorException(const char *error_msg) {
 	strncpy(_error, "Pooling error: ", 15);
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
-const char *Server::ListenErrorException::what() const throw()
-{
+const char *Server::ListenErrorException::what() const throw() {
 	return _error;
+}
+
+std::ostream &operator<<(std::ostream &os, const Server &server) {
+	os << "------------------------------" << std::endl;
+	os << "Server data: " << std::endl;
+	os << "Server port: " << server.getPort() << std::endl;
+	os << "Server hostnames:";
+	if (server.getHostList().size() == 0)
+		os << "empty" << std::endl;
+	for (size_t i = 0; i < server.getHostList().size(); ++i)
+		os << " " << server.getHostList()[i] << std::endl;
+	os << "Server sockets:";
+	if (server.getSocketsSize() == 0)
+		os << "empty" << std::endl;
+	for (size_t i = 0; i < server.getSocketsSize(); ++i)
+		os << server.getSockets()[i].fd << std::endl;
+	os << "end of server data" << std::endl;
+	os << "------------------------------" << std::endl;
+	return os;
 }

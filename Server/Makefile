@@ -1,10 +1,10 @@
 CC := c++
-CPPFLAGS := -Wall -Wextra -Werror -std=c++98 -g -fno-limit-debug-info
+CPPFLAGS := -Wall -Wextra -Werror -std=c++98 -g
 TARGET := ./Server.out
 INCLUDES :=
 RM := rm -f
 SRC_DIR :=
-SOURCE := http_request_handler_class.cpp Server.cpp
+SOURCE := main.cpp Server.cpp
 SRC := $(addprefix $(SRC_DIR), $(SOURCE))
 OBJ := $(SRC:.cpp=.o)
 

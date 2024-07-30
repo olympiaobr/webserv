@@ -11,10 +11,13 @@
 # include <sys/errno.h>
 # include <fcntl.h>
 
+typedef std::vector<std::string> HostList;
+
 class Server
 {
 	public:
 		Server();
+		// Server(std::string &hostname);
 		~Server();
 		/*Exceptions*/
 		class PollingErrorException: public std::exception {
@@ -39,26 +42,34 @@ class Server
 				const char* what() const throw();
 		};
 		/* Initialize server */
-		void initEndpoint(short port);
+		void initEndpoint(HostList &hosts, short port);
 		/* Socket fucntions */
 		void addPollfd(int socket_fd, short events);
 		void pollfds();
-		/* poll listen loop */
 		void pollLoop();
 		/* Utility functions */
-		size_t socketsSize();
+		size_t getSocketsSize() const;
 		void listenPort(int backlog);
+		/* Getters */
+		const HostList &getHostList() const;
+		short getPort() const;
+		int getMainSocketFd() const;
+		const std::vector<pollfd> &getSockets() const;
 	private:
-		std::vector<pollfd>	_fds;
+		/*Variables*/
+		HostList			_hosts;
+		short				_port;
 		int					_main_socketfd;
 		sockaddr_in			_address;
 		int					_address_len;
-
+		std::vector<pollfd>	_fds;
+		/*Functions*/
 		void _push(pollfd client_pollfd); //called when setPollfd is called
 		void setSocketOpt();
 		void setSocketNonblock();
 		void bindSocketName();
 };
 
+std::ostream &operator<<(std::ostream &os, const Server &server);
 
 #endif
