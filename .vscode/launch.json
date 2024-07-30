@@ -20,6 +20,14 @@
                     "ignoreFailures": true
                 }
             ]
-        }
+        },
+		{
+			"name": "Mac_debug webserv",
+			"type": "lldb",
+			"request": "launch",
+			"program": "${workspaceFolder}/webserv",
+			"args": [],
+			"cwd": "${fileDirname}",
+		}
     ]
 }

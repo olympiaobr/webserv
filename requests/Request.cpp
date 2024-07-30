@@ -61,7 +61,7 @@ bool Request::parse() {
     if (it != _headers.end()) {
         int contentLength = atoi(it->second.c_str());
         std::string initialBodyData = request.substr(headerEnd + 4); // +4 to skip "\r\n\r\n"
-        _readBody(contentLength, initialBodyData);
+        _readBody(contentLength, initialBodyData); // works incorect with some types of data in body
     }
 
     return true;
@@ -92,7 +92,7 @@ void Request::_readBody(int contentLength, const std::string& initialData) {
 
     if (remainingBytes > 0) {
         char* buffer = new char[remainingBytes + 1];
-        int bytesRead = read(_clientSocket, buffer, remainingBytes);
+        int bytesRead = recv(_clientSocket, buffer, remainingBytes, 0);
         std::cout << "Additional body bytes read: " << bytesRead << std::endl;
         if (bytesRead > 0) {
             buffer[bytesRead] = '\0';
@@ -140,11 +140,11 @@ std::ostream& operator<<(std::ostream& os, const Request& request) {
     os << "Headers:" << std::endl;
 
 	std::map<std::string, std::string> headers = request.getHeaders();
-    
+
 	std::map<std::string, std::string>::const_iterator it;
 	for (it = headers.begin(); it != headers.end(); ++it) {
 		os << " " << it->first << ": " << it->second << std::endl;
-	}    
+	}
     os << "Body: " << request.getBody() << std::endl;
     return os;
 }
