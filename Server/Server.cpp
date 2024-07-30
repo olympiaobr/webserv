@@ -84,7 +84,7 @@ void Server::pollLoop() {
 			} else {										//if it is existing connection
 				/* HERE GOES REQUEST PARSING PART*/
 				char	request_buffer[1024];				//this must be part of Request class
-				int bytes_read = read(client_socket, request_buffer, 1024);	//1024 is maximum Content-lenght, adjust accordingly
+				int bytes_read = recv(client_socket, request_buffer, 1024, MSG_DONTWAIT);	//1024 is maximum Content-lenght, adjust accordingly !important: appropriate flag must be choosen
 				if (bytes_read <= 0) {						// is it possible that request is 0 bytes??
 					std::cerr << "Error on reading request" << std::endl;
 				} else {
