@@ -86,7 +86,7 @@ void Server::pollLoop() {
 			} else {										//if it is existing connection
 				Request req(client_socket);
 				req.parse();
-				std::cout << "Request parsed:\n" << req << std::endl;
+				std::cout << "Request parsed:\n\n" << req << std::endl;
 				// std::cout << "Received request:\n" << request_buffer << std::endl;
 				// Response res(req);
 				// const char* response = res.build();
