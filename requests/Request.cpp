@@ -4,13 +4,12 @@
 #include <unistd.h>
 #include <cstdlib>
 #include <sys/socket.h>
+#include <fcntl.h>
+#include <errno.h>
 
 Request::Request(int clientSocket) : _clientSocket(clientSocket) {}
 
 Request::~Request() {}
-
-#include <fcntl.h>
-#include <errno.h>
 
 bool Request::parse() {
     char buffer[1024];
@@ -23,7 +22,7 @@ bool Request::parse() {
     fcntl(_clientSocket, F_SETFL, O_NONBLOCK);
 
     while (true) {
-        // Read from socket
+        // Read from socket until the end of the headers is found
         bytesRead = recv(_clientSocket, buffer, sizeof(buffer) - 1, 0);
         if (bytesRead > 0) {
             buffer[bytesRead] = '\0';
