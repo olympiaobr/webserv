@@ -82,11 +82,13 @@ void Server::pollLoop() {
 				addPollfd(client_socket, POLLIN);
 				std::cout << "New connection established on fd: " << client_socket << std::endl;
 			} else {										//if it is existing connection
+				/* HERE GOES REQUEST PARSING PART*/
 				char	request_buffer[1024];				//this must be part of Request class
 				int bytes_read = read(client_socket, request_buffer, 1024);	//1024 is maximum Content-lenght, adjust accordingly
 				if (bytes_read <= 0) {						// is it possible that request is 0 bytes??
 					std::cerr << "Error on reading request" << std::endl;
 				} else {
+					/* HERE GOES RESPONSE PARSING PART*/
 					std::cout << "Received request:\n" << request_buffer << std::endl;
 					const char *response = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 36\n\nResponse sent and connection closed!";
 					send(client_socket, response, strlen(response), 0);
@@ -133,7 +135,7 @@ void Server::listenPort(int backlog) {
 
 Server::PollingErrorException::PollingErrorException(const char *error_msg) {
 	strncpy(_error, "Pooling error: ", 15);
-	strlcat(_error, error_msg, 256);
+	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
 const char *Server::PollingErrorException::what() const throw() {
@@ -142,7 +144,7 @@ const char *Server::PollingErrorException::what() const throw() {
 
 Server::InitialisationException::InitialisationException(const char *error_msg) {
 	strncpy(_error, "Pooling error: ", 15);
-	strlcat(_error, error_msg, 256);
+	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
 const char *Server::InitialisationException::what() const throw() {
@@ -151,7 +153,7 @@ const char *Server::InitialisationException::what() const throw() {
 
 Server::ListenErrorException::ListenErrorException(const char *error_msg) {
 	strncpy(_error, "Pooling error: ", 15);
-	strlcat(_error, error_msg, 256);
+	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
 const char *Server::ListenErrorException::what() const throw() {
