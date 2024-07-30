@@ -1,4 +1,5 @@
 #include "Server.hpp"
+#include "../responses/Response.hpp"
 
 Server::Server() {
 
@@ -90,7 +91,9 @@ void Server::pollLoop() {
 				} else {
 					/* HERE GOES RESPONSE PARSING PART*/
 					std::cout << "Received request:\n" << request_buffer << std::endl;
-					const char *response = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 36\n\nResponse sent and connection closed!";
+					Response res;
+					const char* response = res.build();
+					// const char *response = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 36\n\nResponse sent and connection closed!";
 					send(client_socket, response, strlen(response), 0);
 					std::cout << "Response sent and connection closed" << std::endl;
 				}
