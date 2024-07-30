@@ -9,7 +9,8 @@
 #include <vector>
 #include "Server.hpp"
 
-#define PORT 8080
+#define PORT_1 8080
+#define PORT_2 8081
 #define BUFFER_SIZE 1024
 #define MAX_CONNECTIONS 100
 #define BACKLOG 3
@@ -22,11 +23,12 @@ int	main() {
 	Server server;
 	Server server2;
 
-	server.initEndpoint(hosts, PORT);
+	server.initEndpoint(hosts, PORT_1);
 	server.listenPort(BACKLOG);
-	server2.initEndpoint(hosts, 8081);
+	server2.initEndpoint(hosts, PORT_2);
 	server2.listenPort(BACKLOG);
-	std::cout << "Server is listening on port " << PORT << std::endl;
+	std::cout << "Server 1 is listening on port " << PORT_1 << std::endl;
+	std::cout << "Server 2 is listening on port " << PORT_2 << std::endl;
 	while (true) {
 		server.pollfds(); // sets revents status to all sockets in list
 		server.pollLoop(); // loops through sockets and handles if new request recieved on socket
