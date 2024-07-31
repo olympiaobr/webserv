@@ -12,6 +12,9 @@
 #define BUFFER_SIZE 1024
 #define MAX_CONNECTIONS 100
 
+size_t write_data_to_file(const char *buffer, size_t buffer_size, std::string file_name);
+
+
 //set NON_BLOCKING SOCKET MODE
 void	set_nonblocking_socket(int socket_fd)
 {
@@ -52,14 +55,14 @@ void request_handling(int socket_fd, sockaddr_in address)
 	std::vector<pollfd> fds;
 	int addrlen = sizeof(address);
 	pollfd fd;
-	char buffer[BUFFER_SIZE] = {0};
+	char buffer[BUFFER_SIZE + 1] = {0};
 
 	fd.fd = socket_fd;
 	fd.events = POLLIN;
 	fds.push_back(fd);
 
 	while (true) {
-		int poll_count = poll(fds.data(), fds.size(), -1);
+		int poll_count = poll(fds.data(), fds.size(), 0);
 
 		if (poll_count == -1) {
 			perror("poll");
@@ -93,7 +96,18 @@ void request_handling(int socket_fd, sockaddr_in address)
 					int bytes_read;
 
 					client_socket = fds[i].fd;
-					bytes_read = read(client_socket, buffer, BUFFER_SIZE);
+					bytes_read = recv(client_socket, buffer, BUFFER_SIZE, MSG_DONTWAIT);
+					while (bytes_read > 0)
+					{
+						buffer[bytes_read] = 0;
+						const char *body;
+						if (strstr(buffer, "\r\n\r\n"))
+							body = strstr(buffer, "\r\n\r\n") + 4;
+						else
+							body = buffer;
+						write_data_to_file(body, bytes_read, "temp_name.jpg");
+						bytes_read = recv(client_socket, buffer, BUFFER_SIZE, MSG_DONTWAIT);
+					}
 					if (bytes_read <= 0)
 					{
 						std::cout << "Connection closed, nothing to read" << std::endl;

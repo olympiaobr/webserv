@@ -1,6 +1,6 @@
 #ifndef Server_HPP
 # define Server_HPP
-	
+
 # include <poll.h>
 # include <vector>
 # include <unistd.h>
@@ -10,6 +10,12 @@
 # include <string.h>
 # include <sys/errno.h>
 # include <fcntl.h>
+# include <sstream>
+# include "../requests/Request.hpp"
+// #include "../responses/Response.hpp"
+
+# include "../debug.hpp"
+
 
 typedef std::vector<std::string> HostList;
 
@@ -19,6 +25,7 @@ class Server
 		Server();
 		// Server(std::string &hostname);
 		~Server();
+
 		/*Exceptions*/
 		class PollingErrorException: public std::exception {
 			private:
@@ -41,20 +48,30 @@ class Server
 				ListenErrorException(const char *error_msg);
 				const char* what() const throw();
 		};
+		class RuntimeErrorException: public std::exception {
+			private:
+				char _error[256];
+			public:
+				RuntimeErrorException(const char *error_msg);
+				const char* what() const throw();
+		};
 		/* Initialize server */
-		void initEndpoint(HostList &hosts, short port);
+		void	initEndpoint(HostList &hosts, short port);
 		/* Socket fucntions */
-		void addPollfd(int socket_fd, short events);
-		void pollfds();
-		void pollLoop();
+		void	addPollfd(int socket_fd, short events);
+		void	pollfds();
+		void	pollLoop();
 		/* Utility functions */
-		size_t getSocketsSize() const;
-		void listenPort(int backlog);
+		size_t		getSocketsSize() const;
+		void		listenPort(int backlog);
 		/* Getters */
-		const HostList &getHostList() const;
-		short getPort() const;
-		int getMainSocketFd() const;
-		const std::vector<pollfd> &getSockets() const;
+		const HostList				&getHostList() const;
+		short						getPort() const;
+		int							getMainSocketFd() const;
+		const std::vector<pollfd>	&getSockets() const;
+
+		/* Server routines */
+		static void chunkHandler(Request req, int client_socket);
 	private:
 		/*Variables*/
 		HostList			_hosts;
