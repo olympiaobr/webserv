@@ -1,11 +1,8 @@
 #include "Server.hpp"
+#include "../responses/Response.hpp"
+#include "../requests/Request.hpp"
 
-Server::Server() {
-
-}
-
-// Server::Server(std::string &hostname): _hostname(hostname) {
-// }
+Server::Server() {}
 
 Server::~Server() {
 	for (size_t i = 0; i < getSocketsSize(); ++i) {
