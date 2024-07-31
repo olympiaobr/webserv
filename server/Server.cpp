@@ -84,9 +84,8 @@ void Server::pollLoop() {
 				std::cout << "Request parsed:\n\n" << req << std::endl;
 				Response res(req);
 				const char* response = res.toCString();
-				// const char *response = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 36\n\nResponse sent and connection closed!\n";
+				std::cout << "Response sent:" << std::endl << response << std::endl;
 				send(client_socket, response, strlen(response), 0);
-				std::cout << "Response sent and connection closed" << std::endl;
 				close(client_socket);						//Should be closed only after xx sec according to config file;
 				_fds.erase(_fds.begin() + i);
 			}
