@@ -9,7 +9,9 @@ SRC_DIR :=
 SOURCE :=	main.cpp \
 			server/Server.cpp \
 			responses/Response.cpp \
-			requests/Request.cpp
+			requests/Request.cpp \
+			configuration/Config.cpp \
+			
 SRC := $(addprefix $(SRC_DIR), $(SOURCE))
 OBJ := $(SRC:.cpp=.o)
 
