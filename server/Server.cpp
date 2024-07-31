@@ -1,6 +1,4 @@
 #include "Server.hpp"
-// #include "../responses/Response.hpp"
-#include "../requests/Request.hpp"
 
 Server::Server() {
 
@@ -87,7 +85,8 @@ void Server::pollLoop() {
 				Request req(client_socket);
 				req.parse();
 				std::cout << "Request parsed:\n\n" << req << std::endl;
-				// std::cout << "Received request:\n" << request_buffer << std::endl;
+				/* Check if this request is part of chunk */
+				Server::chunkHandler(req, client_socket);
 				// Response res(req);
 				// const char* response = res.build();
 				const char *response = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 36\n\nResponse sent and connection closed!\n";
@@ -149,6 +148,50 @@ const std::vector<pollfd> &Server::getSockets() const
 	return _fds;
 }
 
+void Server::chunkHandler(Request req, int client_socket)
+{
+	//to-do
+	if (req.getHeader("Transfer-Encoding") == "chunked") {
+		/* Get data size */
+		std::stringstream ss;
+		size_t len;
+		std::string data;
+		std::string file_name;
+
+		ss << client_socket;
+		ss >> 	file_name;
+		ss.clear();
+		file_name += ".chunk";
+		if (!access(file_name.c_str(), W_OK | R_OK))
+			std::cout << BLACK << "File exists with permissions" << RESET << std::endl; // file exists, but it is from previous request?
+		int file_fd = open(file_name.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
+		if (!file_fd)
+			throw RuntimeErrorException("error opening the file");
+		data = req.getBody();
+		while (data != "")
+		{
+			std::string tmp;
+			tmp = data;
+			size_t end = data.find("\r\n");
+			data = data.substr(0, end);
+			ss << std::hex << data;
+			ss >> len;
+			ss.clear();
+			/* Get data */
+			data = tmp;
+			size_t end_data = data.find("\r\n", end + 1);
+			end += 2;
+			end_data -= end;
+			data = data.substr(end, end_data);
+			if (write(file_fd, data.c_str(), len) < 0) // len or end_data??
+				throw RuntimeErrorException("error writing to file"); // throw error
+			end_data += 2 + end;
+			data = tmp.substr(end_data);
+		}
+		close(file_fd);
+	}
+}
+
 /*Exceptions*/
 
 Server::PollingErrorException::PollingErrorException(const char *error_msg) {
@@ -175,6 +218,15 @@ Server::ListenErrorException::ListenErrorException(const char *error_msg) {
 }
 
 const char *Server::ListenErrorException::what() const throw() {
+	return _error;
+}
+
+Server::RuntimeErrorException::RuntimeErrorException(const char *error_msg) {
+	strncpy(_error, "Runtime error: ", 15);
+	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
+}
+
+const char *Server::RuntimeErrorException::what() const throw() {
 	return _error;
 }
 
