@@ -12,6 +12,7 @@ private:
     std::string _statusMessage;
     std::map<std::string, std::string> _headers;
     std::string _body;
+    std::string _responseString;
 
     std::string readFile(const std::string& filename);
     std::string getMimeType(const std::string& filename);
