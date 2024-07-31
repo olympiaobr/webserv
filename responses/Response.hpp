@@ -2,27 +2,34 @@
 #define RESPONSE_HPP
 
 #include <string>
+#include <map>
+#include "../requests/Request.hpp"
 
 class Response {
 private:
+    std::string _httpVersion;
     int _statusCode;
     std::string _statusMessage;
-    std::string _contentType;
-    std::string _content;
-    std::string _buffer;
+    std::map<std::string, std::string> _headers;
+    std::string _body;
 
-    void _buildBuffer();
+    std::string readFile(const std::string& filename);
+    std::string getMimeType(const std::string& filename);
+    std::string toString(size_t num) const;
+
+    void handleGetRequest(const Request& req);
+    void handlePostRequest(const Request& req);
+    void handleDeleteRequest(const Request& req);
 
 public:
     Response();
-    Response(int statusCode, const std::string& statusMessage, const std::string& content, const std::string& contentType = "text/plain");
+    Response(const Request& req);
 
-    void setStatus(int statusCode, const std::string& statusMessage);
-    void setContent(const std::string& content);
-    void setContentType(const std::string& contentType);
-
-    const char* build();
-    size_t getSize() const;
+    void setStatus(int code, const std::string& message);
+    void addHeader(const std::string& key, const std::string& value);
+    void setBody(const std::string& body);
+    std::string toString() const;
+	const char* toCString();
 };
 
-#endif // RESPONSE_HPP
+#endif
