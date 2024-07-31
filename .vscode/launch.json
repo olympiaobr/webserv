@@ -6,7 +6,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/webserv",
-            "args": [],
+            "args": ["./c_file.config"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
@@ -26,7 +26,7 @@
 			"type": "lldb",
 			"request": "launch",
 			"program": "${workspaceFolder}/webserv",
-			"args": [],
+			"args": ["/Users/HP/Documents/Programming/learning_C/webserv/c_file.conf"],
 			"cwd": "${fileDirname}",
 		}
     ]

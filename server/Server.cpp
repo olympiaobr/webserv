@@ -4,6 +4,21 @@
 
 Server::Server() {}
 
+Server::Server(const HostList &hosts, short port): _port(port), _hosts(hosts) {
+	_main_socketfd = socket(PF_INET, SOCK_STREAM, 0);
+	if (_main_socketfd < 0) {
+		throw InitialisationException("server socket endpoint is not created");
+	}
+	_address.sin_family = AF_INET;
+	_address.sin_addr.s_addr = INADDR_ANY;
+	_address.sin_port = htons(port);
+	_address_len = sizeof(_address);
+	addPollfd(_main_socketfd, POLLIN);
+	setSocketOpt();
+	setSocketNonblock();
+	bindSocketName();
+}
+
 Server::~Server() {
 	for (size_t i = 0; i < getSocketsSize(); ++i) {
 		close(_fds[i].fd);
@@ -21,9 +36,10 @@ void Server::_push(pollfd client_pollfd) {
 	_fds.push_back(client_pollfd);
 }
 
-void Server::initEndpoint(HostList &hosts, short port) {
+void Server::initEndpoint(const HostList &hosts, short port, const ServerConfig &config) {
 	_port = port;
 	_hosts = hosts;
+	_config = config;
 	_main_socketfd = socket(PF_INET, SOCK_STREAM, 0);
 	if (_main_socketfd < 0) {
 		throw InitialisationException("server socket endpoint is not created");
@@ -186,6 +202,21 @@ void Server::chunkHandler(Request req, int client_socket)
 			data = tmp.substr(end_data);
 		}
 		close(file_fd);
+	}
+}
+
+void Server::RUN(std::vector<Server> servers) {
+	for (size_t i = 0; i < servers.size(); ++i) {
+		servers[i].listenPort(3);
+		std::cout << "Server 1 is listening on port "
+			<< servers[i].getPort() << std::endl;
+	}
+	while (true)
+	{
+		for (size_t i = 0; i < servers.size(); ++i) {
+			servers[i].pollfds();
+			servers[i].pollLoop();
+		}
 	}
 }
 
