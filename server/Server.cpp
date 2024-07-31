@@ -1,13 +1,8 @@
 #include "Server.hpp"
-// #include "../responses/Response.hpp"
+#include "../responses/Response.hpp"
 #include "../requests/Request.hpp"
 
-Server::Server() {
-
-}
-
-// Server::Server(std::string &hostname): _hostname(hostname) {
-// }
+Server::Server() {}
 
 Server::~Server() {
 	for (size_t i = 0; i < getSocketsSize(); ++i) {
@@ -87,10 +82,9 @@ void Server::pollLoop() {
 				Request req(client_socket);
 				req.parse();
 				std::cout << "Request parsed:\n\n" << req << std::endl;
-				// std::cout << "Received request:\n" << request_buffer << std::endl;
-				// Response res(req);
-				// const char* response = res.build();
-				const char *response = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 36\n\nResponse sent and connection closed!\n";
+				Response res(req);
+				const char* response = res.toCString();
+				// const char *response = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 36\n\nResponse sent and connection closed!\n";
 				send(client_socket, response, strlen(response), 0);
 				std::cout << "Response sent and connection closed" << std::endl;
 				close(client_socket);						//Should be closed only after xx sec according to config file;
