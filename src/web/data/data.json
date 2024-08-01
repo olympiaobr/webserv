@@ -1,6 +1,6 @@
 {
-    "message": "Welcome to My Web Server!",
-    "author": "Your Name",
+    "message": "Welcome to our Web Server!",
+    "author": "Name",
     "year": 2024,
     "features": [
         "Custom Web Server",
@@ -10,6 +10,5 @@
     ],
     "contact": {
         "email": "youremail@example.com",
-        "twitter": "@yourhandle"
     }
 }
