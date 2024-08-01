@@ -12,6 +12,7 @@
 # include <fcntl.h>
 # include <sstream>
 # include "../requests/Request.hpp"
+# include "../configuration/Config.hpp"
 // #include "../responses/Response.hpp"
 
 # include "../debug.hpp"
@@ -23,7 +24,7 @@ class Server
 {
 	public:
 		Server();
-		// Server(std::string &hostname);
+		Server(const HostList &hosts, short port);
 		~Server();
 
 		/*Exceptions*/
@@ -56,7 +57,7 @@ class Server
 				const char* what() const throw();
 		};
 		/* Initialize server */
-		void	initEndpoint(HostList &hosts, short port);
+		void	initEndpoint(const HostList &hosts, short port, const ServerConfig &config);
 		/* Socket fucntions */
 		void	addPollfd(int socket_fd, short events);
 		void	pollfds();
@@ -72,14 +73,18 @@ class Server
 
 		/* Server routines */
 		static void chunkHandler(Request req, int client_socket);
+
+		/* Start all servers */
+		static void RUN(std::vector<Server>);
 	private:
 		/*Variables*/
-		HostList			_hosts;
 		short				_port;
+		HostList			_hosts;
 		int					_main_socketfd;
 		sockaddr_in			_address;
 		int					_address_len;
 		std::vector<pollfd>	_fds;
+		ServerConfig		_config;
 		/*Functions*/
 		void _push(pollfd client_pollfd); //called when setPollfd is called
 		void setSocketOpt();
