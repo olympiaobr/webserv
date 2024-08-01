@@ -4,6 +4,7 @@
 #include <string>
 #include <map>
 #include "../requests/Request.hpp"
+#include "../configuration/Config.hpp"
 
 class Response {
 private:
@@ -18,13 +19,13 @@ private:
     std::string getMimeType(const std::string& filename);
     std::string toString(size_t num) const;
 
-    void handleGetRequest(const Request& req);
+    void handleGetRequest(const Request& req, const ServerConfig& config);
     void handlePostRequest(const Request& req);
     void handleDeleteRequest(const Request& req);
 
 public:
     Response();
-    Response(const Request& req);
+    Response(const Request& req, const ServerConfig& config);
 
     void setStatus(int code, const std::string& message);
     void addHeader(const std::string& key, const std::string& value);

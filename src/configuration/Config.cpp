@@ -6,8 +6,7 @@
 
 Config::Config(const std::string& filename) : _filename(filename) {}
 
-Config::~Config() {
-}
+Config::~Config() {}
 
 Config::Config(const Config& other) : _filename(other._filename), _servers(other._servers) {}
 
