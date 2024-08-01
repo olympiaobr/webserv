@@ -1,0 +1,15 @@
+{
+    "message": "Welcome to My Web Server!",
+    "author": "Your Name",
+    "year": 2024,
+    "features": [
+        "Custom Web Server",
+        "Dynamic Routing",
+        "Error Handling",
+        "Static File Serving"
+    ],
+    "contact": {
+        "email": "youremail@example.com",
+        "twitter": "@yourhandle"
+    }
+}
