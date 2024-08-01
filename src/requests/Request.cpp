@@ -33,13 +33,13 @@ void Request::parse() {
                 break;
             }
         } else if (bytesRead == 0) {
-            throw ParsingErrorException(INTERRUPT, "Client closed the connection unexpectedly.");
-        } else if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            continue;
+            throw ParsingErrorException(INTERRUPT, "unexpected connection interrupt");
         } else {
-            throw ParsingErrorException(INTERRUPT, "Socket error occurred.");
+            throw ParsingErrorException(INTERRUPT, "unexpected socket close");
+            continue; // why would you want to continue here? == if (bytesRead < 1)
         }
     }
+
     if (!headersComplete) {
         std::cerr << "Incomplete headers" << std::endl;
         return ;
@@ -92,26 +92,19 @@ void Request::_readBody(int contentLength, const std::string& initialData) {
     _body = initialData;
     int remainingBytes = contentLength - initialData.length();
 
-    while (remainingBytes > 0) {
-        char buffer[1024];
-        int bytesRead = recv(_clientSocket, buffer, std::min(remainingBytes, (int)sizeof(buffer) - 1), 0);
+    if (remainingBytes > 0) {
+        char* buffer = new char[remainingBytes + 1];
+        int bytesRead = recv(_clientSocket, buffer, remainingBytes, 0);
+        std::cout << "Additional body bytes read: " << bytesRead << std::endl;
         if (bytesRead > 0) {
             buffer[bytesRead] = '\0';
             _body += buffer;
-            remainingBytes -= bytesRead;
-        } else if (bytesRead == 0) {
-            throw ParsingErrorException(INTERRUPT, "Client closed the connection during body read.");
-        } else if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            // Non-blocking read might return this if no data is available
-            continue;
-        } else {
-            throw ParsingErrorException(INTERRUPT, "Error occurred while reading the body.");
         }
+        delete[] buffer;
     }
 
     std::cout << "Total body length: " << _body.length() << std::endl;
 }
-
 
 std::string Request::getMethod() const {
     return _method;
