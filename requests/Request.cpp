@@ -33,11 +33,10 @@ bool Request::parse() {
                 break;
             }
         } else if (bytesRead == 0) {
-            // Connection closed by client
-            return false;
+            throw ParsingErrorException(INTERRUPT, "unexpected connection interrupt");
         } else {
-            // Error or would block, try again
-            continue;
+            throw ParsingErrorException(INTERRUPT, "unexpected socket close");
+            continue; // why would you want to continue here? == if (bytesRead < 1)
         }
     }
 
@@ -60,8 +59,12 @@ bool Request::parse() {
     std::map<std::string, std::string>::const_iterator it = _headers.find("Content-Length");
     if (it != _headers.end()) {
         int contentLength = atoi(it->second.c_str());
+		if (contentLength > CLIENT_MAX_BODY_SIZE)
+			throw ParsingErrorException(CONTENT_LENGTH, "content length is above limit");
         std::string initialBodyData = request.substr(headerEnd + 4); // +4 to skip "\r\n\r\n"
         _readBody(contentLength, initialBodyData); // works incorect with some types of data in body
+    } else {
+        /* Chunked data recieved with no Content-lenght */
     }
 
     return true;
@@ -147,4 +150,14 @@ std::ostream& operator<<(std::ostream& os, const Request& request) {
 	}
     os << "Body: " << request.getBody() << std::endl;
     return os;
+}
+
+Request::ParsingErrorException::ParsingErrorException(ErrorType type, const char *error_msg) {
+	_type = type;
+    strncpy(_error, "Request parsing exception: ", 27);
+	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
+}
+
+const char *Request::ParsingErrorException::what() const throw() {
+	return _error;
 }

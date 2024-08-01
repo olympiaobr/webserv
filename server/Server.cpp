@@ -232,7 +232,7 @@ const char *Server::PollingErrorException::what() const throw() {
 }
 
 Server::InitialisationException::InitialisationException(const char *error_msg) {
-	strncpy(_error, "Pooling error: ", 15);
+	strncpy(_error, "Initialisation error: ", 22);
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
@@ -241,7 +241,7 @@ const char *Server::InitialisationException::what() const throw() {
 }
 
 Server::ListenErrorException::ListenErrorException(const char *error_msg) {
-	strncpy(_error, "Pooling error: ", 15);
+	strncpy(_error, "Start listening error: ", 23);
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
