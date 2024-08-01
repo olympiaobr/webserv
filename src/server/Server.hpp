@@ -15,7 +15,7 @@
 # include "../configuration/Config.hpp"
 // #include "../responses/Response.hpp"
 
-# include "../debug.hpp"
+# include "../include/debug.hpp"
 
 
 typedef std::vector<std::string> HostList;
