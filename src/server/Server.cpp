@@ -94,45 +94,25 @@ void Server::pollLoop() {
 				addPollfd(new_client_socket, POLLIN);
 				std::cout << "New connection established on fd: " << client_socket << std::endl;
 			} else {										//if it is existing connection
+				/* Request */
 				Request req(client_socket);
 				try {
 					req.parse();
 				} catch (Request::SocketCloseException &e) {
+					/* If socket closed by client we erase socket from polling list */
 					std::cout << e.what() << std::endl;
 					_fds.erase(_fds.begin() + i);
 					continue ;
 				}
-				std::cout << req << std::endl;
-				if (Server::chunkHandler(req, client_socket)) {
-					/* Tell Response that all chunks recieved */
-					//temporary code ddavlety 01.08
-					Response res(req);
-					const char* response = res.toCString();
-					std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
-					send(client_socket, response, strlen(response), 0);
-					//temporary code ddavlety 01.08
-
-					/* Are we closing connection or wait? Need to be tested further */
-					// close(client_socket);				//Should be closed only after xx sec according to config file;
-					// _fds.erase(_fds.begin() + i);
-				} else {
-					/* Tell Response that recent chunk rexieved */
-
-					//temporary code ddavlety 01.08
-					Response res(req);
-					const char* response = res.toCString();
-					std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
-					send(client_socket, response, strlen(response), 0);
-					//temporary code ddavlety 01.08
-				}
-				// Server::chunkHandler(req, client_socket);
-				/* Response is generated only if all all chunks recieved */
-				// Response res(req);
-				// const char* response = res.toCString();
-				// std::cout << "Response sent:" << std::endl << response << std::endl;
-				// send(client_socket, response, strlen(response), 0);
-				// close(client_socket);						//Should be closed only after xx sec according to config file;
-				// _fds.erase(_fds.begin() + i);
+				/* Debug print */
+				std::cout << YELLOW << req << RESET << std::endl;
+				/* Chunk handling */
+				Server::chunkHandler(req, client_socket);
+				/* Response */
+				Response res(req);
+				const char* response = res.toCString();
+				std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
+				send(client_socket, response, strlen(response), 0);
 			}
 		}
 	}

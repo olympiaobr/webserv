@@ -172,7 +172,7 @@ std::string Request::getBody() const {
 }
 
 std::ostream& operator<<(std::ostream& os, const Request& request) {
-    os << YELLOW << "HTTP Request Details:" << std::endl;
+    os << "HTTP Request Details:" << std::endl;
     os << "Socket file descriptor: " << request._clientSocket << std::endl;
     os << "Method: " << request.getMethod() << std::endl;
     os << "URI: " << request.getUri() << std::endl;
@@ -185,7 +185,7 @@ std::ostream& operator<<(std::ostream& os, const Request& request) {
 	for (it = headers.begin(); it != headers.end(); ++it) {
 		os << " " << it->first << ": " << it->second << std::endl;
 	}
-    os << "Body: " << request.getBody() << RESET << std::endl;
+    os << "Body: " << request.getBody() << std::endl;
     return os;
 }
 
