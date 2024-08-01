@@ -4,7 +4,7 @@
 
 Response::Response() : _httpVersion("HTTP/1.1"), _statusCode(200), _statusMessage("OK") {}
 
-Response::Response(const Request& req) {
+Response::Response(const Request& req) : _httpVersion("HTTP/1.1") {
     if (req.getMethod() == "GET") {
         handleGetRequest(req);
     } else if (req.getMethod() == "POST") {
@@ -33,14 +33,12 @@ void Response::handleGetRequest(const Request& req) {
 }
 
 void Response::handlePostRequest(const Request& req) {
-    // This is a simple example. In a real-world scenario, you'd want to process the POST data.
     setStatus(200, "OK");
     setBody("POST request received for URI: " + req.getUri() + "\nBody: " + req.getBody());
     addHeader("Content-Type", "text/plain");
 }
 
 void Response::handleDeleteRequest(const Request& req) {
-    // This is a simple example. In a real-world scenario, you'd want to actually delete a resource.
     setStatus(200, "OK");
     setBody("DELETE request received for URI: " + req.getUri());
     addHeader("Content-Type", "text/plain");
@@ -73,8 +71,8 @@ std::string Response::toString() const {
 }
 
 const char* Response::toCString() {
-    const std::string& responseString = toString();
-    return responseString.c_str();
+    _responseString = toString();
+    return _responseString.c_str();
 }
 
 std::string Response::readFile(const std::string& filename) {
