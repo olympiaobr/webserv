@@ -3,7 +3,8 @@ CPPFLAGS := -Wall -Wextra -Werror -std=c++98 -g
 TARGET := ./webserv
 INCLUDES :=	-I./src/server \
  			-I./src/responses \
- 			-I./src/requests
+ 			-I./src/requests \
+			-I./src/configuration 
 RM := rm -rf
 SRC_DIR := src/
 OBJ_DIR := obj/
