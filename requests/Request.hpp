@@ -8,6 +8,7 @@
 # include "../debug.hpp"
 
 # define CLIENT_MAX_BODY_SIZE 10000000 // temp
+# define BUFFER_SIZE 1024
 
 class Request {
 private:
@@ -26,7 +27,7 @@ public:
 	Request(int clientSocket);
 	~Request();
 
-	bool parse();
+	void parse();
 
 	std::string getMethod() const;
 	std::string getUri() const;
