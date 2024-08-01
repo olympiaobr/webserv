@@ -102,7 +102,7 @@ void Server::pollLoop() {
 				if (Server::chunkHandler(req, client_socket)) {
 					/* Tell Response that all chunks recieved */
 					//temporary code ddavlety 01.08
-					Response res(req);
+					Response res(req, _config);
 					const char* response = res.toCString();
 					std::cout << "Response sent:" << std::endl << response << std::endl;
 					send(client_socket, response, strlen(response), 0);
@@ -115,7 +115,7 @@ void Server::pollLoop() {
 					/* Tell Response that recent chunk rexieved */
 
 					//temporary code ddavlety 01.08
-					Response res(req);
+					Response res(req, _config);
 					const char* response = res.toCString();
 					std::cout << "Response sent:" << std::endl << response << std::endl;
 					send(client_socket, response, strlen(response), 0);

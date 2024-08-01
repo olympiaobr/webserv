@@ -4,9 +4,9 @@
 
 Response::Response() : _httpVersion("HTTP/1.1"), _statusCode(200), _statusMessage("OK") {}
 
-Response::Response(const Request& req) : _httpVersion("HTTP/1.1") {
+Response::Response(const Request& req, const ServerConfig& config) : _httpVersion("HTTP/1.1") {
     if (req.getMethod() == "GET") {
-        handleGetRequest(req);
+        handleGetRequest(req, config);
     } else if (req.getMethod() == "POST") {
         handlePostRequest(req);
     } else if (req.getMethod() == "DELETE") {
@@ -17,28 +17,23 @@ Response::Response(const Request& req) : _httpVersion("HTTP/1.1") {
     }
 }
 
-void Response::handleGetRequest(const Request& req) {
-    std::string basePath = "./src/web";
-    std::string requestedPath = req.getUri();
+void Response::handleGetRequest(const Request& req, const ServerConfig& config) {
+    std::string filename = config.root + req.getUri();
+    if (filename == config.root + "/")
+		filename = config.root + "/index.html";
 
-    if (requestedPath == "/" || requestedPath.empty()) {
-        requestedPath += "index.html";
-    }
+	std::cout << "Filename: " << filename << std::endl;
 
-    std::string fullPath = basePath + (requestedPath[0] == '/' ? "" : "/") + requestedPath;
-
-    std::ifstream file(fullPath.c_str());
-    if (!file) {
+    std::string content = readFile(filename);
+    if (content.empty()) {
         setStatus(404, "Not Found");
         setBody("404 - Page not found");
     } else {
-        std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         setStatus(200, "OK");
         setBody(content);
-        addHeader("Content-Type", getMimeType(fullPath));
+        addHeader("Content-Type", getMimeType(filename));
     }
 }
-
 
 void Response::handlePostRequest(const Request& req) {
     setStatus(200, "OK");
@@ -96,11 +91,12 @@ std::string Response::getMimeType(const std::string& filename) {
     if (filename.find(".html") != std::string::npos) return "text/html";
     if (filename.find(".css") != std::string::npos) return "text/css";
     if (filename.find(".js") != std::string::npos) return "application/javascript";
+    if (filename.find(".ico") != std::string::npos) return "image/x-icon";
     return "text/plain";
 }
 
 std::string Response::toString(size_t num) const {
-    std::ostringstream oss;
+    std::ostringstream oss;	
     oss << num;
     return oss.str();
 }
