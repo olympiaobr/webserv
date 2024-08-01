@@ -11,8 +11,8 @@ Request::Request(int clientSocket) : _clientSocket(clientSocket) {}
 
 Request::~Request() {}
 
-bool Request::parse() {
-    char buffer[1024];
+void Request::parse() {
+    char buffer[BUFFER_SIZE];
     std::string request;
     int bytesRead;
     bool headersComplete = false;
@@ -42,7 +42,7 @@ bool Request::parse() {
 
     if (!headersComplete) {
         std::cerr << "Incomplete headers" << std::endl;
-        return false;
+        return ;
     }
 
     // Parse headers
@@ -62,12 +62,11 @@ bool Request::parse() {
 		if (contentLength > CLIENT_MAX_BODY_SIZE)
 			throw ParsingErrorException(CONTENT_LENGTH, "content length is above limit");
         std::string initialBodyData = request.substr(headerEnd + 4); // +4 to skip "\r\n\r\n"
+
         _readBody(contentLength, initialBodyData); // works incorect with some types of data in body
     } else {
         /* Chunked data recieved with no Content-lenght */
     }
-
-    return true;
 }
 
 void Request::_parseRequestLine(const std::string& line) {
@@ -161,6 +160,7 @@ std::ostream& operator<<(std::ostream& os, const Request& request) {
 Request::ParsingErrorException::ParsingErrorException(ErrorType type, const char *error_msg) {
 	_type = type;
     strncpy(_error, "Request parsing exception: ", 27);
+    _error[sizeof(_error) - 1] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 

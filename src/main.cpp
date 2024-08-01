@@ -11,7 +11,6 @@
 #include <unistd.h>
 #include <vector>
 
-#define BUFFER_SIZE 1024
 #define MAX_CONNECTIONS 100
 #define BACKLOG 3
 

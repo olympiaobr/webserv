@@ -18,19 +18,27 @@ Response::Response(const Request& req) : _httpVersion("HTTP/1.1") {
 }
 
 void Response::handleGetRequest(const Request& req) {
-    std::string filename = "." + req.getUri();
-    if (filename == "./") filename = "./index.html";
+    std::string basePath = "./src/web";
+    std::string requestedPath = req.getUri();
 
-    std::string content = readFile(filename);
-    if (content.empty()) {
+    if (requestedPath == "/" || requestedPath.empty()) {
+        requestedPath += "index.html";
+    }
+
+    std::string fullPath = basePath + (requestedPath[0] == '/' ? "" : "/") + requestedPath;
+
+    std::ifstream file(fullPath.c_str());
+    if (!file) {
         setStatus(404, "Not Found");
         setBody("404 - Page not found");
     } else {
+        std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         setStatus(200, "OK");
         setBody(content);
-        addHeader("Content-Type", getMimeType(filename));
+        addHeader("Content-Type", getMimeType(fullPath));
     }
 }
+
 
 void Response::handlePostRequest(const Request& req) {
     setStatus(200, "OK");

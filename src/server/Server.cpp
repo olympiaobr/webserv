@@ -70,7 +70,7 @@ size_t Server::getSocketsSize() const {
 
 /*
 *	Loop through fds to check if the event happend.
-*	If event happend it revents is set accordingly.
+*	If event happend its revents is set accordingly.
 *	From poll mannual:
 *		struct pollfd {
 *		int    fd;        file descriptor
@@ -97,14 +97,38 @@ void Server::pollLoop() {
 			} else {										//if it is existing connection
 				Request req(client_socket);
 				req.parse();
+
 				std::cout << "Request parsed:\n\n" << req << std::endl;
-				Server::chunkHandler(req, client_socket);
-				Response res(req);
-				const char* response = res.toCString();
-				std::cout << "Response sent:" << std::endl << response << std::endl;
-				send(client_socket, response, strlen(response), 0);
-				close(client_socket);						//Should be closed only after xx sec according to config file;
-				_fds.erase(_fds.begin() + i);
+				if (Server::chunkHandler(req, client_socket)) {
+					/* Tell Response that all chunks recieved */
+					//temporary code ddavlety 01.08
+					Response res(req);
+					const char* response = res.toCString();
+					std::cout << "Response sent:" << std::endl << response << std::endl;
+					send(client_socket, response, strlen(response), 0);
+					//temporary code ddavlety 01.08
+
+					/* Are we closing connection or wait? Need to be tested further */
+					close(client_socket);						//Should be closed only after xx sec according to config file;
+					_fds.erase(_fds.begin() + i);
+				} else {
+					/* Tell Response that recent chunk rexieved */
+
+					//temporary code ddavlety 01.08
+					Response res(req);
+					const char* response = res.toCString();
+					std::cout << "Response sent:" << std::endl << response << std::endl;
+					send(client_socket, response, strlen(response), 0);
+					//temporary code ddavlety 01.08
+				}
+				// Server::chunkHandler(req, client_socket);
+				/* Response is generated only if all all chunks recieved */
+				// Response res(req);
+				// const char* response = res.toCString();
+				// std::cout << "Response sent:" << std::endl << response << std::endl;
+				// send(client_socket, response, strlen(response), 0);
+				// close(client_socket);						//Should be closed only after xx sec according to config file;
+				// _fds.erase(_fds.begin() + i);
 			}
 		}
 	}
@@ -159,7 +183,7 @@ const std::vector<pollfd> &Server::getSockets() const
 	return _fds;
 }
 
-void Server::chunkHandler(Request req, int client_socket)
+bool Server::chunkHandler(Request req, int client_socket)
 {
 	//to-do
 	if (req.getHeader("Transfer-Encoding") == "chunked") {
@@ -188,6 +212,11 @@ void Server::chunkHandler(Request req, int client_socket)
 			ss << std::hex << data;
 			ss >> len;
 			ss.clear();
+			/* If end of chunks (close socket) */
+			if (len == 0) {
+				close(file_fd);
+				return true;
+			}
 			/* Get data */
 			data = tmp;
 			size_t end_data = data.find("\r\n", end + 1);
@@ -200,12 +229,16 @@ void Server::chunkHandler(Request req, int client_socket)
 			data = tmp.substr(end_data);
 		}
 		close(file_fd);
+	} else {
+		/* If it not chunked request (close socket) */
+		return true;
 	}
+	return false;
 }
 
 void Server::RUN(std::vector<Server> servers) {
 	for (size_t i = 0; i < servers.size(); ++i) {
-		servers[i].listenPort(3);
+		servers[i].listenPort(BACKLOG);
 		std::cout << "Server 1 is listening on port "
 			<< servers[i].getPort() << std::endl;
 	}
@@ -222,6 +255,7 @@ void Server::RUN(std::vector<Server> servers) {
 
 Server::PollingErrorException::PollingErrorException(const char *error_msg) {
 	strncpy(_error, "Pooling error: ", 15);
+	_error[sizeof(_error) - 1] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
@@ -230,7 +264,8 @@ const char *Server::PollingErrorException::what() const throw() {
 }
 
 Server::InitialisationException::InitialisationException(const char *error_msg) {
-	strncpy(_error, "Initialisation error: ", 22);
+	strncpy(_error, "Pooling error: ", 15);
+		_error[sizeof(_error) - 1] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
@@ -239,7 +274,8 @@ const char *Server::InitialisationException::what() const throw() {
 }
 
 Server::ListenErrorException::ListenErrorException(const char *error_msg) {
-	strncpy(_error, "Start listening error: ", 23);
+	strncpy(_error, "Pooling error: ", 15);
+	 _error[sizeof(_error) - 1] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
@@ -249,6 +285,7 @@ const char *Server::ListenErrorException::what() const throw() {
 
 Server::RuntimeErrorException::RuntimeErrorException(const char *error_msg) {
 	strncpy(_error, "Runtime error: ", 15);
+	_error[sizeof(_error) - 1] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
