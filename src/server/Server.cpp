@@ -265,7 +265,7 @@ const char *Server::PollingErrorException::what() const throw() {
 
 Server::InitialisationException::InitialisationException(const char *error_msg) {
 	strncpy(_error, "Pooling error: ", 15);
-		_error[sizeof(_error) - 1] = '\0';
+	_error[sizeof(_error) - 1] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 

@@ -1,7 +1,7 @@
 #include "Response.hpp"
 #include <fstream>
 #include <sstream>
- 
+
 Response::Response() : _httpVersion("HTTP/1.1"), _statusCode(200), _statusMessage("OK") {}
 
 Response::Response(const Request& req, const ServerConfig& config) : _httpVersion("HTTP/1.1") {
@@ -34,6 +34,7 @@ void Response::handleGetRequest(const Request& req, const ServerConfig& config) 
         addHeader("Content-Type", getMimeType(filename));
     }
 }
+
 
 void Response::handlePostRequest(const Request& req) {
     setStatus(200, "OK");
@@ -96,7 +97,7 @@ std::string Response::getMimeType(const std::string& filename) {
 }
 
 std::string Response::toString(size_t num) const {
-    std::ostringstream oss;	
+    std::ostringstream oss;
     oss << num;
     return oss.str();
 }

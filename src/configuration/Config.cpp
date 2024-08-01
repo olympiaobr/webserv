@@ -18,16 +18,25 @@ Config& Config::operator=(const Config& other) {
     return *this;
 }
 
-void Config::parseServerConfig(ServerConfig& config, const std::string& line) {
+void Config::parseServerConfig(ServerConfig& config, const std::string& line)
+{
     std::istringstream iss(line);
 
     std::string key;
     iss >> key;
     std::string value;
     getline(iss, value);
-    value.erase(0, value.find_first_not_of(" \t"));
 
+    size_t start = value.find_first_not_of(" \t");
+    if (start != std::string::npos) {
+        value.erase(0, start);
+    }
+    size_t end = value.find_last_not_of(" \t;");
+    if (end != std::string::npos) {
+        value.erase(end + 1, value.length() - end);
+    }
     std::cout << "Parsing server config: " << key << " = " << value << std::endl;
+
     if (key == "host" || key == "server_name") {
         config.hostnames.push_back(value);
     }
