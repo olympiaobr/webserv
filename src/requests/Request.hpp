@@ -5,7 +5,7 @@
 # include <map>
 # include <iostream>
 
-# include "../debug.hpp"
+# include "../include/debug.hpp"
 
 # define CLIENT_MAX_BODY_SIZE 10000000 // temp
 
