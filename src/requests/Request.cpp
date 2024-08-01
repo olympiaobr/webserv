@@ -35,8 +35,7 @@ void Request::parse() {
         } else if (bytesRead == 0) {
             throw ParsingErrorException(INTERRUPT, "unexpected connection interrupt");
         } else {
-            throw ParsingErrorException(INTERRUPT, "unexpected socket close");
-            continue; // why would you want to continue here? == if (bytesRead < 1)
+            throw ParsingErrorException(INTERRUPT, strerror(errno));
         }
     }
 
@@ -56,16 +55,17 @@ void Request::parse() {
     }
 
     // Handle body
-    std::map<std::string, std::string>::const_iterator it = _headers.find("Content-Length");
-    if (it != _headers.end()) {
-        int contentLength = atoi(it->second.c_str());
+    std::string content_length = getHeader("Content-Length");
+    std::string initialBodyData = request.substr(headerEnd + 4);
+    if (content_length != "" && getHeader("Transfer-Encoding") != "chunked") {
+        int contentLength = atoi(content_length.c_str());
 		if (contentLength > CLIENT_MAX_BODY_SIZE)
 			throw ParsingErrorException(CONTENT_LENGTH, "content length is above limit");
         std::string initialBodyData = request.substr(headerEnd + 4); // +4 to skip "\r\n\r\n"
-
         _readBody(contentLength, initialBodyData); // works incorect with some types of data in body
     } else {
         /* Chunked data recieved with no Content-lenght */
+        _readBodyChunked(initialBodyData);
     }
 }
 
@@ -93,7 +93,7 @@ void Request::_readBody(int contentLength, const std::string& initialData) {
     int remainingBytes = contentLength - initialData.length();
 
     if (remainingBytes > 0) {
-        char* buffer = new char[remainingBytes + 1];
+        char *buffer = new char[remainingBytes + 1];
         int bytesRead = recv(_clientSocket, buffer, remainingBytes, 0);
         std::cout << "Additional body bytes read: " << bytesRead << std::endl;
         if (bytesRead > 0) {
@@ -104,6 +104,34 @@ void Request::_readBody(int contentLength, const std::string& initialData) {
     }
 
     std::cout << "Total body length: " << _body.length() << std::endl;
+}
+
+void Request::_readBodyChunked(const std::string& initialData) {
+    int bytesRead;
+    char buffer[BUFFER_SIZE + 1];
+
+    _body += initialData;
+    bzero(buffer, BUFFER_SIZE + 1);
+    bytesRead = recv(_clientSocket, buffer, BUFFER_SIZE, 0);
+    while (bytesRead > 0) {
+        _body += buffer;
+        bzero(buffer, BUFFER_SIZE + 1);
+        bytesRead = recv(_clientSocket, buffer, BUFFER_SIZE, 0);
+        if (bytesRead == 0) {
+            throw ParsingErrorException(INTERRUPT, "unexpected connection interrupt");
+        } else if (bytesRead < 0) {
+            break;
+        }
+        std::cout << "Additional body bytes read: " << bytesRead << std::endl;
+        std::cout << _body.size() << std::endl;
+        if (_body.size() > CLIENT_MAX_BODY_SIZE)
+            throw ParsingErrorException(CONTENT_LENGTH, "body is too big");
+    }
+    std::cout << "Total body length: " << _body.length() << std::endl;
+}
+
+void Request::addHeader(const std::string& key, const std::string& value) {
+    _headers[key] = value;
 }
 
 std::string Request::getMethod() const {

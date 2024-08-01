@@ -22,6 +22,7 @@ private:
 	void _parseRequestLine(const std::string& line);
 	void _parseHeader(const std::string& line);
 	void _readBody(int contentLength, const std::string& initialData);
+	void _readBodyChunked(const std::string& initialData);
 
 public:
 	Request(int clientSocket);
@@ -35,6 +36,8 @@ public:
 	std::string getHeader(const std::string& key) const;
 	const std::map<std::string, std::string>& getHeaders() const;
 	std::string getBody() const;
+
+	void addHeader(const std::string& key, const std::string& value);
 
 	friend std::ostream& operator<<(std::ostream& os, const Request& request);
 
