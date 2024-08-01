@@ -82,9 +82,15 @@ void Request::_parseHeader(const std::string& line) {
         std::string value = line.substr(colonPos + 1);
         size_t first = value.find_first_not_of(" \t");
         size_t last = value.find_last_not_of(" \t\r\n");
+
         if (first != std::string::npos && last != std::string::npos) {
             value = value.substr(first, last - first + 1);
         }
+
+		for (size_t i = 0; i < key.length(); ++i) {
+            key[i] = tolower(key[i]);
+        }
+
         _headers[key] = value;
     }
 }
