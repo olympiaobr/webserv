@@ -1,7 +1,7 @@
 #include "Response.hpp"
 #include <fstream>
 #include <sstream>
-
+ 
 Response::Response() : _httpVersion("HTTP/1.1"), _statusCode(200), _statusMessage("OK") {}
 
 Response::Response(const Request& req) : _httpVersion("HTTP/1.1") {
