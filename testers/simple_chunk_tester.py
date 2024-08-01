@@ -6,8 +6,8 @@ conn = http.client.HTTPConnection('localhost', 8080)
 
 # Define chunks
 chunks = [
-    b'4\r\nwiki\r\n',
-    b'6\r\nwikipedia\r\n',
+    b'6\r\nchunk1 \r\n',
+    b'6\r\nchunk2 skipped_data\r\n',
     b'0\r\n\r\n'
 ]
 
@@ -19,7 +19,6 @@ conn.request(
     headers={
         'Transfer-Encoding': 'chunked',
         'Content-Type': 'application/octet-stream',
-		'Content-Length': '9',
     }
 )
 response1 = conn.getresponse()
@@ -37,7 +36,6 @@ conn.request(
     headers={
         'Transfer-Encoding': 'chunked',
         'Content-Type': 'application/octet-stream',
-		'Content-Length': '19',
     }
 )
 response2 = conn.getresponse()
@@ -57,7 +55,7 @@ conn.request(
     body= lorem,
     headers={
         'Transfer-Encoding': 'chunked',
-        'Content-Type': 'application/octet-stream'
+        'Content-Type': 'application/octet-stream',
     }
 )
 

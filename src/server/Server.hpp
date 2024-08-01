@@ -74,7 +74,7 @@ class Server
 		const std::vector<pollfd>	&getSockets() const;
 
 		/* Server routines */
-		static bool chunkHandler(Request req, int client_socket);
+		static bool chunkHandler(Request &req, int client_socket);
 
 		/* Start all servers */
 		static void RUN(std::vector<Server>);

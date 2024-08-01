@@ -1,5 +1,5 @@
 CC := c++
-CPPFLAGS := -Wall -Wextra -Werror -std=c++98 -g
+CPPFLAGS := -Wall -Wextra -Werror -std=c++98 -g -fsanitize=address
 TARGET := ./webserv
 INCLUDES :=	-I./src/server \
  			-I./src/responses \
@@ -11,7 +11,8 @@ SOURCE :=	main.cpp \
  			server/Server.cpp \
  			responses/Response.cpp \
  			requests/Request.cpp \
- 			configuration/Config.cpp
+ 			configuration/Config.cpp \
+			utilities/Utils.cpp
 
 SRC := $(addprefix $(SRC_DIR), $(SOURCE))
 OBJ := $(addprefix $(OBJ_DIR), $(SOURCE:.cpp=.o))
@@ -30,6 +31,7 @@ clean:
 
 fclean: clean
 	$(RM) $(TARGET)
+	$(RM) $(wildcard *.chunk)
 
 re: fclean all
 

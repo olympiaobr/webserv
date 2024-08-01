@@ -33,7 +33,7 @@ void Request::parse() {
                 break;
             }
         } else if (bytesRead == 0) {
-            throw ParsingErrorException(INTERRUPT, "unexpected connection interrupt");
+            throw SocketCloseException("connection closed by client");
         } else {
             throw ParsingErrorException(INTERRUPT, strerror(errno));
         }
@@ -172,7 +172,8 @@ std::string Request::getBody() const {
 }
 
 std::ostream& operator<<(std::ostream& os, const Request& request) {
-    os << "HTTP Request Details:" << std::endl;
+    os << YELLOW << "HTTP Request Details:" << std::endl;
+    os << "Socket file descriptor: " << request._clientSocket << std::endl;
     os << "Method: " << request.getMethod() << std::endl;
     os << "URI: " << request.getUri() << std::endl;
     os << "HTTP Version: " << request.getHttpVersion() << std::endl;
@@ -184,16 +185,25 @@ std::ostream& operator<<(std::ostream& os, const Request& request) {
 	for (it = headers.begin(); it != headers.end(); ++it) {
 		os << " " << it->first << ": " << it->second << std::endl;
 	}
-    os << "Body: " << request.getBody() << std::endl;
+    os << "Body: " << request.getBody() << RESET << std::endl;
     return os;
 }
 
 Request::ParsingErrorException::ParsingErrorException(ErrorType type, const char *error_msg) {
-	_type = type;
-    strncpy(_error, "Request parsing exception: ", 27);
+	this->type = type;
+    strncpy(_error, "Request parsing error: ", 27);
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
 const char *Request::ParsingErrorException::what() const throw() {
 	return _error;
+}
+
+Request::SocketCloseException::SocketCloseException(const char *error_msg) {
+    strncpy(_error, "Socket closed: ", 27);
+    strncat(_error, error_msg, 256 - strlen(_error) - 1);;
+}
+
+const char *Request::SocketCloseException::what() const throw() {
+    return _error;
 }

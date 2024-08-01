@@ -87,37 +87,41 @@ void Server::pollLoop() {
 		if (_fds[i].revents & POLLIN) {
 			int client_socket = _fds[i].fd;
 			if (client_socket == _main_socketfd) {			//if it is new connection
-				int client_socket = accept(_main_socketfd, (struct sockaddr *)&_address, (socklen_t*)&_address_len);
-				if (client_socket < 0) {
-						close(_main_socketfd);
+				int new_client_socket = accept(_main_socketfd, (struct sockaddr *)&_address, (socklen_t*)&_address_len);
+				if (new_client_socket < 0) {
 						throw PollingErrorException(strerror(errno));
 					}
-				addPollfd(client_socket, POLLIN);
+				addPollfd(new_client_socket, POLLIN);
 				std::cout << "New connection established on fd: " << client_socket << std::endl;
 			} else {										//if it is existing connection
 				Request req(client_socket);
-				req.parse();
-
-				std::cout << "Request parsed:\n\n" << req << std::endl;
+				try {
+					req.parse();
+				} catch (Request::SocketCloseException &e) {
+					std::cout << e.what() << std::endl;
+					_fds.erase(_fds.begin() + i);
+					continue ;
+				}
+				std::cout << req << std::endl;
 				if (Server::chunkHandler(req, client_socket)) {
 					/* Tell Response that all chunks recieved */
 					//temporary code ddavlety 01.08
 					Response res(req);
 					const char* response = res.toCString();
-					std::cout << "Response sent:" << std::endl << response << std::endl;
+					std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
 					send(client_socket, response, strlen(response), 0);
 					//temporary code ddavlety 01.08
 
 					/* Are we closing connection or wait? Need to be tested further */
-					close(client_socket);						//Should be closed only after xx sec according to config file;
-					_fds.erase(_fds.begin() + i);
+					// close(client_socket);				//Should be closed only after xx sec according to config file;
+					// _fds.erase(_fds.begin() + i);
 				} else {
 					/* Tell Response that recent chunk rexieved */
 
 					//temporary code ddavlety 01.08
 					Response res(req);
 					const char* response = res.toCString();
-					std::cout << "Response sent:" << std::endl << response << std::endl;
+					std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
 					send(client_socket, response, strlen(response), 0);
 					//temporary code ddavlety 01.08
 				}
@@ -163,29 +167,23 @@ void Server::listenPort(int backlog) {
 	}
 }
 
-const HostList &Server::getHostList() const
-{
+const HostList &Server::getHostList() const {
 	return _hosts;
 }
 
-short Server::getPort() const
-{
+short Server::getPort() const {
 	return _port;
 }
 
-int Server::getMainSocketFd() const
-{
+int Server::getMainSocketFd() const {
 	return _main_socketfd;
 }
 
-const std::vector<pollfd> &Server::getSockets() const
-{
+const std::vector<pollfd> &Server::getSockets() const {
 	return _fds;
 }
 
-bool Server::chunkHandler(Request req, int client_socket)
-{
-	//to-do
+bool Server::chunkHandler(Request &req, int client_socket) {
 	if (req.getHeader("Transfer-Encoding") == "chunked") {
 		/* Get data size */
 		std::stringstream ss;

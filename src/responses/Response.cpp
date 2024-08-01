@@ -33,15 +33,9 @@ void Response::handleGetRequest(const Request& req) {
 }
 
 void Response::handlePostRequest(const Request& req) {
-    if (req.getHeader("Transfer-Encoding") == "chunked" &&
-        req.getHeader("Transfer") == "in progress") {
-        setStatus(202, "Accepted");
-        addHeader("Content-Type", "text/plain");
-    } else {
         setStatus(200, "OK");
         setBody("POST request received for URI: " + req.getUri() + "\nBody: " + req.getBody());
         addHeader("Content-Type", "text/plain");
-    }
 }
 
 void Response::handleDeleteRequest(const Request& req) {
