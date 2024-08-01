@@ -204,18 +204,24 @@ void Server::chunkHandler(Request req, int client_socket)
 }
 
 void Server::RUN(std::vector<Server> servers) {
-	for (size_t i = 0; i < servers.size(); ++i) {
-		servers[i].listenPort(3);
-		std::cout << "Server 1 is listening on port "
-			<< servers[i].getPort() << std::endl;
-	}
-	while (true)
-	{
-		for (size_t i = 0; i < servers.size(); ++i) {
-			servers[i].pollfds();
-			servers[i].pollLoop();
-		}
-	}
+    for (size_t i = 0; i < servers.size(); ++i) {
+        servers[i].listenPort(3);
+        std::cout << "Server is listening on port "
+                  << servers[i].getPort() << std::endl;
+    }
+    while (true)
+    {
+        for (size_t i = 0; i < servers.size(); ++i) {
+            try {
+                servers[i].pollfds();
+                servers[i].pollLoop();
+             	} catch (const Request::ParsingErrorException& e) {
+                	std::cerr << "Warning: " << e.what() << std::endl;
+            	} catch (const std::exception& e) {
+                std::cerr << "Unhandled exception: " << e.what() << std::endl;
+            }
+        }
+    }
 }
 
 /*Exceptions*/
@@ -230,7 +236,7 @@ const char *Server::PollingErrorException::what() const throw() {
 }
 
 Server::InitialisationException::InitialisationException(const char *error_msg) {
-	strncpy(_error, "Initialisation error: ", 22);
+	strncpy(_error, "Pooling error: ", 15);
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
@@ -239,7 +245,7 @@ const char *Server::InitialisationException::what() const throw() {
 }
 
 Server::ListenErrorException::ListenErrorException(const char *error_msg) {
-	strncpy(_error, "Start listening error: ", 23);
+	strncpy(_error, "Pooling error: ", 15);
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
