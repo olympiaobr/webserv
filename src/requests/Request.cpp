@@ -154,6 +154,7 @@ std::ostream& operator<<(std::ostream& os, const Request& request) {
 Request::ParsingErrorException::ParsingErrorException(ErrorType type, const char *error_msg) {
 	_type = type;
     strncpy(_error, "Request parsing exception: ", 27);
+    _error[sizeof(_error) - 1] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
