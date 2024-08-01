@@ -84,6 +84,7 @@ void Request::_parseHeader(const std::string& line) {
         if (first != std::string::npos && last != std::string::npos) {
             value = value.substr(first, last - first + 1);
         }
+        key = utils::toLowerCase(key);
         _headers[key] = value;
     }
 }
@@ -131,7 +132,11 @@ void Request::_readBodyChunked(const std::string& initialData) {
 }
 
 void Request::addHeader(const std::string& key, const std::string& value) {
-    _headers[key] = value;
+    std::string lowercase_key;
+
+    lowercase_key = key;
+    lowercase_key = utils::toLowerCase(lowercase_key);
+    _headers[lowercase_key] = value;
 }
 
 std::string Request::getMethod() const {
@@ -147,7 +152,11 @@ std::string Request::getHttpVersion() const {
 }
 
 std::string Request::getHeader(const std::string& key) const {
-    std::map<std::string, std::string>::const_iterator it = _headers.find(key);
+    std::string lowercase_key;
+
+    lowercase_key = key;
+    lowercase_key = utils::toLowerCase(lowercase_key);
+    std::map<std::string, std::string>::const_iterator it = _headers.find(lowercase_key);
     if (it != _headers.end()) {
         return it->second;
     }

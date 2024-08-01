@@ -6,6 +6,7 @@
 # include <iostream>
 
 # include "../include/debug.hpp"
+# include "../utilities/Utils.hpp"
 
 # define CLIENT_MAX_BODY_SIZE 10000000 // temp
 # define BUFFER_SIZE 1024
