@@ -215,6 +215,7 @@ bool Server::chunkHandler(Request req, int client_socket)
 			/* If end of chunks (close socket) */
 			if (len == 0) {
 				close(file_fd);
+				req.addHeader("Transfer", "finished");
 				return true;
 			}
 			/* Get data */
@@ -233,6 +234,7 @@ bool Server::chunkHandler(Request req, int client_socket)
 		/* If it not chunked request (close socket) */
 		return true;
 	}
+	req.addHeader("Transfer", "in progress");
 	return false;
 }
 
