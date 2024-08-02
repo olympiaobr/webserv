@@ -39,3 +39,12 @@ bool utils::deleteFile(const std::string &file_name) {
         return true;
 	return false;
 }
+
+std::string utils::getFileExtension(const std::string &file)
+{
+    std::string extension;
+
+	size_t  i = file.find_last_of('.');
+	extension = file.substr(i + 1);
+	return extension;
+}

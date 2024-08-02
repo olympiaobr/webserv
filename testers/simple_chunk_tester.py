@@ -42,7 +42,7 @@ response2 = conn.getresponse()
 print("Second request:", response2.status, response2.reason)
 print(response2.read().decode())
 
-time.sleep(1)
+# time.sleep(1)
 
 lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc maximus sollicitudin ex, non scelerisque turpis finibus maximus. Donec congue gravida turpis in semper. Mauris suscipit viverra mauris, quis tincidunt elit vestibulum ac. Cras ut semper lacus. Vivamus eget scelerisque libero. Integer gravida libero a feugiat interdum. Maecenas vitae efficitur nulla. Fusce consectetur eros tempus rutrum imperdiet. \
 Suspendisse sit amet ipsum iaculis, lacinia diam nec, facilisis nisl. Donec nec ante quis est fermentum faucibus. Donec vitae est id magna feugiat varius. Cras sed quam ac massa ornare luctus non et quam. Sed sed turpis dictum, consequat leo vitae, convallis mauris. Aliquam pellentesque quis ligula nec mollis. Fusce tellus nibh, euismod in metus ut, rutrum venenatis tellus. Lorem ipsum dolor sit amet, consectetur adipiscing elit. \
