@@ -4,13 +4,19 @@
 #include <sstream>
 #include <iostream>
 
-Response::Response() : _httpVersion("HTTP/1.1"), _statusCode(200), _statusMessage("OK") {
-    initializeHttpErrors();
-}
+Response::Response(const Request& req, const ServerConfig& config)
+	: _httpVersion("HTTP/1.1"), _config(config) {
 
-Response::Response(const Request& req, const ServerConfig& config) : _httpVersion("HTTP/1.1") {
-    initializeHttpErrors();
-    routeRequest(req, config);
+	initializeHttpErrors();
+
+    if (req.getMethod() == "GET")
+        handleGetRequest(req);
+    else if (req.getMethod() == "POST")
+        handlePostRequest(req);
+    else if (req.getMethod() == "DELETE")
+        handleDeleteRequest(req);
+    else
+		_setError(405);
 }
 
 void Response::initializeHttpErrors() {
@@ -30,38 +36,20 @@ void Response::initializeHttpErrors() {
     _httpErrors[505] = "HTTP Version Not Supported";
 }
 
-void Response::routeRequest(const Request& req, const ServerConfig& config){
-    if (req.getMethod() == "GET") {
-        handleGetRequest(req, config);
-    }
-    else if (req.getMethod() == "POST") {
-        handlePostRequest(req);
-    }
-    else if (req.getMethod() == "DELETE") {
-        handleDeleteRequest(req);
-    }
-    else {
-        setStatus(405);
-        setBody("405 - Method Not Allowed");
-    }
-}
-
-void Response::handleGetRequest(const Request& req, const ServerConfig& config) {
-    std::string filename = config.root + req.getUri();
+void Response::handleGetRequest(const Request& req) {
+    std::string filename = _config.root + req.getUri();
 
     if (req.getUri() == "/teapot") {
-        setStatus(418);
-        setBody("418 - I'm a teapot");
+		_setError(418);
         return;
     }
 
-    if (filename == config.root + "/") {
-        filename = config.root + "/index.html";
+    if (filename == _config.root + "/") {
+        filename = _config.root + "/index.html";
     }
     std::string content = readFile(filename);
     if (content.empty()) {
-        setStatus(404);
-        setBody("404 - Page not found");
+		_setError(404);
     } else {
         setStatus(200);
         setBody(content);
@@ -97,6 +85,26 @@ void Response::setStatus(int code) {
 void Response::setBody(const std::string& body) {
     _body = body;
     addHeader("Content-Length", toString(_body.length()));
+}
+
+void Response::_setError(int code) {
+	std::string path;
+	std::map<int, std::string>::const_iterator it = _config.error_pages.find(code);
+
+	if (it != _config.error_pages.end())
+		path = it->second;
+	else
+		throw std::logic_error("Error code not found in configuration");
+	std::string filename = _config.root + path;
+
+    std::string content = readFile(filename);
+    if (content.empty())
+		throw std::logic_error("Error file not found");
+    else {
+        setStatus(code);
+        setBody(content);
+        addHeader("Content-Type", getMimeType(filename));
+    }
 }
 
 void Response::addHeader(const std::string& key, const std::string& value) {
