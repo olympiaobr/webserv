@@ -1,19 +1,17 @@
 #include "Server.hpp"
-#include "../responses/Response.hpp"
-#include "../requests/Request.hpp"
 
 Server::Server() {
 	/* Clean up temp files before server start up */
 	/* If there is already running server behaviour is undefined */
 	DIR* dir = opendir(TEMP_FILES_DIRECTORY);
-	if (dir == nullptr) {
+	if (dir == NULL) {
 		std::string error_msg;
 		error_msg += strerror(errno);
 		error_msg += ": failed to open directory";
 		throw InitialisationException(error_msg.c_str());
 	}
 	struct dirent* entry;
-	while ((entry = readdir(dir)) != nullptr) {
+	while ((entry = readdir(dir)) != NULL) {
 		if (entry->d_type == DT_REG) {
 			std::string filePath = std::string(TEMP_FILES_DIRECTORY) + entry->d_name;
 			/* IMPORTANT! remove function may be not allowed */
@@ -165,7 +163,7 @@ void Server::_bindSocketName() {
 
 std::string Server::_saveFile(const std::string &file_name)
 {
-	std::time_t now = std::time(nullptr);
+	std::time_t now = std::time(0);
 	std::tm* now_tm = std::localtime(&now);
 
 	std::ostringstream oss;
@@ -287,8 +285,8 @@ void Server::RUN(std::vector<Server> servers) {
 /*Exceptions*/
 
 Server::PollingErrorException::PollingErrorException(const char *error_msg) {
-	bzero(_error, 256);
 	strncpy(_error, "Pooling error: ", 15);
+	_error[sizeof(_error) - 1] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
@@ -297,8 +295,8 @@ const char *Server::PollingErrorException::what() const throw() {
 }
 
 Server::InitialisationException::InitialisationException(const char *error_msg) {
-	bzero(_error, 256);
 	strncpy(_error, "Pooling error: ", 15);
+	_error[sizeof(_error) - 1] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
@@ -307,8 +305,8 @@ const char *Server::InitialisationException::what() const throw() {
 }
 
 Server::ListenErrorException::ListenErrorException(const char *error_msg) {
-	bzero(_error, 256);
 	strncpy(_error, "Pooling error: ", 15);
+	_error[sizeof(_error) - 1] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
@@ -317,8 +315,8 @@ const char *Server::ListenErrorException::what() const throw() {
 }
 
 Server::RuntimeErrorException::RuntimeErrorException(const char *error_msg) {
-	bzero(_error, 256);
 	strncpy(_error, "Runtime error: ", 15);
+	_error[sizeof(_error) - 1] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
