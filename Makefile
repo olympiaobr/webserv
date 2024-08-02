@@ -4,7 +4,7 @@ TARGET := ./webserv
 INCLUDES :=	-I./src/server \
  			-I./src/responses \
  			-I./src/requests \
-			-I./src/configuration 
+			-I./src/configuration
 RM := rm -rf
 SRC_DIR := src/
 OBJ_DIR := obj/
@@ -15,10 +15,15 @@ SOURCE :=	main.cpp \
  			configuration/Config.cpp \
 			utilities/Utils.cpp
 
+TMPDIR = tmp
+
 SRC := $(addprefix $(SRC_DIR), $(SOURCE))
 OBJ := $(addprefix $(OBJ_DIR), $(SOURCE:.cpp=.o))
 
-all: $(TARGET)
+all: $(TARGET) $(TMPDIR)
+
+$(TMPDIR):
+	mkdir -p $(TMPDIR)
 
 $(TARGET): $(OBJ)
 	$(CC) $(CPPFLAGS) $(OBJ) -o $(TARGET)
@@ -32,6 +37,7 @@ clean:
 
 fclean: clean
 	$(RM) $(TARGET)
+	$(RM) $(TMPDIR)
 	$(RM) $(wildcard *.chunk)
 
 re: fclean all
