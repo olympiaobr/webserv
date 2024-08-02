@@ -181,6 +181,10 @@ std::string Server::_saveFile(const std::string &file_name)
 	new_file_name += "/";
 	new_file_name += "uploads/";
 	new_file_name += oss.str();
+	new_file_name += "-";
+	oss.clear();
+	oss << rand() % 1000;
+	new_file_name += oss.str();
 	new_file_name += ".file";
 
 	rename(file_name.c_str(), new_file_name.c_str());
