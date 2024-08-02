@@ -6,8 +6,7 @@
 
 Config::Config(const std::string& filename) : _filename(filename) {}
 
-Config::~Config() {
-}
+Config::~Config() {}
 
 Config::Config(const Config& other) : _filename(other._filename), _servers(other._servers) {}
 
@@ -19,16 +18,25 @@ Config& Config::operator=(const Config& other) {
     return *this;
 }
 
-void Config::parseServerConfig(ServerConfig& config, const std::string& line) {
+void Config::parseServerConfig(ServerConfig& config, const std::string& line)
+{
     std::istringstream iss(line);
 
     std::string key;
     iss >> key;
     std::string value;
     getline(iss, value);
-    value.erase(0, value.find_first_not_of(" \t"));
 
-	std::cout << "Parsing server config: " << key << " = " << value << std::endl;
+    size_t start = value.find_first_not_of(" \t");
+    if (start != std::string::npos) {
+        value.erase(0, start);
+    }
+    size_t end = value.find_last_not_of(" \t;");
+    if (end != std::string::npos) {
+        value.erase(end + 1, value.length() - end);
+    }
+    std::cout << "Parsing server config: " << key << " = " << value << std::endl;
+
     if (key == "host" || key == "server_name") {
         config.hostnames.push_back(value);
     }
@@ -38,9 +46,18 @@ void Config::parseServerConfig(ServerConfig& config, const std::string& line) {
     else if (key == "client_max_body_size") {
         config.body_limit = atoi(value.c_str());
     }
+    else if (key.find("error_page") == 0) {
+        std::istringstream errorPageIss(value);
+        int errorCode;
+        std::string errorPagePath;
+        if (errorPageIss >> errorCode >> errorPagePath) {
+            config.error_pages[errorCode] = errorPagePath;
+        }
+    }
 }
 
-void Config::parseRouteConfig(RouteConfig& config, const std::string& line) {
+void Config::parseRouteConfig(RouteConfig& config, const std::string& line)
+{
     std::istringstream iss(line);
 
     std::string key;
@@ -49,10 +66,9 @@ void Config::parseRouteConfig(RouteConfig& config, const std::string& line) {
     getline(iss, value);
     value.erase(0, value.find_first_not_of(" \t"));
 
-	std::cout << "Parsing route config: " << key << " = " << value << std::endl;
+    std::cout << "Parsing route config: " << key << " = " << value << std::endl;
     if (key == "allow_methods") {
         std::istringstream methods(value);
-
         std::string method;
         while (methods >> method) {
             config.allowed_methods.push_back(method);
@@ -60,6 +76,9 @@ void Config::parseRouteConfig(RouteConfig& config, const std::string& line) {
     }
     else if (key == "index") {
         config.default_file = value;
+    }
+    else if (key == "root") {
+        config.root = value;
     }
 }
 
@@ -75,6 +94,7 @@ bool Config::loadConfig() {
     RouteConfig currentRouteConfig;
     bool inServerBlock = false;
     bool inLocationBlock = false;
+    std::string currentLocationPath;
     short currentPort = 0;
 
     while (getline(file, line)) {
@@ -102,12 +122,13 @@ bool Config::loadConfig() {
             }
             inLocationBlock = true;
             currentRouteConfig = RouteConfig();
+            iss >> currentLocationPath;
             continue;
         }
         if (key == "}") {
             if (inLocationBlock) {
                 inLocationBlock = false;
-                currentServerConfig.routes["/"] = currentRouteConfig;
+                currentServerConfig.routes[currentLocationPath] = currentRouteConfig;
             } else if (inServerBlock) {
                 inServerBlock = false;
                 if (currentPort == 0) {
@@ -129,7 +150,7 @@ bool Config::loadConfig() {
         }
     }
     file.close();
-	std::cout << "Final server configurations:\n";
+    std::cout << "Final server configurations:\n";
     for (std::map<short, ServerConfig>::const_iterator it = _servers.begin(); it != _servers.end(); ++it) {
         std::cout << "Port: " << it->first << "\n";
         const ServerConfig& config = it->second;

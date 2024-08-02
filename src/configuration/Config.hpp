@@ -19,7 +19,7 @@ struct			ServerConfig
 {
 	HostList	hostnames;
 	std::string root;
-	std::string error_page_404;
+	std::map<int, std::string> error_pages; 
 	int			body_limit;
 	std::map<std::string, RouteConfig> routes;
 };

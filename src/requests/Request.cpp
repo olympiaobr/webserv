@@ -81,6 +81,7 @@ void Request::_parseHeader(const std::string& line) {
         std::string value = line.substr(colonPos + 1);
         size_t first = value.find_first_not_of(" \t");
         size_t last = value.find_last_not_of(" \t\r\n");
+
         if (first != std::string::npos && last != std::string::npos) {
             value = value.substr(first, last - first + 1);
         }
@@ -191,7 +192,8 @@ std::ostream& operator<<(std::ostream& os, const Request& request) {
 
 Request::ParsingErrorException::ParsingErrorException(ErrorType type, const char *error_msg) {
 	this->type = type;
-    strncpy(_error, "Request parsing error: ", 27);
+    bzero(_error, 256);
+    strncpy(_error, "Request parsing error: ", 24);
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 

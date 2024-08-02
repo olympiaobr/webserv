@@ -109,7 +109,7 @@ void Server::pollLoop() {
 				/* Chunk handling */
 				Server::chunkHandler(req, client_socket);
 				/* Response */
-				Response res(req);
+				Response res(req, _config);
 				const char* response = res.toCString();
 				std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
 				send(client_socket, response, strlen(response), 0);
@@ -234,6 +234,7 @@ void Server::RUN(std::vector<Server> servers) {
 /*Exceptions*/
 
 Server::PollingErrorException::PollingErrorException(const char *error_msg) {
+	bzero(_error, 256);
 	strncpy(_error, "Pooling error: ", 15);
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
@@ -243,7 +244,8 @@ const char *Server::PollingErrorException::what() const throw() {
 }
 
 Server::InitialisationException::InitialisationException(const char *error_msg) {
-	strncpy(_error, "Initialisation error: ", 22);
+	bzero(_error, 256);
+	strncpy(_error, "Pooling error: ", 15);
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
@@ -252,7 +254,8 @@ const char *Server::InitialisationException::what() const throw() {
 }
 
 Server::ListenErrorException::ListenErrorException(const char *error_msg) {
-	strncpy(_error, "Start listening error: ", 23);
+	bzero(_error, 256);
+	strncpy(_error, "Pooling error: ", 15);
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
@@ -261,6 +264,7 @@ const char *Server::ListenErrorException::what() const throw() {
 }
 
 Server::RuntimeErrorException::RuntimeErrorException(const char *error_msg) {
+	bzero(_error, 256);
 	strncpy(_error, "Runtime error: ", 15);
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
