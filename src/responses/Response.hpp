@@ -30,7 +30,6 @@ public:
 
     void initializeHttpErrors();
     void routeRequest(const Request& req, const ServerConfig& config);
-     void setStatus(int code, const std::string& message);
     void setStatus(int code);
     void addHeader(const std::string& key, const std::string& value);
     void setBody(const std::string& body);

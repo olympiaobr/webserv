@@ -1,5 +1,6 @@
 #include "Response.hpp"
 #include <fstream>
+#include <stdexcept>
 #include <sstream>
 #include <iostream>
 
@@ -47,6 +48,13 @@ void Response::routeRequest(const Request& req, const ServerConfig& config){
 
 void Response::handleGetRequest(const Request& req, const ServerConfig& config) {
     std::string filename = config.root + req.getUri();
+
+    if (req.getUri() == "/teapot") {
+        setStatus(418);
+        setBody("418 - I'm a teapot");
+        return;
+    }
+
     if (filename == config.root + "/") {
         filename = config.root + "/index.html";
     }
@@ -76,12 +84,14 @@ void Response::handleDeleteRequest(const Request& req) {
 void Response::setStatus(int code) {
     _statusCode = code;
     std::map<int, std::string>::iterator it = _httpErrors.find(code);
-    _statusMessage = (it != _httpErrors.end()) ? it->second : "Unknown";
-}
-
-void Response::setStatus(int code, const std::string& message) {
-    _statusCode = code;
-    _statusMessage = message;
+    if (it != _httpErrors.end()) {
+        _statusMessage = it->second;
+    }
+    else {
+        std::ostringstream errMsg;
+        errMsg << "Status code " << code << " not found in error map";
+        throw std::runtime_error(errMsg.str());
+    }
 }
 
 void Response::setBody(const std::string& body) {
