@@ -1,7 +1,4 @@
 #include "Server.hpp"
-#include "../responses/Response.hpp"
-#include "../requests/Request.hpp"
-#include <stdlib.h>
 
 Server::Server() {
 	/* Clean up temp files before server start up */

@@ -13,8 +13,10 @@
 # include <sstream>
 # include <dirent.h>
 # include <ctime>
+# include <stdlib.h>
 # include "../requests/Request.hpp"
 # include "../configuration/Config.hpp"
+# include "../responses/Response.hpp"
 // #include "../responses/Response.hpp"
 
 # include "../include/debug.hpp"
