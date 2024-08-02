@@ -54,7 +54,6 @@ conn.request(
     '/',
     body= lorem,
     headers={
-        'Transfer-Encoding': 'chunked',
         'Content-Type': 'application/octet-stream',
     }
 )

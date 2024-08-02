@@ -15,6 +15,7 @@ private:
     std::string _body;
     std::string _responseString;
 	const ServerConfig& _config;
+    std::map<int, std::string> _httpErrors;
 
     std::string readFile(const std::string& filename);
     std::string getMimeType(const std::string& filename);
@@ -28,7 +29,8 @@ private:
 public:
     Response(const Request& req, const ServerConfig& config);
 
-    void setStatus(int code, const std::string& message);
+    void initializeHttpErrors();
+    void setStatus(int code);
     void addHeader(const std::string& key, const std::string& value);
     void setBody(const std::string& body);
     std::string toString() const;

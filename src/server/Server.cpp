@@ -1,8 +1,25 @@
 #include "Server.hpp"
-#include "../responses/Response.hpp"
-#include "../requests/Request.hpp"
 
-Server::Server() {}
+Server::Server() {
+	/* Clean up temp files before server start up */
+	/* If there is already running server behaviour is undefined */
+	DIR* dir = opendir(TEMP_FILES_DIRECTORY);
+	if (dir == NULL) {
+		std::string error_msg;
+		error_msg += strerror(errno);
+		error_msg += ": failed to open directory";
+		throw InitialisationException(error_msg.c_str());
+	}
+	struct dirent* entry;
+	while ((entry = readdir(dir)) != NULL) {
+		if (entry->d_type == DT_REG) {
+			std::string filePath = std::string(TEMP_FILES_DIRECTORY) + entry->d_name;
+			/* IMPORTANT! remove function may be not allowed */
+			remove(filePath.c_str());
+		}
+	}
+	closedir(dir);
+}
 
 Server::Server(const HostList &hosts, short port): _port(port), _hosts(hosts) {
 	_main_socketfd = socket(PF_INET, SOCK_STREAM, 0);
@@ -14,9 +31,9 @@ Server::Server(const HostList &hosts, short port): _port(port), _hosts(hosts) {
 	_address.sin_port = htons(port);
 	_address_len = sizeof(_address);
 	addPollfd(_main_socketfd, POLLIN);
-	setSocketOpt();
-	setSocketNonblock();
-	bindSocketName();
+	_setSocketOpt();
+	_setSocketNonblock();
+	_bindSocketName();
 }
 
 Server::~Server() {
@@ -49,9 +66,9 @@ void Server::initEndpoint(const HostList &hosts, short port, const ServerConfig 
 	_address.sin_port = htons(port);
 	_address_len = sizeof(_address);
 	addPollfd(_main_socketfd, POLLIN);
-	setSocketOpt();
-	setSocketNonblock();
-	bindSocketName();
+	_setSocketOpt();
+	_setSocketNonblock();
+	_bindSocketName();
 }
 
 void Server::pollfds() {
@@ -87,61 +104,48 @@ void Server::pollLoop() {
 		if (_fds[i].revents & POLLIN) {
 			int client_socket = _fds[i].fd;
 			if (client_socket == _main_socketfd) {			//if it is new connection
-				int client_socket = accept(_main_socketfd, (struct sockaddr *)&_address, (socklen_t*)&_address_len);
-				if (client_socket < 0) {
-						close(_main_socketfd);
+				int new_client_socket = accept(_main_socketfd, (struct sockaddr *)&_address, (socklen_t*)&_address_len);
+				if (new_client_socket < 0) {
 						throw PollingErrorException(strerror(errno));
 					}
-				addPollfd(client_socket, POLLIN);
+				addPollfd(new_client_socket, POLLIN);
 				std::cout << "New connection established on fd: " << client_socket << std::endl;
 			} else {										//if it is existing connection
+				/* Request */
 				Request req(client_socket);
-				req.parse();
-
-				std::cout << "Request parsed:\n\n" << req << std::endl;
-				if (Server::chunkHandler(req, client_socket)) {
-					/* Tell Response that all chunks recieved */
-					//temporary code ddavlety 01.08
-					Response res(req, _config);
-					const char* response = res.toCString();
-					std::cout << "Response sent:" << std::endl << response << std::endl;
-					send(client_socket, response, strlen(response), 0);
-					//temporary code ddavlety 01.08
-
-					/* Are we closing connection or wait? Need to be tested further */
-					close(client_socket);						//Should be closed only after xx sec according to config file;
+				try {
+					req.parse();
+				} catch (Request::SocketCloseException &e) {
+					/* If socket closed by client we erase socket from polling list */
+					std::cout << e.what() << std::endl;
+					/* Delete .chunk file if exists */
+					if (utils::checkChunkFileExistance(utils::buildPath(client_socket, TEMP_FILES_DIRECTORY)))
+						utils::deleteFile(utils::buildPath(client_socket, TEMP_FILES_DIRECTORY));
 					_fds.erase(_fds.begin() + i);
-				} else {
-					/* Tell Response that recent chunk rexieved */
-
-					//temporary code ddavlety 01.08
-					Response res(req, _config);
-					const char* response = res.toCString();
-					std::cout << "Response sent:" << std::endl << response << std::endl;
-					send(client_socket, response, strlen(response), 0);
-					//temporary code ddavlety 01.08
+					continue ;
 				}
-				// Server::chunkHandler(req, client_socket);
-				/* Response is generated only if all all chunks recieved */
-				// Response res(req);
-				// const char* response = res.toCString();
-				// std::cout << "Response sent:" << std::endl << response << std::endl;
-				// send(client_socket, response, strlen(response), 0);
-				// close(client_socket);						//Should be closed only after xx sec according to config file;
-				// _fds.erase(_fds.begin() + i);
+				/* Debug print */
+				std::cout << YELLOW << req << RESET << std::endl;
+				/* Chunk handling */
+				chunkHandler(req, client_socket);
+				/* Response */
+				Response res(req, _config);
+				const char* response = res.toCString();
+				std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
+				send(client_socket, response, strlen(response), 0);
 			}
 		}
 	}
 }
 
-void Server::setSocketOpt() {
+void Server::_setSocketOpt() {
 	int opt = 1;
 	if (setsockopt(_main_socketfd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt))) {
 		throw InitialisationException(strerror(errno));
 	}
 }
 
-void Server::setSocketNonblock() {
+void Server::_setSocketNonblock() {
 	int flags = fcntl(_main_socketfd, F_GETFL, 0); //getting current flags
 	if (flags == -1) {
 		throw InitialisationException(strerror(errno));
@@ -151,10 +155,38 @@ void Server::setSocketNonblock() {
 	}
 }
 
-void Server::bindSocketName() {
+void Server::_bindSocketName() {
 	if (bind(_main_socketfd, (struct sockaddr *)&_address, sizeof(_address)) < 0) {
 		throw InitialisationException(strerror(errno));
 	}
+}
+
+std::string Server::_saveFile(const std::string &file_name)
+{
+	std::time_t now = std::time(0);
+	std::tm* now_tm = std::localtime(&now);
+
+	std::ostringstream oss;
+	oss << (now_tm->tm_year + 1900)
+        << (now_tm->tm_mon + 1)
+        << now_tm->tm_mday
+        << now_tm->tm_hour
+        << now_tm->tm_min
+        << now_tm->tm_sec;
+
+	std::string new_file_name;
+	new_file_name += _config.root;
+	new_file_name += "/";
+	new_file_name += "uploads/";
+	new_file_name += oss.str();
+	new_file_name += "-";
+	oss.clear();
+	oss << rand() % 1000;
+	new_file_name += oss.str();
+	new_file_name += ".file";
+
+	rename(file_name.c_str(), new_file_name.c_str());
+	return new_file_name;
 }
 
 void Server::listenPort(int backlog) {
@@ -163,39 +195,36 @@ void Server::listenPort(int backlog) {
 	}
 }
 
-const HostList &Server::getHostList() const
-{
+const HostList &Server::getHostList() const {
 	return _hosts;
 }
 
-short Server::getPort() const
-{
+short Server::getPort() const {
 	return _port;
 }
 
-int Server::getMainSocketFd() const
-{
+int Server::getMainSocketFd() const {
 	return _main_socketfd;
 }
 
-const std::vector<pollfd> &Server::getSockets() const
-{
+const std::vector<pollfd> &Server::getSockets() const {
 	return _fds;
 }
 
-bool Server::chunkHandler(Request req, int client_socket)
-{
-	//to-do
+bool Server::chunkHandler(Request &req, int client_socket) {
 	if (req.getHeader("Transfer-Encoding") == "chunked") {
 		/* Get data size */
 		std::stringstream ss;
 		size_t len;
 		std::string data;
 		std::string file_name;
+		std::string socket_name;
 
+		file_name = TEMP_FILES_DIRECTORY;
 		ss << client_socket;
-		ss >> 	file_name;
+		ss >> socket_name;
 		ss.clear();
+		file_name += socket_name;
 		file_name += ".chunk";
 		if (!access(file_name.c_str(), W_OK | R_OK))
 			std::cout << BLACK << "File exists with permissions" << RESET << std::endl; // file exists, but it is from previous request?
@@ -212,9 +241,11 @@ bool Server::chunkHandler(Request req, int client_socket)
 			ss << std::hex << data;
 			ss >> len;
 			ss.clear();
-			/* If end of chunks (close socket) */
+			/* If end of chunks (save file) */
 			if (len == 0) {
 				close(file_fd);
+				req.addHeader("Transfer", "finished");
+				_saveFile(file_name);
 				return true;
 			}
 			/* Get data */
@@ -230,9 +261,9 @@ bool Server::chunkHandler(Request req, int client_socket)
 		}
 		close(file_fd);
 	} else {
-		/* If it not chunked request (close socket) */
 		return true;
 	}
+	req.addHeader("Transfer", "in progress");
 	return false;
 }
 
@@ -254,8 +285,8 @@ void Server::RUN(std::vector<Server> servers) {
 /*Exceptions*/
 
 Server::PollingErrorException::PollingErrorException(const char *error_msg) {
-	bzero(_error, 256);
 	strncpy(_error, "Pooling error: ", 15);
+	_error[sizeof(_error) - 1] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
@@ -264,8 +295,8 @@ const char *Server::PollingErrorException::what() const throw() {
 }
 
 Server::InitialisationException::InitialisationException(const char *error_msg) {
-	bzero(_error, 256);
 	strncpy(_error, "Pooling error: ", 15);
+	_error[sizeof(_error) - 1] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
@@ -274,8 +305,8 @@ const char *Server::InitialisationException::what() const throw() {
 }
 
 Server::ListenErrorException::ListenErrorException(const char *error_msg) {
-	bzero(_error, 256);
 	strncpy(_error, "Pooling error: ", 15);
+	_error[sizeof(_error) - 1] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
@@ -284,8 +315,8 @@ const char *Server::ListenErrorException::what() const throw() {
 }
 
 Server::RuntimeErrorException::RuntimeErrorException(const char *error_msg) {
-	bzero(_error, 256);
 	strncpy(_error, "Runtime error: ", 15);
+	_error[sizeof(_error) - 1] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 

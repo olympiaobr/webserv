@@ -1,9 +1,13 @@
 #include "Response.hpp"
 #include <fstream>
+#include <stdexcept>
 #include <sstream>
+#include <iostream>
 
 Response::Response(const Request& req, const ServerConfig& config)
 	: _httpVersion("HTTP/1.1"), _config(config) {
+
+	initializeHttpErrors();
 
     if (req.getMethod() == "GET")
         handleGetRequest(req);
@@ -15,42 +19,67 @@ Response::Response(const Request& req, const ServerConfig& config)
 		_setError(405);
 }
 
+void Response::initializeHttpErrors() {
+    _httpErrors[200] = "OK";
+    _httpErrors[201] = "Created";
+    _httpErrors[300] = "Multiple Choices";
+    _httpErrors[403] = "Forbidden";
+    _httpErrors[404] = "Not Found";
+    _httpErrors[405] = "Method Not Allowed";
+    _httpErrors[408] = "Request Timeout";
+    _httpErrors[413] = "Payload Too Large";
+    _httpErrors[414] = "URI Too Long";
+    _httpErrors[418] = "I'm a teapot";
+    _httpErrors[500] = "Internal Server Error";
+    _httpErrors[501] = "Not Implemented";
+    _httpErrors[503] = "Service Unavailable";
+    _httpErrors[505] = "HTTP Version Not Supported";
+}
+
 void Response::handleGetRequest(const Request& req) {
     std::string filename = _config.root + req.getUri();
-    if (filename == _config.root + "/")
-		filename = _config.root + "/index.html";
 
-	std::cout << "Filename: " << filename << std::endl;
+    if (req.getUri() == "/teapot") {
+		_setError(418);
+        return;
+    }
 
+    if (filename == _config.root + "/") {
+        filename = _config.root + "/index.html";
+    }
     std::string content = readFile(filename);
     if (content.empty()) {
 		_setError(404);
     } else {
-        setStatus(200, "OK");
+        setStatus(200);
         setBody(content);
         addHeader("Content-Type", getMimeType(filename));
     }
 }
 
 void Response::handlePostRequest(const Request& req) {
-    setStatus(200, "OK");
+    setStatus(200);
     setBody("POST request received for URI: " + req.getUri() + "\nBody: " + req.getBody());
     addHeader("Content-Type", "text/plain");
 }
 
 void Response::handleDeleteRequest(const Request& req) {
-    setStatus(200, "OK");
+    setStatus(200);
     setBody("DELETE request received for URI: " + req.getUri());
     addHeader("Content-Type", "text/plain");
 }
 
-void Response::setStatus(int code, const std::string& message) {
+void Response::setStatus(int code) {
     _statusCode = code;
-    _statusMessage = message;
-}
-
-void Response::addHeader(const std::string& key, const std::string& value) {
-    _headers[key] = value;
+    std::map<int, std::string>::iterator it = _httpErrors.find(code);
+    if (it != _httpErrors.end()) {
+        _statusMessage = it->second;
+    }
+    else {
+        std::ostringstream errMsg;
+        errMsg << "Status code " << code << " not found in error map";
+        throw std::runtime_error(errMsg.str());
+    }
 }
 
 void Response::setBody(const std::string& body) {
@@ -72,11 +101,14 @@ void Response::_setError(int code) {
     if (content.empty())
 		throw std::logic_error("Error file not found");
     else {
-        setStatus(code, "OK");
+        setStatus(code);
         setBody(content);
         addHeader("Content-Type", getMimeType(filename));
     }
+}
 
+void Response::addHeader(const std::string& key, const std::string& value) {
+    _headers[key] = value;
 }
 
 std::string Response::toString() const {
