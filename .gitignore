@@ -4,3 +4,6 @@
 webserv
 tests
 to-do.txt
+*.chunk
+obj
+*.file

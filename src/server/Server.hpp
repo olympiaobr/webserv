@@ -11,19 +11,27 @@
 # include <sys/errno.h>
 # include <fcntl.h>
 # include <sstream>
+# include <dirent.h>
+# include <ctime>
+# include <stdlib.h>
 # include "../requests/Request.hpp"
+# include "../configuration/Config.hpp"
+# include "../responses/Response.hpp"
 // #include "../responses/Response.hpp"
 
-# include "../debug.hpp"
+# include "../include/debug.hpp"
 
 
 typedef std::vector<std::string> HostList;
+
+# define BACKLOG 3
+# define TEMP_FILES_DIRECTORY "tmp/"
 
 class Server
 {
 	public:
 		Server();
-		// Server(std::string &hostname);
+		Server(const HostList &hosts, short port);
 		~Server();
 
 		/*Exceptions*/
@@ -56,7 +64,7 @@ class Server
 				const char* what() const throw();
 		};
 		/* Initialize server */
-		void	initEndpoint(HostList &hosts, short port);
+		void	initEndpoint(const HostList &hosts, short port, const ServerConfig &config);
 		/* Socket fucntions */
 		void	addPollfd(int socket_fd, short events);
 		void	pollfds();
@@ -71,20 +79,25 @@ class Server
 		const std::vector<pollfd>	&getSockets() const;
 
 		/* Server routines */
-		static void chunkHandler(Request req, int client_socket);
+		bool chunkHandler(Request &req, int client_socket);
+
+		/* Start all servers */
+		static void RUN(std::vector<Server>);
 	private:
 		/*Variables*/
-		HostList			_hosts;
 		short				_port;
+		HostList			_hosts;
 		int					_main_socketfd;
 		sockaddr_in			_address;
 		int					_address_len;
 		std::vector<pollfd>	_fds;
+		ServerConfig		_config;
 		/*Functions*/
 		void _push(pollfd client_pollfd); //called when setPollfd is called
-		void setSocketOpt();
-		void setSocketNonblock();
-		void bindSocketName();
+		void _setSocketOpt();
+		void _setSocketNonblock();
+		void _bindSocketName();
+		std::string _saveFile(const std::string &file_name);
 };
 
 std::ostream &operator<<(std::ostream &os, const Server &server);

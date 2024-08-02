@@ -6,7 +6,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/webserv",
-            "args": [],
+            "args": ["./c_file.conf"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
@@ -26,8 +26,8 @@
 			"type": "lldb",
 			"request": "launch",
 			"program": "${workspaceFolder}/webserv",
-			"args": [],
-			"cwd": "${fileDirname}",
+			"args": ["${workspaceFolder}/c_file.conf"],
+			"cwd": "${workspaceFolder}",
 		}
     ]
 }

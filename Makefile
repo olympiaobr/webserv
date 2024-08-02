@@ -1,33 +1,44 @@
 CC := c++
-CPPFLAGS := -Wall -Wextra -Werror -std=c++98 -g
+CPPFLAGS := -Wall -Wextra -Werror -std=c++98 -g -fsanitize=address
 TARGET := ./webserv
-INCLUDES :=	-I./server \
-			-I./responses \
-			-I./requests
-RM := rm -f
-SRC_DIR :=
+INCLUDES :=	-I./src/server \
+ 			-I./src/responses \
+ 			-I./src/requests \
+			-I./src/configuration
+RM := rm -rf
+SRC_DIR := src/
+OBJ_DIR := obj/
 SOURCE :=	main.cpp \
-			server/Server.cpp \
-			responses/Response.cpp \
-			requests/Request.cpp \
-			configuration/Config.cpp \
-			
-SRC := $(addprefix $(SRC_DIR), $(SOURCE))
-OBJ := $(SRC:.cpp=.o)
+ 			server/Server.cpp \
+ 			responses/Response.cpp \
+ 			requests/Request.cpp \
+ 			configuration/Config.cpp \
+			utilities/Utils.cpp
 
-all: $(TARGET)
+TMPDIR = tmp
+
+SRC := $(addprefix $(SRC_DIR), $(SOURCE))
+OBJ := $(addprefix $(OBJ_DIR), $(SOURCE:.cpp=.o))
+
+all: $(TARGET) $(TMPDIR)
+
+$(TMPDIR):
+	mkdir -p $(TMPDIR)
 
 $(TARGET): $(OBJ)
 	$(CC) $(CPPFLAGS) $(OBJ) -o $(TARGET)
 
-%.o: %.cpp
-	$(CC) $(CPPFLAGS) -c $< -o $@
+$(OBJ_DIR)%.o: $(SRC_DIR)%.cpp
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(INCLUDES) -c $< -o $@
 
 clean:
-	$(RM) $(OBJ)
+	$(RM) $(OBJ_DIR)
 
 fclean: clean
 	$(RM) $(TARGET)
+	$(RM) $(TMPDIR)
+	$(RM) $(wildcard *.chunk)
 
 re: fclean all
 
