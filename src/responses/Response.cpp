@@ -22,8 +22,9 @@ Response::Response(const Request& req, const ServerConfig& config)
 void Response::initializeHttpErrors() {
     _httpErrors[200] = "OK";
     _httpErrors[201] = "Created";
-    _httpErrors[300] = "Multiple Choices";
-    _httpErrors[403] = "Forbidden";
+    // _httpErrors[300] = "Multiple Choices";
+    _httpErrors[400] = "Bad Request";
+    // _httpErrors[403] = "Forbidden";
     _httpErrors[404] = "Not Found";
     _httpErrors[405] = "Method Not Allowed";
     _httpErrors[408] = "Request Timeout";
@@ -31,7 +32,7 @@ void Response::initializeHttpErrors() {
     _httpErrors[414] = "URI Too Long";
     _httpErrors[418] = "I'm a teapot";
     _httpErrors[500] = "Internal Server Error";
-    _httpErrors[501] = "Not Implemented";
+    // _httpErrors[501] = "Not Implemented";
     _httpErrors[503] = "Service Unavailable";
     _httpErrors[505] = "HTTP Version Not Supported";
 }
