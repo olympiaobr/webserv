@@ -86,10 +86,6 @@ void Request::_parseHeader(const std::string& line) {
             value = value.substr(first, last - first + 1);
         }
 
-		for (size_t i = 0; i < key.length(); ++i) {
-            key[i] = tolower(key[i]);
-        }
-
         _headers[key] = value;
     }
 }
@@ -159,8 +155,8 @@ std::ostream& operator<<(std::ostream& os, const Request& request) {
 
 Request::ParsingErrorException::ParsingErrorException(ErrorType type, const char *error_msg) {
 	_type = type;
+    bzero(_error, 256);
     strncpy(_error, "Request parsing exception: ", 27);
-    _error[sizeof(_error) - 1] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
