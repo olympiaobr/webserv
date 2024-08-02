@@ -12,7 +12,6 @@ struct			RouteConfig
 	std::string root;
 	std::string default_file;
 	std::vector<std::string> allowed_methods;
-	std::string upload_path;
 };
 
 struct			ServerConfig
