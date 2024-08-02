@@ -2,39 +2,35 @@
 #include <fstream>
 #include <sstream>
 
-Response::Response() : _httpVersion("HTTP/1.1"), _statusCode(200), _statusMessage("OK") {}
+Response::Response(const Request& req, const ServerConfig& config)
+	: _httpVersion("HTTP/1.1"), _config(config) {
 
-Response::Response(const Request& req, const ServerConfig& config) : _httpVersion("HTTP/1.1") {
-    if (req.getMethod() == "GET") {
-        handleGetRequest(req, config);
-    } else if (req.getMethod() == "POST") {
+    if (req.getMethod() == "GET")
+        handleGetRequest(req);
+    else if (req.getMethod() == "POST")
         handlePostRequest(req);
-    } else if (req.getMethod() == "DELETE") {
+    else if (req.getMethod() == "DELETE")
         handleDeleteRequest(req);
-    } else {
-        setStatus(405, "Method Not Allowed");
-        setBody("Only GET, POST, and DELETE methods are supported");
-    }
+    else
+		_setError(405);
 }
 
-void Response::handleGetRequest(const Request& req, const ServerConfig& config) {
-    std::string filename = config.root + req.getUri();
-    if (filename == config.root + "/")
-		filename = config.root + "/index.html";
+void Response::handleGetRequest(const Request& req) {
+    std::string filename = _config.root + req.getUri();
+    if (filename == _config.root + "/")
+		filename = _config.root + "/index.html";
 
 	std::cout << "Filename: " << filename << std::endl;
 
     std::string content = readFile(filename);
     if (content.empty()) {
-        setStatus(404, "Not Found");
-        setBody("404 - Page not found");
+		_setError(404);
     } else {
         setStatus(200, "OK");
         setBody(content);
         addHeader("Content-Type", getMimeType(filename));
     }
 }
-
 
 void Response::handlePostRequest(const Request& req) {
     setStatus(200, "OK");
@@ -60,6 +56,27 @@ void Response::addHeader(const std::string& key, const std::string& value) {
 void Response::setBody(const std::string& body) {
     _body = body;
     addHeader("Content-Length", toString(_body.length()));
+}
+
+void Response::_setError(int code) {
+	std::string path;
+	std::map<int, std::string>::const_iterator it = _config.error_pages.find(code);
+
+	if (it != _config.error_pages.end())
+		path = it->second;
+	else
+		throw std::logic_error("Error code not found in configuration");
+	std::string filename = _config.root + path;
+
+    std::string content = readFile(filename);
+    if (content.empty())
+		throw std::logic_error("Error file not found");
+    else {
+        setStatus(code, "OK");
+        setBody(content);
+        addHeader("Content-Type", getMimeType(filename));
+    }
+
 }
 
 std::string Response::toString() const {

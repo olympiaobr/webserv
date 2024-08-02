@@ -14,17 +14,18 @@ private:
     std::map<std::string, std::string> _headers;
     std::string _body;
     std::string _responseString;
+	const ServerConfig& _config;
 
     std::string readFile(const std::string& filename);
     std::string getMimeType(const std::string& filename);
     std::string toString(size_t num) const;
 
-    void handleGetRequest(const Request& req, const ServerConfig& config);
+    void handleGetRequest(const Request& req);
     void handlePostRequest(const Request& req);
     void handleDeleteRequest(const Request& req);
+	void _setError(int code);
 
 public:
-    Response();
     Response(const Request& req, const ServerConfig& config);
 
     void setStatus(int code, const std::string& message);
