@@ -33,10 +33,9 @@ void Request::parse() {
                 break;
             }
         } else if (bytesRead == 0) {
-            throw ParsingErrorException(INTERRUPT, "unexpected connection interrupt");
+            throw SocketCloseException("connection closed by client");
         } else {
-            throw ParsingErrorException(INTERRUPT, "unexpected socket close");
-            continue; // why would you want to continue here? == if (bytesRead < 1)
+            throw ParsingErrorException(INTERRUPT, strerror(errno));
         }
     }
 
@@ -56,16 +55,17 @@ void Request::parse() {
     }
 
     // Handle body
-    std::map<std::string, std::string>::const_iterator it = _headers.find("Content-Length");
-    if (it != _headers.end()) {
-        int contentLength = atoi(it->second.c_str());
+    std::string content_length = getHeader("Content-Length");
+    std::string initialBodyData = request.substr(headerEnd + 4);
+    if (content_length != "" && getHeader("Transfer-Encoding") != "chunked") {
+        int contentLength = atoi(content_length.c_str());
 		if (contentLength > CLIENT_MAX_BODY_SIZE)
 			throw ParsingErrorException(CONTENT_LENGTH, "content length is above limit");
         std::string initialBodyData = request.substr(headerEnd + 4); // +4 to skip "\r\n\r\n"
-
         _readBody(contentLength, initialBodyData); // works incorect with some types of data in body
     } else {
         /* Chunked data recieved with no Content-lenght */
+        _readBodyChunked(initialBodyData);
     }
 }
 
@@ -85,7 +85,7 @@ void Request::_parseHeader(const std::string& line) {
         if (first != std::string::npos && last != std::string::npos) {
             value = value.substr(first, last - first + 1);
         }
-
+        key = utils::toLowerCase(key);
         _headers[key] = value;
     }
 }
@@ -95,7 +95,7 @@ void Request::_readBody(int contentLength, const std::string& initialData) {
     int remainingBytes = contentLength - initialData.length();
 
     if (remainingBytes > 0) {
-        char* buffer = new char[remainingBytes + 1];
+        char *buffer = new char[remainingBytes + 1];
         int bytesRead = recv(_clientSocket, buffer, remainingBytes, 0);
         std::cout << "Additional body bytes read: " << bytesRead << std::endl;
         if (bytesRead > 0) {
@@ -106,6 +106,38 @@ void Request::_readBody(int contentLength, const std::string& initialData) {
     }
 
     std::cout << "Total body length: " << _body.length() << std::endl;
+}
+
+void Request::_readBodyChunked(const std::string& initialData) {
+    int bytesRead;
+    char buffer[BUFFER_SIZE + 1];
+
+    _body += initialData;
+    bzero(buffer, BUFFER_SIZE + 1);
+    bytesRead = recv(_clientSocket, buffer, BUFFER_SIZE, 0);
+    while (bytesRead > 0) {
+        _body += buffer;
+        bzero(buffer, BUFFER_SIZE + 1);
+        bytesRead = recv(_clientSocket, buffer, BUFFER_SIZE, 0);
+        if (bytesRead == 0) {
+            throw ParsingErrorException(INTERRUPT, "unexpected connection interrupt");
+        } else if (bytesRead < 0) {
+            break;
+        }
+        std::cout << "Additional body bytes read: " << bytesRead << std::endl;
+        std::cout << _body.size() << std::endl;
+        if (_body.size() > CLIENT_MAX_BODY_SIZE)
+            throw ParsingErrorException(CONTENT_LENGTH, "body is too big");
+    }
+    std::cout << "Total body length: " << _body.length() << std::endl;
+}
+
+void Request::addHeader(const std::string& key, const std::string& value) {
+    std::string lowercase_key;
+
+    lowercase_key = key;
+    lowercase_key = utils::toLowerCase(lowercase_key);
+    _headers[lowercase_key] = value;
 }
 
 std::string Request::getMethod() const {
@@ -121,7 +153,11 @@ std::string Request::getHttpVersion() const {
 }
 
 std::string Request::getHeader(const std::string& key) const {
-    std::map<std::string, std::string>::const_iterator it = _headers.find(key);
+    std::string lowercase_key;
+
+    lowercase_key = key;
+    lowercase_key = utils::toLowerCase(lowercase_key);
+    std::map<std::string, std::string>::const_iterator it = _headers.find(lowercase_key);
     if (it != _headers.end()) {
         return it->second;
     }
@@ -138,6 +174,7 @@ std::string Request::getBody() const {
 
 std::ostream& operator<<(std::ostream& os, const Request& request) {
     os << "HTTP Request Details:" << std::endl;
+    os << "Socket file descriptor: " << request._clientSocket << std::endl;
     os << "Method: " << request.getMethod() << std::endl;
     os << "URI: " << request.getUri() << std::endl;
     os << "HTTP Version: " << request.getHttpVersion() << std::endl;
@@ -154,12 +191,21 @@ std::ostream& operator<<(std::ostream& os, const Request& request) {
 }
 
 Request::ParsingErrorException::ParsingErrorException(ErrorType type, const char *error_msg) {
-	_type = type;
+	this->type = type;
     bzero(_error, 256);
-    strncpy(_error, "Request parsing exception: ", 27);
+    strncpy(_error, "Request parsing error: ", 24);
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
 const char *Request::ParsingErrorException::what() const throw() {
 	return _error;
+}
+
+Request::SocketCloseException::SocketCloseException(const char *error_msg) {
+    strncpy(_error, "Socket closed: ", 27);
+    strncat(_error, error_msg, 256 - strlen(_error) - 1);;
+}
+
+const char *Request::SocketCloseException::what() const throw() {
+    return _error;
 }
