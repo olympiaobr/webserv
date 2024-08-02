@@ -79,11 +79,6 @@ void Response::setStatus(int code) {
     _statusMessage = (it != _httpErrors.end()) ? it->second : "Unknown";
 }
 
-void Response::setStatus(int code, const std::string& message) {
-    _statusCode = code;
-    _statusMessage = message;
-}
-
 void Response::setBody(const std::string& body) {
     _body = body;
     addHeader("Content-Length", toString(_body.length()));
