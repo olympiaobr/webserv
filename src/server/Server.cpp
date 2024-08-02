@@ -288,7 +288,7 @@ void Server::RUN(std::vector<Server> servers) {
 
 Server::PollingErrorException::PollingErrorException(const char *error_msg) {
 	bzero(_error, 256);
-	strncpy(_error, "Pooling error: ", 15);
+	strncpy(_error, "Pooling error: ", 16);
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
@@ -298,7 +298,7 @@ const char *Server::PollingErrorException::what() const throw() {
 
 Server::InitialisationException::InitialisationException(const char *error_msg) {
 	bzero(_error, 256);
-	strncpy(_error, "Pooling error: ", 15);
+	strncpy(_error, "Initialisation error: ", 23);
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
@@ -308,7 +308,7 @@ const char *Server::InitialisationException::what() const throw() {
 
 Server::ListenErrorException::ListenErrorException(const char *error_msg) {
 	bzero(_error, 256);
-	strncpy(_error, "Pooling error: ", 15);
+	strncpy(_error, "Listening error: ", 18);
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
@@ -318,7 +318,7 @@ const char *Server::ListenErrorException::what() const throw() {
 
 Server::RuntimeErrorException::RuntimeErrorException(const char *error_msg) {
 	bzero(_error, 256);
-	strncpy(_error, "Runtime error: ", 15);
+	strncpy(_error, "Runtime error: ", 16);
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
