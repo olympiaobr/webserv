@@ -19,6 +19,7 @@ private:
 	std::string _httpVersion;
 	std::map<std::string, std::string> _headers;
 	std::string _body;
+	bool _badRequestFlag;
 
 	void _parseRequestLine(const std::string& line);
 	void _parseHeader(const std::string& line);
@@ -37,6 +38,7 @@ public:
 	std::string getHeader(const std::string& key) const;
 	const std::map<std::string, std::string>& getHeaders() const;
 	std::string getBody() const;
+	bool getBadRequestFlag() const;
 
 	void addHeader(const std::string& key, const std::string& value);
 
@@ -61,4 +63,4 @@ public:
 	};
 };
 
-#endif // REQUEST_HPP
+#endif

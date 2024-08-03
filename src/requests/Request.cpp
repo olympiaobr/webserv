@@ -7,7 +7,8 @@
 #include <fcntl.h>
 #include <errno.h>
 
-Request::Request(int clientSocket) : _clientSocket(clientSocket) {}
+Request::Request(int clientSocket)
+	: _clientSocket(clientSocket), _badRequestFlag(false) {}
 
 Request::~Request() {}
 
@@ -35,7 +36,8 @@ void Request::parse() {
         } else if (bytesRead == 0) {
             throw SocketCloseException("connection closed by client");
         } else {
-            throw ParsingErrorException(INTERRUPT, strerror(errno));
+			_badRequestFlag = 1;
+			return ;
         }
     }
 
@@ -170,6 +172,10 @@ const std::map<std::string, std::string>& Request::getHeaders() const {
 
 std::string Request::getBody() const {
     return _body;
+}
+
+bool Request::getBadRequestFlag() const {
+	return _badRequestFlag;
 }
 
 std::ostream& operator<<(std::ostream& os, const Request& request) {

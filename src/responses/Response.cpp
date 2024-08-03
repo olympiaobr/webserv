@@ -8,8 +8,9 @@ Response::Response(const Request& req, const ServerConfig& config)
 	: _httpVersion("HTTP/1.1"), _config(config) {
 
 	initializeHttpErrors();
-
-    if (req.getMethod() == "GET")
+	if (req.getBadRequestFlag() == true)
+		_setError(405);
+    else if (req.getMethod() == "GET")
         handleGetRequest(req);
     else if (req.getMethod() == "POST")
         handlePostRequest(req);
