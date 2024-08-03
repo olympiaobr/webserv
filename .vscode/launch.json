@@ -28,6 +28,7 @@
 			"program": "${workspaceFolder}/webserv",
 			"args": ["${workspaceFolder}/c_file.conf"],
 			"cwd": "${workspaceFolder}",
+            "preLaunchTask": "build",
 		}
     ]
 }
