@@ -3,6 +3,7 @@
 
 #include <string>
 #include <map>
+#include <algorithm>
 #include "../requests/Request.hpp"
 #include "../configuration/Config.hpp"
 
@@ -25,6 +26,7 @@ private:
     void handlePostRequest(const Request& req);
     void handleDeleteRequest(const Request& req);
 	void _setError(int code);
+    bool isMethodAllowed(const std::string& method, const std::string& uri) const;
 
 public:
     Response(const Request& req, const ServerConfig& config);
