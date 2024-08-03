@@ -129,6 +129,8 @@ void Server::pollLoop() {
 				} catch (Request::ParsingErrorException& e) {
 					if (e.type == Request::BAD_REQUEST)
 						res = Response(_config, 405);
+					else if (e.type == Request::CONTENT_LENGTH)
+						res = Response(_config, 413);
 				}
 				/* Debug print */
 				std::cout << YELLOW << req << RESET << std::endl;
