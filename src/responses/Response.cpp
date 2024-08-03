@@ -5,6 +5,15 @@
 #include <iostream>
 #include <sys/stat.h>
 
+Response::Response(const ServerConfig& config): _config(config), _statusCode(-1) {}
+
+Response::Response(const ServerConfig& config, int errorCode)
+	: _httpVersion("HTTP/1.1"), _config(config) {
+	initializeHttpErrors();
+	_setError(errorCode);
+}
+
+
 Response::Response(const Request& req, const ServerConfig& config)
     : _httpVersion("HTTP/1.1"), _config(config) {
 
@@ -40,12 +49,26 @@ Response::Response(const Request& req, const ServerConfig& config)
         _setError(405);
 }
 
+Response& Response::operator=(const Response& other) {
+	if (this != &other) {
+		_httpVersion = other._httpVersion;
+		_statusCode = other._statusCode;
+		_statusMessage = other._statusMessage;
+		_headers = other._headers;
+		_body = other._body;
+		_responseString = other._responseString;
+		_httpErrors = other._httpErrors;
+	}
+	return *this;
+}
+
 
 void Response::initializeHttpErrors() {
     _httpErrors[200] = "OK";
     _httpErrors[201] = "Created";
-    _httpErrors[300] = "Multiple Choices";
-    _httpErrors[403] = "Forbidden";
+    // _httpErrors[300] = "Multiple Choices";
+    _httpErrors[400] = "Bad Request";
+    // _httpErrors[403] = "Forbidden";
     _httpErrors[404] = "Not Found";
     _httpErrors[405] = "Method Not Allowed";
     _httpErrors[408] = "Request Timeout";
@@ -53,7 +76,7 @@ void Response::initializeHttpErrors() {
     _httpErrors[414] = "URI Too Long";
     _httpErrors[418] = "I'm a teapot";
     _httpErrors[500] = "Internal Server Error";
-    _httpErrors[501] = "Not Implemented";
+    // _httpErrors[501] = "Not Implemented";
     _httpErrors[503] = "Service Unavailable";
     _httpErrors[505] = "HTTP Version Not Supported";
 }
@@ -138,6 +161,10 @@ void Response::setStatus(int code) {
 void Response::setBody(const std::string& body) {
     _body = body;
     addHeader("Content-Length", toString(_body.length()));
+}
+
+int Response::getStatusCode() {
+	return _statusCode;
 }
 
 void Response::_setError(int code) {

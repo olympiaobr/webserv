@@ -7,7 +7,8 @@
 #include <fcntl.h>
 #include <errno.h>
 
-Request::Request(int clientSocket) : _clientSocket(clientSocket) {}
+Request::Request(int clientSocket)
+	: _clientSocket(clientSocket) {}
 
 Request::~Request() {}
 
@@ -35,7 +36,7 @@ void Request::parse() {
         } else if (bytesRead == 0) {
             throw SocketCloseException("connection closed by client");
         } else {
-            throw ParsingErrorException(INTERRUPT, strerror(errno));
+			throw ParsingErrorException(BAD_REQUEST, "malformed request");
         }
     }
 

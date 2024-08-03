@@ -43,7 +43,7 @@ public:
 	friend std::ostream& operator<<(std::ostream& os, const Request& request);
 
 	/* Exceptions */
-	enum ErrorType {CONTENT_LENGTH, INTERRUPT, FILE_SYSTEM, SOCKET_CLOSED};
+	enum ErrorType {CONTENT_LENGTH, INTERRUPT, FILE_SYSTEM, SOCKET_CLOSED, BAD_REQUEST};
 	class ParsingErrorException: public std::exception {
 		public:
 			ParsingErrorException(ErrorType type, const char *error_msg);
@@ -61,4 +61,4 @@ public:
 	};
 };
 
-#endif // REQUEST_HPP
+#endif
