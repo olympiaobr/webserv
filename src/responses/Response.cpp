@@ -3,22 +3,48 @@
 #include <stdexcept>
 #include <sstream>
 #include <iostream>
+#include <sys/stat.h>
 
 Response::Response(const Request& req, const ServerConfig& config)
-	: _httpVersion("HTTP/1.1"), _config(config) {
+    : _httpVersion("HTTP/1.1"), _config(config) {
 
-	initializeHttpErrors();
-	if (req.getBadRequestFlag() == true)
+	if (req.getBadRequestFlag() == true) {
 		_setError(405);
-    else if (req.getMethod() == "GET")
+		return;
+	}
+
+    initializeHttpErrors();
+    std::string uri = req.getUri();
+    const RouteConfig* routeConfig = NULL;
+
+    for (std::map<std::string, RouteConfig>::const_iterator it = _config.routes.begin(); it != _config.routes.end(); ++it) {
+        if (uri.find(it->first) == 0)
+        {
+            routeConfig = &it->second;
+            break;
+        }
+    }
+
+    if (routeConfig) {
+        if (std::find(routeConfig->allowed_methods.begin(), routeConfig->allowed_methods.end(), req.getMethod()) == routeConfig->allowed_methods.end()) {
+            _setError(405);
+            return;
+        }
+    }
+    else {
+        _setError(404);
+        return;
+    }
+    if (req.getMethod() == "GET")
         handleGetRequest(req);
     else if (req.getMethod() == "POST")
         handlePostRequest(req);
     else if (req.getMethod() == "DELETE")
         handleDeleteRequest(req);
     else
-		_setError(405);
+        _setError(405);
 }
+
 
 void Response::initializeHttpErrors() {
     _httpErrors[200] = "OK";
@@ -38,26 +64,57 @@ void Response::initializeHttpErrors() {
     _httpErrors[505] = "HTTP Version Not Supported";
 }
 
+bool Response::isMethodAllowed(const std::string& method, const std::string& uri) const
+{
+    std::map<std::string, RouteConfig>::const_iterator routeIt = _config.routes.find(uri);
+
+    while (routeIt == _config.routes.end() && uri.find_last_of('/') != std::string::npos) {
+        routeIt = _config.routes.find(uri.substr(0, uri.find_last_of('/')));
+    }
+    if (routeIt == _config.routes.end()) {
+        return true;
+    }
+    const RouteConfig& routeConfig = routeIt->second;
+    return std::find(routeConfig.allowed_methods.begin(), routeConfig.allowed_methods.end(), method) != routeConfig.allowed_methods.end();
+}
+
 void Response::handleGetRequest(const Request& req) {
     std::string filename = _config.root + req.getUri();
 
     if (req.getUri() == "/teapot") {
-		_setError(418);
+        _setError(418);
         return;
     }
 
-    if (filename == _config.root + "/") {
-        filename = _config.root + "/index.html";
+    struct stat fileStat;
+    if (stat(filename.c_str(), &fileStat) == 0 && S_ISDIR(fileStat.st_mode)) {
+
+        filename += "/index.html";
+        if (stat(filename.c_str(), &fileStat) == 0 && !S_ISDIR(fileStat.st_mode)) {
+            std::string content = readFile(filename);
+            if (content.empty()) {
+                _setError(404);
+            } else {
+                setStatus(200);
+                setBody(content);
+                addHeader("Content-Type", getMimeType(filename));
+            }
+        }
+        else {
+            _setError(404);
+        }
+        return;
     }
     std::string content = readFile(filename);
     if (content.empty()) {
-		_setError(404);
+        _setError(404);
     } else {
         setStatus(200);
         setBody(content);
         addHeader("Content-Type", getMimeType(filename));
     }
 }
+
 
 void Response::handlePostRequest(const Request& req) {
     setStatus(200);
