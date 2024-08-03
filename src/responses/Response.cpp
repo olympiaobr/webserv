@@ -41,8 +41,12 @@ void Response::routeRequest(const Request& req, const ServerConfig& config){
         handleDeleteRequest(req);
     }
     else {
-        setStatus(405);
-        setBody("405 - Method Not Allowed");
+        /* Temporary ddavlety 03.08 */
+        // setStatus(405);
+        // setBody("405 - Method Not Allowed");
+        setStatus(200);
+        setBody("200 - file recieved");
+        /* ddavlety 03.08 */
     }
 }
 

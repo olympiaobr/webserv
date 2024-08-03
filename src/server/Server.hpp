@@ -79,7 +79,6 @@ class Server
 		const std::vector<pollfd>	&getSockets() const;
 
 		/* Server routines */
-		bool chunkHandler(Request &req, int client_socket);
 
 		/* Start all servers */
 		static void RUN(std::vector<Server>);
@@ -97,7 +96,12 @@ class Server
 		void _setSocketOpt();
 		void _setSocketNonblock();
 		void _bindSocketName();
+		bool _chunkHandler(Request &req);
+		void _processingRouter(Request &req);
+		void _parseFormData(Request &req);
+		void _parsePartialData(Request &req);
 		std::string _saveFile(const std::string &file_name);
+		std::string _chunkFileName(int socket);
 };
 
 std::ostream &operator<<(std::ostream &os, const Server &server);

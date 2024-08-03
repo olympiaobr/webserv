@@ -31,6 +31,10 @@ void Request::parse() {
             if (headerEnd != std::string::npos) {
                 headersComplete = true;
                 break;
+            } else {
+                /* Second part of request comes with no header */
+                headersComplete = false;
+                break;
             }
         } else if (bytesRead == 0) {
             throw SocketCloseException("connection closed by client");
@@ -39,29 +43,40 @@ void Request::parse() {
         }
     }
 
-    if (!headersComplete) {
-        std::cerr << "Incomplete headers" << std::endl;
-        return ;
+    if (headersComplete) {
+        /* Parse headers only if it is complete */
+        /* If header is incomplete, request is second part of initial request */
+        // Parse headers
+        std::istringstream requestStream(request.substr(0, headerEnd));
+        std::string line;
+        if (std::getline(requestStream, line)) {
+            _parseRequestLine(line);
+        }
+        while (std::getline(requestStream, line) && line != "\r") {
+            _parseHeader(line);
+        }
     }
-
-    // Parse headers
-    std::istringstream requestStream(request.substr(0, headerEnd));
-    std::string line;
-    if (std::getline(requestStream, line)) {
-        _parseRequestLine(line);
-    }
-    while (std::getline(requestStream, line) && line != "\r") {
-        _parseHeader(line);
-    }
-
     // Handle body
     std::string content_length = getHeader("Content-Length");
+    int contentLength = atoi(content_length.c_str());
+
+    if (contentLength > CLIENT_MAX_BODY_SIZE)
+        throw ParsingErrorException(CONTENT_LENGTH, "content length is above limit");
+
+    std::string content_type = getHeader("Content-Type");
     std::string initialBodyData = request.substr(headerEnd + 4);
+    // if (content_type.find("text") == content_type.npos) {
+    //     const char *init_body = initialBodyData.c_str();
+    //     unsigned char full_body[contentLength];
+    //     unsigned char buffer[contentLength - sizeof(init_body) + 1];
+    //     memcpy(full_body, init_body, sizeof(init_body) - sizeof(char));
+    //     int bytesRead = recv(_clientSocket, buffer, contentLength - sizeof(init_body) + 1, 0);
+    //     memcpy(full_body + sizeof(init_body), buffer, bytesRead);
+    //     int fd = open ("temp", O_WRONLY | O_CREAT, 0777);
+    //     write(fd, full_body, contentLength);
+    //     sleep(1);
+    // }
     if (content_length != "" && getHeader("Transfer-Encoding") != "chunked") {
-        int contentLength = atoi(content_length.c_str());
-		if (contentLength > CLIENT_MAX_BODY_SIZE)
-			throw ParsingErrorException(CONTENT_LENGTH, "content length is above limit");
-        std::string initialBodyData = request.substr(headerEnd + 4); // +4 to skip "\r\n\r\n"
         _readBody(contentLength, initialBodyData); // works incorect with some types of data in body
     } else {
         /* Chunked data recieved with no Content-lenght */
@@ -170,6 +185,11 @@ const std::map<std::string, std::string>& Request::getHeaders() const {
 
 std::string Request::getBody() const {
     return _body;
+}
+
+int Request::getSocket() const
+{
+    return _clientSocket;
 }
 
 std::ostream& operator<<(std::ostream& os, const Request& request) {

@@ -126,12 +126,20 @@ void Server::pollLoop() {
 				}
 				/* Debug print */
 				std::cout << YELLOW << req << RESET << std::endl;
-				/* Chunk handling */
-				chunkHandler(req, client_socket);
+				/* Processing routing */
+				/* Every type of request should processed its own way.
+				 * This router will control what should be done depending
+				 * on headers (or other control inputs) */
+				_processingRouter(req);
+
 				/* Response */
 				Response res(req, _config);
 				const char* response = res.toCString();
 				std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
+				/* Temporary (testing) ddavlety 03.08 */
+				if (req.getHeader("Content-Type").find(';') != std::string::npos)
+					continue;
+				/* Temporary (testing) ddavlety 03.08 */
 				send(client_socket, response, strlen(response), 0);
 			}
 		}
@@ -211,60 +219,127 @@ const std::vector<pollfd> &Server::getSockets() const {
 	return _fds;
 }
 
-bool Server::chunkHandler(Request &req, int client_socket) {
-	if (req.getHeader("Transfer-Encoding") == "chunked") {
-		/* Get data size */
-		std::stringstream ss;
-		size_t len;
-		std::string data;
-		std::string file_name;
-		std::string socket_name;
+bool Server::_chunkHandler(Request &req) {
 
-		file_name = TEMP_FILES_DIRECTORY;
-		ss << client_socket;
-		ss >> socket_name;
+	/* Get data size */
+	std::stringstream ss;
+	size_t len;
+	std::string data;
+	std::string file_name;
+	std::string socket_name;
+
+	file_name = _chunkFileName(req.getSocket());
+	if (!access(file_name.c_str(), W_OK | R_OK))
+		std::cout << BLACK << "File exists with permissions" << RESET << std::endl; // file exists, but it is from previous request?
+	int file_fd = open(file_name.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
+	if (!file_fd)
+		throw RuntimeErrorException("error opening the file");
+
+	data = req.getBody();
+	while (data != "")
+	{
+		std::string tmp;
+		tmp = data;
+		size_t end = data.find("\r\n");
+		data = data.substr(0, end);
+		ss << std::hex << data;
+		ss >> len;
 		ss.clear();
-		file_name += socket_name;
-		file_name += ".chunk";
-		if (!access(file_name.c_str(), W_OK | R_OK))
-			std::cout << BLACK << "File exists with permissions" << RESET << std::endl; // file exists, but it is from previous request?
-		int file_fd = open(file_name.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
-		if (!file_fd)
-			throw RuntimeErrorException("error opening the file");
-		data = req.getBody();
-		while (data != "")
-		{
-			std::string tmp;
-			tmp = data;
-			size_t end = data.find("\r\n");
-			data = data.substr(0, end);
-			ss << std::hex << data;
-			ss >> len;
-			ss.clear();
-			/* If end of chunks (save file) */
-			if (len == 0) {
-				close(file_fd);
-				req.addHeader("Transfer", "finished");
-				_saveFile(file_name);
-				return true;
-			}
-			/* Get data */
-			data = tmp;
-			size_t end_data = data.find("\r\n", end + 1);
-			end += 2;
-			end_data -= end;
-			data = data.substr(end, end_data);
-			if (write(file_fd, data.c_str(), len) < 0) // len or end_data??
-				throw RuntimeErrorException("error writing to file"); // throw error
-			end_data += 2 + end;
-			data = tmp.substr(end_data);
+		/* If end of chunks (save file) */
+		if (len == 0) {
+			close(file_fd);
+			req.addHeader("Transfer", "finished");
+			_saveFile(file_name);
+			return true;
 		}
-		close(file_fd);
-	} else {
-		return true;
+		/* Get data */
+		data = tmp;
+		size_t end_data = data.find("\r\n", end + 1);
+		end += 2;
+		end_data -= end;
+		data = data.substr(end, end_data);
+		if (write(file_fd, data.c_str(), len) < 0) // len or end_data??
+			throw RuntimeErrorException("error writing to file"); // throw error
+		end_data += 2 + end;
+		data = tmp.substr(end_data);
 	}
+	close(file_fd);
 	req.addHeader("Transfer", "in progress");
 	return false;
+}
+
+void Server::_processingRouter(Request &req)
+{
+	std::string content_type;
+
+	content_type = req.getHeader("Content-Type");
+	int pos = content_type.find(';');
+	content_type = req.getHeader("Content-Type").substr(0, pos);
+	if (req.getHeader("Transfer-Encoding") == "chunked")
+		_chunkHandler(req);
+	if (content_type == "multipart/form-data")
+		_parseFormData(req);
+	if (req.getHeaders().size() == 0) {
+		req.addHeader("Partial-Data", "file");
+		_parsePartialData(req);
+	}
+}
+
+void Server::_parseFormData(Request &req) {
+	std::string boundary;
+	std::string body;
+
+	boundary = req.getHeader("Content-Type");
+	int pos = boundary.find("boundary=");
+	boundary = boundary.substr(pos + 9);
+	body = req.getBody();
+	/* Boundary position */
+	pos = body.find(boundary);
+	pos += boundary.size() + 2;
+	body = body.substr(pos);
+	/* Skip header */
+	pos = body.find("\r\n\r\n") + 4;
+	body = body.substr(pos);
+	std::string	file_name = _chunkFileName(req.getSocket());
+	if (!access(file_name.c_str(), W_OK | R_OK))
+		std::cout << BLACK << "File exists with permissions" << RESET << std::endl; // file exists, but it is from previous request?
+	int file_fd = open(file_name.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
+	if (!file_fd)
+		throw RuntimeErrorException("error opening the file");
+	std::cout << "Size of body to write: " << body.size() << std::endl;
+	std::cout << "Body to write: " << body.c_str() << std::endl;
+	write(file_fd, body.c_str(), body.size());
+	close(file_fd);
+	return ;
+}
+void Server::_parsePartialData(Request &req) {
+	std::string	file_name = _chunkFileName(req.getSocket());
+	std::string body = req.getBody();
+	int eof = body.find("----");
+	body = body.substr(0, eof - 3);
+	/* Debug print */
+	for (int i = 5; i >= 0; --i)
+		std::cout << body[eof - 3 - i] << std::endl;
+	if (!access(file_name.c_str(), W_OK | R_OK))
+		std::cout << BLACK << "File exists with permissions" << RESET << std::endl; // file exists, but it is from previous request?
+	int file_fd = open(file_name.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
+	write(file_fd, body.c_str(), body.size());
+	close(file_fd);
+}
+
+std::string Server::_chunkFileName(int socket)
+{
+	std::stringstream ss;
+	std::string file_name;
+	std::string socket_name;
+
+	file_name = TEMP_FILES_DIRECTORY;
+	ss << socket;
+	ss >> socket_name;
+	ss.clear();
+	file_name += socket_name;
+	file_name += ".chunk";
+    return file_name;
 }
 
 void Server::RUN(std::vector<Server> servers) {
