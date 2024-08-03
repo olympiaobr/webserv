@@ -19,7 +19,6 @@ private:
 	std::string _httpVersion;
 	std::map<std::string, std::string> _headers;
 	std::string _body;
-	bool _badRequestFlag;
 
 	void _parseRequestLine(const std::string& line);
 	void _parseHeader(const std::string& line);
@@ -45,7 +44,7 @@ public:
 	friend std::ostream& operator<<(std::ostream& os, const Request& request);
 
 	/* Exceptions */
-	enum ErrorType {CONTENT_LENGTH, INTERRUPT, FILE_SYSTEM, SOCKET_CLOSED};
+	enum ErrorType {CONTENT_LENGTH, INTERRUPT, FILE_SYSTEM, SOCKET_CLOSED, BAD_REQUEST};
 	class ParsingErrorException: public std::exception {
 		public:
 			ParsingErrorException(ErrorType type, const char *error_msg);

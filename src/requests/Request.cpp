@@ -8,7 +8,7 @@
 #include <errno.h>
 
 Request::Request(int clientSocket)
-	: _clientSocket(clientSocket), _badRequestFlag(false) {}
+	: _clientSocket(clientSocket) {}
 
 Request::~Request() {}
 
@@ -36,8 +36,7 @@ void Request::parse() {
         } else if (bytesRead == 0) {
             throw SocketCloseException("connection closed by client");
         } else {
-			_badRequestFlag = 1;
-			return ;
+			throw ParsingErrorException(BAD_REQUEST, "malformed request");
         }
     }
 
@@ -172,10 +171,6 @@ const std::map<std::string, std::string>& Request::getHeaders() const {
 
 std::string Request::getBody() const {
     return _body;
-}
-
-bool Request::getBadRequestFlag() const {
-	return _badRequestFlag;
 }
 
 std::ostream& operator<<(std::ostream& os, const Request& request) {
