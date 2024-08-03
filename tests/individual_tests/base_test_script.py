@@ -13,5 +13,5 @@ def run_test(test_func):
     except Exception as e:
         print(f"ERROR: {str(e)}")
 
-def check_status_code(response, expected_code):
-    return response.status_code == expected_code, f"Expected status code {expected_code}, got {response.status_code}"
+def check_status_code(response, expected_code, test_name):
+    return response.status_code == expected_code, f"Expected {expected_code}, got {response.status_code} for {test_name}"

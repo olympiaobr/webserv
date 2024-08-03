@@ -6,3 +6,4 @@ to-do.txt
 *.chunk
 obj
 *.file
+tests/individual_tests/__pycache__
