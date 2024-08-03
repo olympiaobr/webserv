@@ -37,7 +37,6 @@ public:
 	std::string getHeader(const std::string& key) const;
 	const std::map<std::string, std::string>& getHeaders() const;
 	std::string getBody() const;
-	bool getBadRequestFlag() const;
 
 	void addHeader(const std::string& key, const std::string& value);
 
