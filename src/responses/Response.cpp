@@ -92,41 +92,50 @@ void Response::initializeHttpErrors() {
 }
 
 void Response::handleGetRequest(const Request& req) {
-    std::string filename = _config.root + req.getUri();
-
-    if (req.getUri() == "/teapot") {
-        _setError(418);
-        return;
-    }
+    std::string path = _config.root + req.getUri();
 
     struct stat fileStat;
-    if (stat(filename.c_str(), &fileStat) == 0 && S_ISDIR(fileStat.st_mode)) {
-
-        filename += "/index.html";
-        if (stat(filename.c_str(), &fileStat) == 0 && !S_ISDIR(fileStat.st_mode)) {
-            std::string content = readFile(filename);
-            if (content.empty()) {
-                _setError(404);
+    if (stat(path.c_str(), &fileStat) == 0) {
+        if (S_ISDIR(fileStat.st_mode)) {  // Check if it's a directory
+            std::string indexPath = path + "/index.html";
+            if (stat(indexPath.c_str(), &fileStat) == 0 && !S_ISDIR(fileStat.st_mode)) {
+                std::string content = readFile(indexPath);
+                if (content.empty()) {
+                    _setError(404);
+                } else {
+                    setStatus(200);
+                    setBody(content);
+                    addHeader("Content-Type", getMimeType(indexPath));
+                }
             } else {
-                setStatus(200);
-                setBody(content);
-                addHeader("Content-Type", getMimeType(filename));
+                // No index.html found, check autoindex setting
+                const RouteConfig* routeConfig = findMostSpecificRouteConfig(req.getUri());
+                if (routeConfig && routeConfig->autoindex) {
+                    std::string listing = utils::generateDirectoryListing(path);
+                    setStatus(200);
+                    setBody(listing);
+                    addHeader("Content-Type", "text/html");
+                } else {
+                    _setError(404); // No index.html and autoindex is not enabled
+                }
             }
+            return;
         }
-        else {
+
+        // It's not a directory, handle as a regular file
+        std::string content = readFile(path);
+        if (content.empty()) {
             _setError(404);
+        } else {
+            setStatus(200);
+            setBody(content);
+            addHeader("Content-Type", getMimeType(path));
         }
-        return;
-    }
-    std::string content = readFile(filename);
-    if (content.empty()) {
-        _setError(404);
     } else {
-        setStatus(200);
-        setBody(content);
-        addHeader("Content-Type", getMimeType(filename));
+        _setError(404); // File or directory not found
     }
 }
+
 
 void Response::handlePostRequest(const Request& req) {
     setStatus(200);

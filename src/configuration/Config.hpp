@@ -12,6 +12,10 @@ struct			RouteConfig
 	std::string root;
 	std::string default_file;
 	std::vector<std::string> allowed_methods;
+	bool is_cgi;
+	bool autoindex;
+
+	RouteConfig() : is_cgi(false), autoindex(false) {}
 };
 
 struct			ServerConfig
