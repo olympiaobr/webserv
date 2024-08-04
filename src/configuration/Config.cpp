@@ -3,6 +3,7 @@
 #include <sstream>
 #include <iostream>
 #include <cstdlib>
+#include <algorithm>
 
 Config::Config(const std::string& filename) : _filename(filename) {}
 
@@ -27,11 +28,11 @@ void Config::parseServerConfig(ServerConfig& config, const std::string& line)
     std::string value;
     getline(iss, value);
 
-    size_t start = value.find_first_not_of(" \t");
+    size_t start = value.find_first_not_of(" \t\"");
     if (start != std::string::npos) {
         value.erase(0, start);
     }
-    size_t end = value.find_last_not_of(" \t;");
+    size_t end = value.find_last_not_of(" \t;\"");
     if (end != std::string::npos) {
         value.erase(end + 1, value.length() - end);
     }
@@ -63,16 +64,18 @@ void Config::parseRouteConfig(RouteConfig& config, const std::string& line)
     iss >> key;
     std::string value;
     getline(iss, value);
-    value.erase(0, value.find_first_not_of(" \t"));
 
+    size_t start = value.find_first_not_of(" \t\"");
+    value.erase(0, start);
+    size_t end = value.find_last_not_of(" \t;\"");
+    if (end != std::string::npos) {
+        value.erase(end + 1);
+    }
     if (key == "allow_methods") {
         std::istringstream methods(value);
         std::string method;
         while (methods >> method) {
-            size_t end = method.find_last_not_of(";");
-            if (end != std::string::npos) {
-                method = method.substr(0, end + 1);
-            }
+            method.erase(std::remove(method.begin(), method.end(), ';'), method.end());
             config.allowed_methods.push_back(method);
         }
     }
