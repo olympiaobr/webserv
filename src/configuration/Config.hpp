@@ -12,14 +12,13 @@ struct			RouteConfig
 	std::string root;
 	std::string default_file;
 	std::vector<std::string> allowed_methods;
-	std::string upload_path;
 };
 
 struct			ServerConfig
 {
 	HostList	hostnames;
 	std::string root;
-	std::map<int, std::string> error_pages; 
+	std::map<int, std::string> error_pages;
 	int			body_limit;
 	std::map<std::string, RouteConfig> routes;
 };

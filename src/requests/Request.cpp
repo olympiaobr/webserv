@@ -7,7 +7,8 @@
 #include <fcntl.h>
 #include <errno.h>
 
-Request::Request(int clientSocket) : _clientSocket(clientSocket) {}
+Request::Request(int clientSocket)
+	: _clientSocket(clientSocket) {}
 
 Request::~Request() {}
 
@@ -39,7 +40,7 @@ void Request::parse() {
         } else if (bytesRead == 0) {
             throw SocketCloseException("connection closed by client");
         } else {
-            throw ParsingErrorException(INTERRUPT, strerror(errno));
+			throw ParsingErrorException(BAD_REQUEST, "malformed request");
         }
     }
 
@@ -150,7 +151,7 @@ void Request::_readBodyChunked(const std::string& initialData) {
         bzero(buffer, BUFFER_SIZE + 1);
         bytesRead = recv(_clientSocket, buffer, BUFFER_SIZE, 0);
         if (bytesRead == 0) {
-            throw ParsingErrorException(INTERRUPT, "unexpected connection interrupt");
+            throw SocketCloseException("unexpected connection interrupt");
         } else if (bytesRead < 0) {
 			throw ParsingErrorException(INTERRUPT, "bad socket");
         }
@@ -282,11 +283,6 @@ const std::map<std::string, std::string>& Request::getHeaders() const {
 
 std::string Request::getBody() const {
     return _body;
-}
-
-int Request::getSocket() const
-{
-    return _clientSocket;
 }
 
 int Request::getSocket() const

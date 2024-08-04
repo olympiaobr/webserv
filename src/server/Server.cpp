@@ -115,8 +115,11 @@ void Server::pollLoop() {
 			} else {										//if it is existing connection
 				/* Request */
 				Request req(client_socket);
+				Response res(_config);
 				try {
 					req.parse();
+					// chunkHandler(req, client_socket);
+					res = Response(req, _config);
 				} catch (Request::SocketCloseException &e) {
 					/* If socket closed by client we erase socket from polling list */
 					std::cout << e.what() << std::endl;
@@ -125,6 +128,11 @@ void Server::pollLoop() {
 						utils::deleteFile(utils::buildPath(client_socket, TEMP_FILES_DIRECTORY));
 					_fds.erase(_fds.begin() + i);
 					continue ;
+				} catch (Request::ParsingErrorException& e) {
+					if (e.type == Request::BAD_REQUEST)
+						res = Response(_config, 405);
+					else if (e.type == Request::CONTENT_LENGTH)
+						res = Response(_config, 413);
 				}
 				/* Debug print */
 				std::cout << YELLOW << req << RESET << std::endl;
@@ -135,7 +143,9 @@ void Server::pollLoop() {
 				// _processingRouter(req);
 
 				/* Response */
-				Response res(req, _config);
+				if (res.getStatusCode() == -1)
+					res = Response(_config, 500); // Internal Server Error
+
 				const char* response = res.toCString();
 				std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
 				/* Temporary (testing) ddavlety 03.08 */
