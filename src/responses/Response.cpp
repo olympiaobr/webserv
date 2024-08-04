@@ -16,29 +16,35 @@ Response::Response(const ServerConfig& config, int errorCode)
 
 Response::Response(const Request& req, const ServerConfig& config)
     : _httpVersion("HTTP/1.1"), _config(config) {
-
     initializeHttpErrors();
-    std::string uri = req.getUri();
-    const RouteConfig* routeConfig = NULL;
 
-    for (std::map<std::string, RouteConfig>::const_iterator it = _config.routes.begin(); it != _config.routes.end(); ++it) {
-        if (uri.find(it->first) == 0)
-        {
-            routeConfig = &it->second;
-            break;
-        }
-    }
-
-    if (routeConfig) {
-        if (std::find(routeConfig->allowed_methods.begin(), routeConfig->allowed_methods.end(), req.getMethod()) == routeConfig->allowed_methods.end()) {
-            _setError(405);
-            return;
-        }
-    }
-    else {
+    const RouteConfig* routeConfig = findMostSpecificRouteConfig(req.getUri());
+    if (!routeConfig) {
         _setError(404);
         return;
     }
+    if (std::find(routeConfig->allowed_methods.begin(), routeConfig->allowed_methods.end(), req.getMethod()) == routeConfig->allowed_methods.end()) {
+        _setError(405);
+        return;
+    }
+    dispatchMethodHandler(req);
+}
+
+const RouteConfig* Response::findMostSpecificRouteConfig(const std::string& uri) const {
+    const RouteConfig* bestMatch = NULL;
+    size_t longestMatchLength = 0;
+
+    for (std::map<std::string, RouteConfig>::const_iterator it = _config.routes.begin(); it != _config.routes.end(); ++it) {
+        const std::string& basePath = it->first;
+        if (uri.find(basePath) == 0 && basePath.length() > longestMatchLength) {
+            bestMatch = &it->second;
+            longestMatchLength = basePath.length();
+        }
+    }
+    return bestMatch;
+}
+
+void Response::dispatchMethodHandler(const Request& req) {
     if (req.getMethod() == "GET")
         handleGetRequest(req);
     else if (req.getMethod() == "POST")
@@ -62,7 +68,6 @@ Response& Response::operator=(const Response& other) {
 	return *this;
 }
 
-
 void Response::initializeHttpErrors() {
     _httpErrors[200] = "OK";
     _httpErrors[201] = "Created";
@@ -79,20 +84,6 @@ void Response::initializeHttpErrors() {
     // _httpErrors[501] = "Not Implemented";
     _httpErrors[503] = "Service Unavailable";
     _httpErrors[505] = "HTTP Version Not Supported";
-}
-
-bool Response::isMethodAllowed(const std::string& method, const std::string& uri) const
-{
-    std::map<std::string, RouteConfig>::const_iterator routeIt = _config.routes.find(uri);
-
-    while (routeIt == _config.routes.end() && uri.find_last_of('/') != std::string::npos) {
-        routeIt = _config.routes.find(uri.substr(0, uri.find_last_of('/')));
-    }
-    if (routeIt == _config.routes.end()) {
-        return true;
-    }
-    const RouteConfig& routeConfig = routeIt->second;
-    return std::find(routeConfig.allowed_methods.begin(), routeConfig.allowed_methods.end(), method) != routeConfig.allowed_methods.end();
 }
 
 void Response::handleGetRequest(const Request& req) {
@@ -131,7 +122,6 @@ void Response::handleGetRequest(const Request& req) {
         addHeader("Content-Type", getMimeType(filename));
     }
 }
-
 
 void Response::handlePostRequest(const Request& req) {
     setStatus(200);

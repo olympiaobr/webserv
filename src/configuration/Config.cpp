@@ -71,6 +71,10 @@ void Config::parseRouteConfig(RouteConfig& config, const std::string& line)
         std::istringstream methods(value);
         std::string method;
         while (methods >> method) {
+            size_t end = method.find_last_not_of(";");
+            if (end != std::string::npos) {
+                method = method.substr(0, end + 1);
+            }
             config.allowed_methods.push_back(method);
         }
     }
