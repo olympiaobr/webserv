@@ -1,0 +1,14 @@
+tmp2 = utils::strstr(tmp, boundary.c_str(), len);
+		if (tmp2) {
+			_readBodyFile(tmp2, len - (tmp2 - tmp));
+			len -= bytesRead - (tmp2 - buffer);
+		}
+
+/* Check if this chunk contains EOF */
+tmp2 = utils::strstr(tmp, boundary_end.c_str(), len);
+if (tmp2) {
+}
+
+
+I have to check if boundary met, but boundary_end not
+Because boundary met in boundary_end too

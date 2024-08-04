@@ -11,6 +11,7 @@
 
 # define CLIENT_MAX_BODY_SIZE 10000000 // temp
 # define BUFFER_SIZE 10000
+
 class Request {
 private:
 	int _clientSocket;
@@ -24,8 +25,8 @@ private:
 	void _parseHeader(const std::string& line);
 	void _readBody(int contentLength, const std::string& initialData);
 	void _readBodyChunked(const std::string& initialData);
-	void _readBodyFile(int contentLength);
-	void _readBodyStream();
+	void _readBodyFile(const char *init_buffer, ssize_t bytesRead);
+	// void _readBodyStream();
 
 public:
 	Request(int clientSocket);

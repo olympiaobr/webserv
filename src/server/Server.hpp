@@ -21,7 +21,7 @@
 class Request;
 
 typedef std::vector<std::string> HostList;
-typedef std::map<int, std::string> StreamMap;
+// typedef std::map<int, std::string> StreamMap;
 # define BACKLOG 3
 # define TEMP_FILES_DIRECTORY "tmp/"
 
@@ -89,16 +89,12 @@ class Server
 		int					_address_len;
 		std::vector<pollfd>	_fds;
 		ServerConfig		_config;
-		StreamMap			_streams;
+		// StreamMap			_streams;
 		/*Functions*/
 		void _push(pollfd client_pollfd); //called when setPollfd is called
 		void _setSocketOpt();
 		void _setSocketNonblock();
 		void _bindSocketName();
-		// bool _chunkHandler(Request &req);
-		// void _processingRouter(Request &req);
-		// void _parseFormData(Request &req);
-		// void _parsePartialData(Request &req);
 
 };
 

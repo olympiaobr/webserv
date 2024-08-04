@@ -14,12 +14,25 @@
         <p>This is the homepage of our custom web server.</p>
         <div id="json-content"></div>
     </main>
-	<h1>Upload a File</h1>.
+	<h1>Upload Files</h1>
+	<form action="/upload" method="post" enctype="multipart/form-data">
+		<label for="files">Choose files:</label>
+		<input type="file" id="files" name="files" multiple>
+		<br><br>
+		<input type="submit" value="Upload">
+	</form>
+	<h1>Contact Us</h1>
     <form action="/upload" method="post" enctype="multipart/form-data">
-        <label for="file">Choose a file:</label>
-        <input type="file" id="file" name="file">
-        <br><br>
-        <input type="submit" value="Upload">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" required><br><br>
+
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required><br><br>
+
+        <label for="message">Message:</label><br>
+        <textarea id="message" name="message" rows="4" cols="50" required></textarea><br><br>
+
+        <input type="submit" value="Submit">
     </form>
     <footer>
         <p>&copy; 2024 My Web Server. All rights reserved.</p>

@@ -88,3 +88,20 @@ std::string utils::chunkFileName(int socket) {
 	file_name += ".chunk";
     return file_name;
 }
+
+char	*utils::strstr(const char *haystack, const char *needle, ssize_t len) {
+	if (!(*needle))
+		return ((char *)haystack);
+	if (len < 0)
+		return (NULL);
+	if ((size_t)len < strlen((char *)needle))
+		return (NULL);
+	while (len != 0)
+	{
+		if (strncmp((char *)haystack, (char *)needle, strlen((char *)needle)) == 0)
+			return ((char *)haystack);
+		haystack++;
+		len--;
+	}
+	return (NULL);
+}
