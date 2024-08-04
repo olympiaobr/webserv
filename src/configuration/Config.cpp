@@ -174,7 +174,8 @@ void Config::addServerConfig(short port, const ServerConfig& serverConfig) {
 
 // Streaming operator for RouteConfig
 std::ostream& operator<<(std::ostream& os, const RouteConfig& config) {
-    os << "      Default File: " << config.default_file << "\n"
+    os << "      Root: " << config.root << "\n"
+	   << "      Default File: " << config.default_file << "\n"
        << "      Allowed Methods: ";
 
     for (size_t i = 0; i < config.allowed_methods.size(); ++i) {
