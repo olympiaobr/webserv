@@ -4,13 +4,13 @@
 # include <string>
 # include <map>
 # include <iostream>
+# include <string.h>
 
 # include "../include/debug.hpp"
 # include "../utilities/Utils.hpp"
 
 # define CLIENT_MAX_BODY_SIZE 10000000 // temp
-# define BUFFER_SIZE 1024
-
+# define BUFFER_SIZE 10000
 class Request {
 private:
 	int _clientSocket;
@@ -24,6 +24,8 @@ private:
 	void _parseHeader(const std::string& line);
 	void _readBody(int contentLength, const std::string& initialData);
 	void _readBodyChunked(const std::string& initialData);
+	void _readBodyFile(int contentLength);
+	void _readBodyStream();
 
 public:
 	Request(int clientSocket);
@@ -44,7 +46,7 @@ public:
 	friend std::ostream& operator<<(std::ostream& os, const Request& request);
 
 	/* Exceptions */
-	enum ErrorType {CONTENT_LENGTH, INTERRUPT, FILE_SYSTEM, SOCKET_CLOSED};
+	enum ErrorType {CONTENT_LENGTH, INTERRUPT, FILE_SYSTEM, SOCKET_CLOSED, MISSING_HEADERS};
 	class ParsingErrorException: public std::exception {
 		public:
 			ParsingErrorException(ErrorType type, const char *error_msg);

@@ -75,7 +75,7 @@ void Response::handleGetRequest(const Request& req, const ServerConfig& config) 
 
 void Response::handlePostRequest(const Request& req) {
     setStatus(200);
-    setBody("POST request received for URI: " + req.getUri() + "\nBody: " + req.getBody());
+    setBody("POST request received for URI: " + req.getUri() + "\nBody: \n" + req.getBody());
     addHeader("Content-Type", "text/plain");
 }
 

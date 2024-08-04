@@ -40,11 +40,51 @@ bool utils::deleteFile(const std::string &file_name) {
 	return false;
 }
 
-std::string utils::getFileExtension(const std::string &file)
-{
+std::string utils::getFileExtension(const std::string &file) {
     std::string extension;
 
 	size_t  i = file.find_last_of('.');
 	extension = file.substr(i + 1);
 	return extension;
+}
+
+std::string utils::saveFile(const std::string &file_name, ServerConfig config) {
+	std::time_t now = std::time(0);
+	std::tm* now_tm = std::localtime(&now);
+
+	std::ostringstream oss;
+	oss << (now_tm->tm_year + 1900)
+        << (now_tm->tm_mon + 1)
+        << now_tm->tm_mday
+        << now_tm->tm_hour
+        << now_tm->tm_min
+        << now_tm->tm_sec;
+
+	std::string new_file_name;
+	new_file_name += config.root;
+	new_file_name += "/";
+	new_file_name += "uploads/";
+	new_file_name += oss.str();
+	new_file_name += "-";
+	oss.clear();
+	oss << rand() % 1000;
+	new_file_name += oss.str();
+	new_file_name += ".file";
+
+	rename(file_name.c_str(), new_file_name.c_str());
+	return new_file_name;
+}
+
+std::string utils::chunkFileName(int socket) {
+	std::stringstream ss;
+	std::string file_name;
+	std::string socket_name;
+
+	file_name = TEMP_FILES_DIRECTORY;
+	ss << socket;
+	ss >> socket_name;
+	ss.clear();
+	file_name += socket_name;
+	file_name += ".chunk";
+    return file_name;
 }

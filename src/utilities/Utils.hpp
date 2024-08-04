@@ -5,6 +5,14 @@
 # include <sstream>
 # include <fcntl.h>
 # include <unistd.h>
+# include <dirent.h>
+# include <ctime>
+# include <stdlib.h>
+
+# include "../server/Server.hpp"
+
+struct ServerConfig;
+
 
 namespace utils {
 	std::string &toLowerCase(std::string &string);
@@ -12,6 +20,8 @@ namespace utils {
 	bool checkChunkFileExistance(const std::string &file_name);
 	bool deleteFile(const std::string &file_name);
 	std::string getFileExtension(const std::string &file);
+	std::string saveFile(const std::string &file_name, ServerConfig config);
+	std::string chunkFileName(int socket);
 }
 
 #endif

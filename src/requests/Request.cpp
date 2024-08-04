@@ -19,11 +19,11 @@ void Request::parse() {
     size_t headerEnd;
 
     // Set socket to non-blocking mode
-    fcntl(_clientSocket, F_SETFL, O_NONBLOCK);
+
 
     while (true) {
         // Read from socket until the end of the headers is found
-        bytesRead = recv(_clientSocket, buffer, sizeof(buffer) - 1, 0);
+        bytesRead = recv(_clientSocket, buffer, BUFFER_SIZE - 1, 0);
         if (bytesRead > 0) {
             buffer[bytesRead] = '\0';
             request += buffer;
@@ -56,30 +56,43 @@ void Request::parse() {
             _parseHeader(line);
         }
     }
+
+	/* Debug print */
+	std::map<std::string, std::string> header = 	getHeaders();
+	std::cout << MAGENTA << "Headers: " << std::endl;
+	for (std::map<std::string, std::string>::const_iterator it=header.begin(); it != header.end(); ++it) {
+
+		std::cout << it->first << ": " << it->second << std::endl;
+	}
+	std::cout << RESET;
+	/* ********** */
+
     // Handle body
     std::string content_length = getHeader("Content-Length");
     int contentLength = atoi(content_length.c_str());
 
-    if (contentLength > CLIENT_MAX_BODY_SIZE)
-        throw ParsingErrorException(CONTENT_LENGTH, "content length is above limit");
 
     std::string content_type = getHeader("Content-Type");
     std::string initialBodyData = request.substr(headerEnd + 4);
-    // if (content_type.find("text") == content_type.npos) {
-    //     const char *init_body = initialBodyData.c_str();
-    //     unsigned char full_body[contentLength];
-    //     unsigned char buffer[contentLength - sizeof(init_body) + 1];
-    //     memcpy(full_body, init_body, sizeof(init_body) - sizeof(char));
-    //     int bytesRead = recv(_clientSocket, buffer, contentLength - sizeof(init_body) + 1, 0);
-    //     memcpy(full_body + sizeof(init_body), buffer, bytesRead);
-    //     int fd = open ("temp", O_WRONLY | O_CREAT, 0777);
-    //     write(fd, full_body, contentLength);
-    //     sleep(1);
-    // }
-    if (content_length != "" && getHeader("Transfer-Encoding") != "chunked") {
+
+    if (contentLength > CLIENT_MAX_BODY_SIZE) {
+        throw ParsingErrorException(CONTENT_LENGTH, "content length is above limit");
+	}
+	if (content_type.find("multipart/form-data") != content_type.npos
+		|| getHeader("content-disposition") != "") {
+		/* Leave it for now, this should be checked */
+		if (initialBodyData != "") {
+			std::cout << "Initial Body is expected to be empty" << std::endl;
+			throw ParsingErrorException(INTERRUPT, "unexpected request");
+		}
+		/* ************** */
+		_readBodyFile(contentLength);
+	} else if (!headersComplete) {
+		_readBodyStream();
+	} else if (getHeader("Transfer-Encoding") != "chunked") {
         _readBody(contentLength, initialBodyData); // works incorect with some types of data in body
     } else {
-        /* Chunked data recieved with no Content-lenght */
+        /* Chunked data recieved or with no Content-lenght */
         _readBodyChunked(initialBodyData);
     }
 }
@@ -130,6 +143,8 @@ void Request::_readBodyChunked(const std::string& initialData) {
     _body += initialData;
     bzero(buffer, BUFFER_SIZE + 1);
     bytesRead = recv(_clientSocket, buffer, BUFFER_SIZE, 0);
+	if (bytesRead < 0)
+		throw ParsingErrorException(INTERRUPT, "bad socket");
     while (bytesRead > 0) {
         _body += buffer;
         bzero(buffer, BUFFER_SIZE + 1);
@@ -137,14 +152,96 @@ void Request::_readBodyChunked(const std::string& initialData) {
         if (bytesRead == 0) {
             throw ParsingErrorException(INTERRUPT, "unexpected connection interrupt");
         } else if (bytesRead < 0) {
-            break;
+			throw ParsingErrorException(INTERRUPT, "bad socket");
         }
         std::cout << "Additional body bytes read: " << bytesRead << std::endl;
         std::cout << _body.size() << std::endl;
-        if (_body.size() > CLIENT_MAX_BODY_SIZE)
+        if (bytesRead > CLIENT_MAX_BODY_SIZE)
             throw ParsingErrorException(CONTENT_LENGTH, "body is too big");
     }
     std::cout << "Total body length: " << _body.length() << std::endl;
+}
+
+void Request::_readBodyFile(int content_length)
+{
+	int bytesRead;
+    char buffer[BUFFER_SIZE];
+	char *tmp;
+	std::string stream;
+
+	(void)content_length;
+
+	std::string boundary = getHeader("Content-Type");
+	int pos = boundary.find("boundary=");
+	boundary = boundary.substr(pos + 9);
+
+	bzero(buffer, BUFFER_SIZE);
+	bytesRead = recv(_clientSocket, buffer, BUFFER_SIZE, 0);
+	std::cout << CYAN << buffer << RESET << std::endl;
+	tmp = strstr(buffer, boundary.c_str());
+	if (tmp) {
+		/* It indicaes to the begining of the file
+		* and/or end of file */
+		if (tmp - buffer == 2) {
+			/* File is in the beggining of the body
+			* start process as new file*/
+			tmp += boundary.length() + 2;
+			/* Start parsing file header */
+
+
+			/***********/
+			tmp = strstr(tmp, "\r\n\r\n") + 4;
+			std::cout << GREEN << tmp << RESET << std::endl;
+		} else {
+			/* Request contain 2 files or parts of 2(or more) files*/
+			/* Do we handle it? */
+		}
+	}
+	tmp = strstr(buffer, "\r\n\r\n");
+	if (tmp) {
+		/* There is file header with details */
+	}
+
+	/* Skip header */
+
+	std::string	file_name = utils::chunkFileName(getSocket());
+	if (!access(file_name.c_str(), W_OK | R_OK))
+		std::cout << BLACK << "File exists with permissions" << RESET << std::endl; // file exists, but it is from previous request?
+	int file_fd = open(file_name.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
+	if (!file_fd)
+		throw ParsingErrorException(FILE_SYSTEM, strerror(errno));
+
+	while (bytesRead > 0)
+	{
+		bytesRead = recv(_clientSocket, buffer, BUFFER_SIZE, 0);
+		std::cout << "Btyes read: " << bytesRead << std::endl;
+		if (bytesRead < 0)
+			break ;
+		write(file_fd, buffer, bytesRead);
+		bzero(buffer, BUFFER_SIZE);
+	}
+	close(file_fd);
+}
+
+void Request::_readBodyStream()
+{
+	int bytesRead = 1;
+	char buffer[BUFFER_SIZE];
+
+	bzero(buffer, BUFFER_SIZE);
+	std::string	file_name = utils::chunkFileName(getSocket());
+	if (!access(file_name.c_str(), W_OK | R_OK))
+		std::cout << BLACK << "File exists with permissions" << RESET << std::endl; // file exists, but it is from previous request?
+	int file_fd = open(file_name.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
+	while (bytesRead > 1)
+	{
+		bytesRead = recv(_clientSocket, buffer, BUFFER_SIZE, 0);
+		if (bytesRead < 0)
+			throw ParsingErrorException(INTERRUPT, "bad socket");
+		write(file_fd, buffer, bytesRead);
+		bzero(buffer, BUFFER_SIZE);
+	}
+	close(file_fd);
 }
 
 void Request::addHeader(const std::string& key, const std::string& value) {

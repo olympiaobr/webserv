@@ -1,10 +1,12 @@
 #ifndef RESPONSE_HPP
-#define RESPONSE_HPP
+# define RESPONSE_HPP
 
-#include <string>
-#include <map>
-#include "../requests/Request.hpp"
-#include "../configuration/Config.hpp"
+# include <string>
+# include <map>
+# include "../requests/Request.hpp"
+# include "../configuration/Config.hpp"
+
+class Request;
 
 class Response {
 private:

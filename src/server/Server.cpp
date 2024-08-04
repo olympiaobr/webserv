@@ -108,6 +108,8 @@ void Server::pollLoop() {
 				if (new_client_socket < 0) {
 						throw PollingErrorException(strerror(errno));
 					}
+				// Set socket to non-blocking mode
+				fcntl(client_socket, F_SETFL, O_NONBLOCK);
 				addPollfd(new_client_socket, POLLIN);
 				std::cout << "New connection established on fd: " << client_socket << std::endl;
 			} else {										//if it is existing connection
@@ -130,15 +132,15 @@ void Server::pollLoop() {
 				/* Every type of request should processed its own way.
 				 * This router will control what should be done depending
 				 * on headers (or other control inputs) */
-				_processingRouter(req);
+				// _processingRouter(req);
 
 				/* Response */
 				Response res(req, _config);
 				const char* response = res.toCString();
 				std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
 				/* Temporary (testing) ddavlety 03.08 */
-				if (req.getHeader("Content-Type").find(';') != std::string::npos)
-					continue;
+				// if (req.getHeader("Content-Type").find(';') != std::string::npos)
+				// 	continue;
 				/* Temporary (testing) ddavlety 03.08 */
 				send(client_socket, response, strlen(response), 0);
 			}
@@ -169,34 +171,6 @@ void Server::_bindSocketName() {
 	}
 }
 
-std::string Server::_saveFile(const std::string &file_name)
-{
-	std::time_t now = std::time(0);
-	std::tm* now_tm = std::localtime(&now);
-
-	std::ostringstream oss;
-	oss << (now_tm->tm_year + 1900)
-        << (now_tm->tm_mon + 1)
-        << now_tm->tm_mday
-        << now_tm->tm_hour
-        << now_tm->tm_min
-        << now_tm->tm_sec;
-
-	std::string new_file_name;
-	new_file_name += _config.root;
-	new_file_name += "/";
-	new_file_name += "uploads/";
-	new_file_name += oss.str();
-	new_file_name += "-";
-	oss.clear();
-	oss << rand() % 1000;
-	new_file_name += oss.str();
-	new_file_name += ".file";
-
-	rename(file_name.c_str(), new_file_name.c_str());
-	return new_file_name;
-}
-
 void Server::listenPort(int backlog) {
 	if (listen(_main_socketfd, backlog) < 0) {
 		ListenErrorException(strerror(errno));
@@ -219,128 +193,100 @@ const std::vector<pollfd> &Server::getSockets() const {
 	return _fds;
 }
 
-bool Server::_chunkHandler(Request &req) {
+// bool Server::_chunkHandler(Request &req) {
 
-	/* Get data size */
-	std::stringstream ss;
-	size_t len;
-	std::string data;
-	std::string file_name;
-	std::string socket_name;
+// 	/* Get data size */
+// 	std::stringstream ss;
+// 	size_t len;
+// 	std::string data;
+// 	std::string file_name;
+// 	std::string socket_name;
 
-	file_name = _chunkFileName(req.getSocket());
-	if (!access(file_name.c_str(), W_OK | R_OK))
-		std::cout << BLACK << "File exists with permissions" << RESET << std::endl; // file exists, but it is from previous request?
-	int file_fd = open(file_name.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
-	if (!file_fd)
-		throw RuntimeErrorException("error opening the file");
+// 	file_name = utils::chunkFileName(req.getSocket());
+// 	if (!access(file_name.c_str(), W_OK | R_OK))
+// 		std::cout << BLACK << "File exists with permissions" << RESET << std::endl; // file exists, but it is from previous request?
+// 	int file_fd = open(file_name.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
+// 	if (!file_fd)
+// 		throw RuntimeErrorException("error opening the file");
 
-	data = req.getBody();
-	while (data != "")
-	{
-		std::string tmp;
-		tmp = data;
-		size_t end = data.find("\r\n");
-		data = data.substr(0, end);
-		ss << std::hex << data;
-		ss >> len;
-		ss.clear();
-		/* If end of chunks (save file) */
-		if (len == 0) {
-			close(file_fd);
-			req.addHeader("Transfer", "finished");
-			_saveFile(file_name);
-			return true;
-		}
-		/* Get data */
-		data = tmp;
-		size_t end_data = data.find("\r\n", end + 1);
-		end += 2;
-		end_data -= end;
-		data = data.substr(end, end_data);
-		if (write(file_fd, data.c_str(), len) < 0) // len or end_data??
-			throw RuntimeErrorException("error writing to file"); // throw error
-		end_data += 2 + end;
-		data = tmp.substr(end_data);
-	}
-	close(file_fd);
-	req.addHeader("Transfer", "in progress");
-	return false;
-}
+// 	data = req.getBody();
+// 	while (data != "")
+// 	{
+// 		std::string tmp;
+// 		tmp = data;
+// 		size_t end = data.find("\r\n");
+// 		data = data.substr(0, end);
+// 		ss << std::hex << data;
+// 		ss >> len;
+// 		ss.clear();
+// 		/* If end of chunks (save file) */
+// 		if (len == 0) {
+// 			close(file_fd);
+// 			req.addHeader("Transfer", "finished");
+// 			utils::saveFile(file_name, _config);
+// 			return true;
+// 		}
+// 		/* Get data */
+// 		data = tmp;
+// 		size_t end_data = data.find("\r\n", end + 1);
+// 		end += 2;
+// 		end_data -= end;
+// 		data = data.substr(end, end_data);
+// 		if (write(file_fd, data.c_str(), len) < 0) // len or end_data??
+// 			throw RuntimeErrorException("error writing to file"); // throw error
+// 		end_data += 2 + end;
+// 		data = tmp.substr(end_data);
+// 	}
+// 	close(file_fd);
+// 	req.addHeader("Transfer", "in progress");
+// 	return false;
+// }
 
-void Server::_processingRouter(Request &req)
-{
-	std::string content_type;
+// void Server::_parseFormData(Request &req) {
+// 	std::string boundary;
+// 	std::string body;
 
-	content_type = req.getHeader("Content-Type");
-	int pos = content_type.find(';');
-	content_type = req.getHeader("Content-Type").substr(0, pos);
-	if (req.getHeader("Transfer-Encoding") == "chunked")
-		_chunkHandler(req);
-	if (content_type == "multipart/form-data")
-		_parseFormData(req);
-	if (req.getHeaders().size() == 0) {
-		req.addHeader("Partial-Data", "file");
-		_parsePartialData(req);
-	}
-}
-
-void Server::_parseFormData(Request &req) {
-	std::string boundary;
-	std::string body;
-
-	boundary = req.getHeader("Content-Type");
-	int pos = boundary.find("boundary=");
-	boundary = boundary.substr(pos + 9);
-	body = req.getBody();
-	/* Boundary position */
-	pos = body.find(boundary);
-	pos += boundary.size() + 2;
-	body = body.substr(pos);
-	/* Skip header */
-	pos = body.find("\r\n\r\n") + 4;
-	body = body.substr(pos);
-	std::string	file_name = _chunkFileName(req.getSocket());
-	if (!access(file_name.c_str(), W_OK | R_OK))
-		std::cout << BLACK << "File exists with permissions" << RESET << std::endl; // file exists, but it is from previous request?
-	int file_fd = open(file_name.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
-	if (!file_fd)
-		throw RuntimeErrorException("error opening the file");
-	std::cout << "Size of body to write: " << body.size() << std::endl;
-	std::cout << "Body to write: " << body.c_str() << std::endl;
-	write(file_fd, body.c_str(), body.size());
-	close(file_fd);
-	return ;
-}
-void Server::_parsePartialData(Request &req) {
-	std::string	file_name = _chunkFileName(req.getSocket());
-	std::string body = req.getBody();
-	int eof = body.find("----");
-	body = body.substr(0, eof - 3);
-	/* Debug print */
-	for (int i = 5; i >= 0; --i)
-		std::cout << body[eof - 3 - i] << std::endl;
-	if (!access(file_name.c_str(), W_OK | R_OK))
-		std::cout << BLACK << "File exists with permissions" << RESET << std::endl; // file exists, but it is from previous request?
-	int file_fd = open(file_name.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
-	write(file_fd, body.c_str(), body.size());
-	close(file_fd);
-}
-
-std::string Server::_chunkFileName(int socket)
-{
-	std::stringstream ss;
-	std::string file_name;
-	std::string socket_name;
-
-	file_name = TEMP_FILES_DIRECTORY;
-	ss << socket;
-	ss >> socket_name;
-	ss.clear();
-	file_name += socket_name;
-	file_name += ".chunk";
-    return file_name;
-}
+// 	boundary = req.getHeader("Content-Type");
+// 	int pos = boundary.find("boundary=");
+// 	boundary = boundary.substr(pos + 9);
+// 	body = req.getBody();
+// 	/* Boundary position */
+// 	pos = body.find(boundary);
+// 	pos += boundary.size() + 2;
+// 	body = body.substr(pos);
+// 	/* Skip header */
+// 	pos = body.find("\r\n\r\n") + 4;
+// 	body = body.substr(pos);
+// 	pos = body.find(boundary);
+// 	body = body.substr(0, pos - 1);
+// 	// for (int i = 5; i >= 0; --i)
+// 	// 	std::cout << *(body.end() - i) << std::endl;
+// 	std::string	file_name = utils::chunkFileName(req.getSocket());
+// 	if (!access(file_name.c_str(), W_OK | R_OK))
+// 		std::cout << BLACK << "File exists with permissions" << RESET << std::endl; // file exists, but it is from previous request?
+// 	int file_fd = open(file_name.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
+// 	if (!file_fd)
+// 		throw RuntimeErrorException("error opening the file");
+// 	std::cout << "Size of body to write: " << body.size() << std::endl;
+// 	std::cout << "Body to write: " << body.c_str() << std::endl;
+// 	write(file_fd, body.c_str(), body.size());
+// 	close(file_fd);
+// 	return ;
+// }
+// void Server::_parsePartialData(Request &req) {
+// 	std::string	file_name = utils::chunkFileName(req.getSocket());
+// 	std::string body = req.getBody();
+// 	int eof = body.find("----");
+// 	body = body.substr(0, eof - 3);
+// 	/* Debug print */
+// 	// for (int i = 5; i >= 0; --i)
+// 	// 	std::cout << body[eof - 3 - i] << std::endl;
+// 	if (!access(file_name.c_str(), W_OK | R_OK))
+// 		std::cout << BLACK << "File exists with permissions" << RESET << std::endl; // file exists, but it is from previous request?
+// 	int file_fd = open(file_name.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
+// 	write(file_fd, body.c_str(), body.size());
+// 	close(file_fd);
+// }
 
 void Server::RUN(std::vector<Server> servers) {
 	for (size_t i = 0; i < servers.size(); ++i) {
