@@ -121,7 +121,7 @@ void Request::_readBodyChunked(const std::string& initialData) {
         bzero(buffer, BUFFER_SIZE + 1);
         bytesRead = recv(_clientSocket, buffer, BUFFER_SIZE, 0);
         if (bytesRead == 0) {
-            throw ParsingErrorException(INTERRUPT, "unexpected connection interrupt");
+            throw SocketCloseException("unexpected connection interrupt");
         } else if (bytesRead < 0) {
             break;
         }
