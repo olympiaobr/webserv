@@ -289,6 +289,11 @@ int Request::getSocket() const
     return _clientSocket;
 }
 
+int Request::getSocket() const
+{
+    return _clientSocket;
+}
+
 std::ostream& operator<<(std::ostream& os, const Request& request) {
     os << "HTTP Request Details:" << std::endl;
     os << "Socket file descriptor: " << request._clientSocket << std::endl;
