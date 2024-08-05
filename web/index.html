@@ -21,6 +21,32 @@
 		<br><br>
 		<input type="submit" value="Upload">
 	</form>
+	<h1>Chunked upload files</h1>
+	<input type="file" id="fileInput">
+    <button onclick="uploadFile()">Upload</button>
+    <script>
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            const chunkSize = 1024 * 1024; // 1MB
+            let start = 0;
+
+            while (start < file.size) {
+                const end = Math.min(start + chunkSize, file.size);
+                const chunk = file.slice(start, end);
+
+                const formData = new FormData();
+                formData.append('fileChunk', chunk);
+
+                await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                start = end;
+            }
+        }
+    </script>
 	<h1>Contact Us</h1>
     <form action="/upload" method="post" enctype="multipart/form-data">
         <label for="name">Name:</label>

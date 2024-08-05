@@ -10,9 +10,7 @@
 # include <stdlib.h>
 
 # include "../server/Server.hpp"
-
-struct ServerConfig;
-
+# include "../configuration/Config.hpp"
 
 namespace utils {
 	std::string	&toLowerCase(std::string &string);
@@ -23,6 +21,7 @@ namespace utils {
 	std::string	saveFile(const std::string &file_name, ServerConfig config);
 	std::string	chunkFileName(int socket);
 	char		*strstr(const char *haystack, const char *needle, ssize_t len);
+	int			stoi(const std::string &str);
 }
 
 #endif

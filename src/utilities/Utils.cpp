@@ -105,3 +105,13 @@ char	*utils::strstr(const char *haystack, const char *needle, ssize_t len) {
 	}
 	return (NULL);
 }
+
+int utils::stoi(const std::string &str)
+{
+	int out;
+	std::stringstream ss;
+
+	ss << str;
+	ss >> out;
+	return out;
+}

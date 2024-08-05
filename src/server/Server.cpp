@@ -114,7 +114,7 @@ void Server::pollLoop() {
 				std::cout << "New connection established on fd: " << client_socket << std::endl;
 			} else {										//if it is existing connection
 				/* Request */
-				Request req(client_socket);
+				Request req(client_socket, _config);
 				Response res(_config);
 				try {
 					req.parse();
@@ -153,6 +153,11 @@ void Server::pollLoop() {
 				// 	continue;
 				/* Temporary (testing) ddavlety 03.08 */
 				send(client_socket, response, strlen(response), 0);
+				/* Check other status codes */
+				if (res.getStatusCode() == 500) {
+					close(req.getSocket());
+					_fds.erase(_fds.begin() + i);
+				}
 			}
 		}
 	}
