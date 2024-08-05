@@ -16,29 +16,40 @@ Response::Response(const ServerConfig& config, int errorCode)
 
 Response::Response(const Request& req, const ServerConfig& config)
     : _httpVersion("HTTP/1.1"), _config(config) {
-
     initializeHttpErrors();
-    std::string uri = req.getUri();
-    const RouteConfig* routeConfig = NULL;
 
-    for (std::map<std::string, RouteConfig>::const_iterator it = _config.routes.begin(); it != _config.routes.end(); ++it) {
-        if (uri.find(it->first) == 0)
-        {
-            routeConfig = &it->second;
-            break;
-        }
+    if (req.getHttpVersion() != "HTTP/1.1") {
+        _setError(505);
+        return;
     }
-
-    if (routeConfig) {
-        if (std::find(routeConfig->allowed_methods.begin(), routeConfig->allowed_methods.end(), req.getMethod()) == routeConfig->allowed_methods.end()) {
-            _setError(405);
-            return;
-        }
-    }
-    else {
+    const RouteConfig* routeConfig = findMostSpecificRouteConfig(req.getUri());
+    if (!routeConfig) {
         _setError(404);
         return;
     }
+    if (std::find(routeConfig->allowed_methods.begin(), routeConfig->allowed_methods.end(), req.getMethod()) == routeConfig->allowed_methods.end()) {
+        _setError(405);
+        return;
+    }
+    dispatchMethodHandler(req);
+}
+
+
+const RouteConfig* Response::findMostSpecificRouteConfig(const std::string& uri) const {
+    const RouteConfig* bestMatch = NULL;
+    size_t longestMatchLength = 0;
+
+    for (std::map<std::string, RouteConfig>::const_iterator it = _config.routes.begin(); it != _config.routes.end(); ++it) {
+        const std::string& basePath = it->first;
+        if (uri.find(basePath) == 0 && basePath.length() > longestMatchLength) {
+            bestMatch = &it->second;
+            longestMatchLength = basePath.length();
+        }
+    }
+    return bestMatch;
+}
+
+void Response::dispatchMethodHandler(const Request& req) {
     if (req.getMethod() == "GET")
         handleGetRequest(req);
     else if (req.getMethod() == "POST")
@@ -62,7 +73,6 @@ Response& Response::operator=(const Response& other) {
 	return *this;
 }
 
-
 void Response::initializeHttpErrors() {
     _httpErrors[200] = "OK";
     _httpErrors[201] = "Created";
@@ -81,54 +91,46 @@ void Response::initializeHttpErrors() {
     _httpErrors[505] = "HTTP Version Not Supported";
 }
 
-bool Response::isMethodAllowed(const std::string& method, const std::string& uri) const
-{
-    std::map<std::string, RouteConfig>::const_iterator routeIt = _config.routes.find(uri);
-
-    while (routeIt == _config.routes.end() && uri.find_last_of('/') != std::string::npos) {
-        routeIt = _config.routes.find(uri.substr(0, uri.find_last_of('/')));
-    }
-    if (routeIt == _config.routes.end()) {
-        return true;
-    }
-    const RouteConfig& routeConfig = routeIt->second;
-    return std::find(routeConfig.allowed_methods.begin(), routeConfig.allowed_methods.end(), method) != routeConfig.allowed_methods.end();
-}
-
 void Response::handleGetRequest(const Request& req) {
-    std::string filename = _config.root + req.getUri();
-
-    if (req.getUri() == "/teapot") {
-        _setError(418);
-        return;
-    }
+    std::string path = _config.root + req.getUri();
 
     struct stat fileStat;
-    if (stat(filename.c_str(), &fileStat) == 0 && S_ISDIR(fileStat.st_mode)) {
-
-        filename += "/index.html";
-        if (stat(filename.c_str(), &fileStat) == 0 && !S_ISDIR(fileStat.st_mode)) {
-            std::string content = readFile(filename);
-            if (content.empty()) {
-                _setError(404);
+    if (stat(path.c_str(), &fileStat) == 0) {
+        if (S_ISDIR(fileStat.st_mode)) {  // Check if it's a directory
+            std::string indexPath = path + "/index.html";
+            if (stat(indexPath.c_str(), &fileStat) == 0 && !S_ISDIR(fileStat.st_mode)) {
+                std::string content = readFile(indexPath);
+                if (content.empty()) {
+                    _setError(404);
+                } else {
+                    setStatus(200);
+                    setBody(content);
+                    addHeader("Content-Type", getMimeType(indexPath));
+                }
             } else {
-                setStatus(200);
-                setBody(content);
-                addHeader("Content-Type", getMimeType(filename));
+                const RouteConfig* routeConfig = findMostSpecificRouteConfig(req.getUri());
+                if (routeConfig && routeConfig->autoindex) {
+                    std::string listing = utils::generateDirectoryListing(path);
+                    setStatus(200);
+                    setBody(listing);
+                    addHeader("Content-Type", "text/html");
+                } else {
+                    _setError(404); // No index.html and autoindex is not enabled
+                }
             }
+            return;
         }
-        else {
+        // It's not a directory, handle as a regular file
+        std::string content = readFile(path);
+        if (content.empty()) {
             _setError(404);
+        } else {
+            setStatus(200);
+            setBody(content);
+            addHeader("Content-Type", getMimeType(path));
         }
-        return;
-    }
-    std::string content = readFile(filename);
-    if (content.empty()) {
-        _setError(404);
     } else {
-        setStatus(200);
-        setBody(content);
-        addHeader("Content-Type", getMimeType(filename));
+        _setError(404); // File or directory not found
     }
 }
 

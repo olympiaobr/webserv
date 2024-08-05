@@ -12,6 +12,10 @@ struct			RouteConfig
 	std::string root;
 	std::string default_file;
 	std::vector<std::string> allowed_methods;
+	bool is_cgi;
+	bool autoindex;
+
+	RouteConfig() : is_cgi(false), autoindex(false) {}
 };
 
 struct			ServerConfig
@@ -36,6 +40,10 @@ class Config
 	const std::map<short, ServerConfig> &getAllServerConfigs() const;
 
 	void addServerConfig(short port, const ServerConfig &serverConfig);
+
+	friend std::ostream& operator<<(std::ostream& os, const RouteConfig& config);
+	friend std::ostream& operator<<(std::ostream& os, const ServerConfig& config);
+	friend std::ostream& operator<<(std::ostream& os, const Config& config);
 
   private:
 	std::string _filename;

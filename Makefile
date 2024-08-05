@@ -1,10 +1,11 @@
 CC := c++
-CPPFLAGS := -Wall -Wextra -Werror -std=c++98 -g -fsanitize=address
+CPPFLAGS := -Wall -Wextra -Werror -std=c++98 -g -fsanitize=address -fno-limit-debug-info
 TARGET := ./webserv
 INCLUDES :=	-I./src/server \
  			-I./src/responses \
  			-I./src/requests \
-			-I./src/configuration
+			-I./src/configuration \
+			-I./src/utilities 
 RM := rm -rf
 SRC_DIR := src/
 OBJ_DIR := obj/

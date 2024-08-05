@@ -6,6 +6,7 @@
 #include <algorithm>
 #include "../requests/Request.hpp"
 #include "../configuration/Config.hpp"
+#include "../utilities/Utils.hpp"
 
 class Response {
 private:
@@ -26,7 +27,8 @@ private:
     void handlePostRequest(const Request& req);
     void handleDeleteRequest(const Request& req);
 	void _setError(int code);
-    bool isMethodAllowed(const std::string& method, const std::string& uri) const;
+    const RouteConfig* findMostSpecificRouteConfig(const std::string& uri) const;
+    void dispatchMethodHandler(const Request& req);
 
 public:
 	Response(const ServerConfig& config);

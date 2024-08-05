@@ -3,6 +3,7 @@
 #include <sstream>
 #include <iostream>
 #include <cstdlib>
+#include <algorithm>
 
 Config::Config(const std::string& filename) : _filename(filename) {}
 
@@ -27,15 +28,14 @@ void Config::parseServerConfig(ServerConfig& config, const std::string& line)
     std::string value;
     getline(iss, value);
 
-    size_t start = value.find_first_not_of(" \t");
+    size_t start = value.find_first_not_of(" \t\"");
     if (start != std::string::npos) {
         value.erase(0, start);
     }
-    size_t end = value.find_last_not_of(" \t;");
+    size_t end = value.find_last_not_of(" \t;\"");
     if (end != std::string::npos) {
         value.erase(end + 1, value.length() - end);
     }
-    std::cout << "Parsing server config: " << key << " = " << value << std::endl;
 
     if (key == "host" || key == "server_name") {
         config.hostnames.push_back(value);
@@ -64,21 +64,34 @@ void Config::parseRouteConfig(RouteConfig& config, const std::string& line)
     iss >> key;
     std::string value;
     getline(iss, value);
-    value.erase(0, value.find_first_not_of(" \t"));
 
+
+    size_t start = value.find_first_not_of(" \t\"");
+    value.erase(0, start);
+    size_t end = value.find_last_not_of(" \t;\"");
+    if (end != std::string::npos) {
+        value.erase(end + 1);
+    }
     std::cout << "Parsing route config: " << key << " = " << value << std::endl;
     if (key == "allow_methods") {
         std::istringstream methods(value);
         std::string method;
         while (methods >> method) {
+            method.erase(std::remove(method.begin(), method.end(), ';'), method.end());
             config.allowed_methods.push_back(method);
         }
     }
     else if (key == "index") {
         config.default_file = value;
     }
+    else if (key == "autoindex") {
+        config.autoindex = (value == "on");
+    }
     else if (key == "root") {
         config.root = value;
+    }
+     else if (key == "cgi") {
+        config.is_cgi = true;
     }
 }
 
@@ -150,16 +163,6 @@ bool Config::loadConfig() {
         }
     }
     file.close();
-    std::cout << "Final server configurations:\n";
-    for (std::map<short, ServerConfig>::const_iterator it = _servers.begin(); it != _servers.end(); ++it) {
-        std::cout << "Port: " << it->first << "\n";
-        const ServerConfig& config = it->second;
-        std::cout << "Root: " << config.root << "\n";
-        std::cout << "Hostnames:\n";
-        for (size_t i = 0; i < config.hostnames.size(); ++i) {
-            std::cout << "  " << config.hostnames[i] << "\n";
-        }
-    }
     return true;
 }
 
@@ -177,4 +180,61 @@ const std::map<short, ServerConfig>& Config::getAllServerConfigs() const {
 
 void Config::addServerConfig(short port, const ServerConfig& serverConfig) {
     _servers[port] = serverConfig;
+}
+
+// Streaming operator for RouteConfig
+std::ostream& operator<<(std::ostream& os, const RouteConfig& config) {
+    os << "      Root: " << config.root << "\n"
+	   << "      Default File: " << config.default_file << "\n"
+       << "      Allowed Methods: ";
+
+    for (size_t i = 0; i < config.allowed_methods.size(); ++i) {
+        if (i > 0) os << ", ";
+        os << config.allowed_methods[i];
+    }
+    os << "\n";
+
+    return os;
+}
+
+// Streaming operator for ServerConfig
+std::ostream& operator<<(std::ostream& os, const ServerConfig& config) {
+    os << "  Hostnames: ";
+
+    for (size_t i = 0; i < config.hostnames.size(); ++i) {
+        if (i > 0) os << ", ";
+        os << config.hostnames[i];
+    }
+    os << "\n"
+       << "  Root: " << config.root << "\n"
+       << "  Body Limit (MB): " << config.body_limit << "\n"
+       << "  Error Pages:\n";
+
+    std::map<int, std::string>::const_iterator it;
+    for (it = config.error_pages.begin(); it != config.error_pages.end(); ++it) {
+        os << "    " << it->first << ": " << it->second << "\n";
+    }
+
+    os << "  Routes:\n";
+    std::map<std::string, RouteConfig>::const_iterator route_it;
+    for (route_it = config.routes.begin(); route_it != config.routes.end(); ++route_it) {
+        os << "    " << route_it->first << ":\n" << route_it->second;
+    }
+
+    return os;
+}
+
+// Streaming operator for Config
+std::ostream& operator<<(std::ostream& os, const Config& config) {
+    os << std::endl
+	   << "Config:\n"
+       << "  Filename: " << config._filename << "\n"
+	   << std::endl;
+
+    std::map<short, ServerConfig>::const_iterator it;
+    for (it = config.getAllServerConfigs().begin(); it != config.getAllServerConfigs().end(); ++it) {
+        os << "Port " << it->first << ":\n" << it->second << std::endl;
+    }
+
+    return os;
 }
