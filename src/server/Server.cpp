@@ -112,39 +112,53 @@ void Server::pollLoop() {
 				std::cout << "New connection established on fd: " << client_socket << std::endl;
 			} else {										//if it is existing connection
 				/* Request */
-				Request req(client_socket);
-				Response res(_config);
-				try {
-					req.parse();
-					chunkHandler(req, client_socket);
-					res = Response(req, _config);
-				} catch (Request::SocketCloseException &e) {
-					/* If socket closed by client we erase socket from polling list */
-					std::cout << e.what() << std::endl;
-					/* Delete .chunk file if exists */
-					if (utils::checkChunkFileExistance(utils::buildPath(client_socket, TEMP_FILES_DIRECTORY)))
-						utils::deleteFile(utils::buildPath(client_socket, TEMP_FILES_DIRECTORY));
-					_fds.erase(_fds.begin() + i);
-					continue ;
-				} catch (Request::ParsingErrorException& e) {
-					if (e.type == Request::BAD_REQUEST)
-						res = Response(_config, 405);
-					else if (e.type == Request::CONTENT_LENGTH)
-						res = Response(_config, 413);
-				}
-				/* Debug print */
-				std::cout << YELLOW << req << RESET << std::endl;
-				/* Chunk handling */
-				/* Response */
-				if (res.getStatusCode() == -1)
-					res = Response(_config, 500); // Internal Server Error
+				 Request req(client_socket);
+                try {
+                    req.parse();
 
-				const char* response = res.toCString();
-				std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
-				send(client_socket, response, strlen(response), 0);
-			}
-		}
-	}
+                    // Check if the request is for a CGI script
+                    if (req.isTargetingCGI()) { // Function to check if the request targets a CGI script
+                        CGIHandler cgiHandler(req.getScriptPath(), req, _config); // Assuming CGIHandler is defined
+                        std::string cgiOutput = cgiHandler.execute();
+                        Response res(_config);
+                        res.setBody(cgiOutput);
+                        res.setStatus(200); // Assume success
+                        res.setContentType("text/html"); // Adjust based on CGI output
+                        const char* response = res.toCString();
+                        send(client_socket, response, strlen(response), 0);
+                    } else {
+                        chunkHandler(req, client_socket); // Handle chunked data
+                        Response res(req, _config);
+                        if (res.getStatusCode() == -1)
+                            res = Response(_config, 500); // Internal Server Error
+
+                        const char* response = res.toCString();
+                        send(client_socket, response, strlen(response), 0);
+                    }
+                } catch (Request::SocketCloseException &e) {
+                    std::cerr << "Socket Closed: " << e.what() << std::endl;
+                    if (utils::checkChunkFileExistance(utils::buildPath(client_socket, TEMP_FILES_DIRECTORY)))
+                        utils::deleteFile(utils::buildPath(client_socket, TEMP_FILES_DIRECTORY));
+                    _fds.erase(_fds.begin() + i);
+                    continue;
+                } catch (Request::ParsingErrorException& e) {
+                    Response res(_config);
+                    if (e.type == Request::BAD_REQUEST)
+                        res = Response(_config, 405);
+                    else if (e.type == Request::CONTENT_LENGTH)
+                        res = Response(_config, 413);
+
+                    const char* response = res.toCString();
+                    send(client_socket, response, strlen(response), 0);
+                } catch (std::exception &e) {
+                    std::cerr << "Error: " << e.what() << std::endl;
+                    Response res(_config, 500);
+                    const char* response = res.toCString();
+                    send(client_socket, response, strlen(response), 0);
+                }
+            }
+        }
+    }
 }
 
 void Server::_setSocketOpt() {

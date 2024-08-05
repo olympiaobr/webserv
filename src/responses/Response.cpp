@@ -102,12 +102,14 @@ void Response::handleGetRequest(const Request& req) {
                 std::string content = readFile(indexPath);
                 if (content.empty()) {
                     _setError(404);
-                } else {
+                }
+                else {
                     setStatus(200);
                     setBody(content);
                     addHeader("Content-Type", getMimeType(indexPath));
                 }
-            } else {
+            }
+            else {
                 // No index.html found, check autoindex setting
                 const RouteConfig* routeConfig = findMostSpecificRouteConfig(req.getUri());
                 if (routeConfig && routeConfig->autoindex) {
@@ -116,13 +118,12 @@ void Response::handleGetRequest(const Request& req) {
                     setBody(listing);
                     addHeader("Content-Type", "text/html");
                 } else {
-                    _setError(404); // No index.html and autoindex is not enabled
+                    _setError(404);
                 }
             }
             return;
         }
-
-        // It's not a directory, handle as a regular file
+        // if not a directory, handle as a regular file
         std::string content = readFile(path);
         if (content.empty()) {
             _setError(404);
@@ -131,8 +132,9 @@ void Response::handleGetRequest(const Request& req) {
             setBody(content);
             addHeader("Content-Type", getMimeType(path));
         }
-    } else {
-        _setError(404); // File or directory not found
+    }
+    else {
+        _setError(404);
     }
 }
 

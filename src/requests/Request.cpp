@@ -210,3 +210,14 @@ Request::SocketCloseException::SocketCloseException(const char *error_msg) {
 const char *Request::SocketCloseException::what() const throw() {
     return _error;
 }
+
+bool Request::isTargetingCGI() const {
+    return _uri.find("/cgi-bin/") == 0 && (_method == "GET" || _method == "POST");
+}
+
+std::string Request::getScriptPath() const {
+    if (isTargetingCGI()) {
+        return serverConfig.root + _uri;
+    }
+    return "";
+}
