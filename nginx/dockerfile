@@ -1,3 +1,22 @@
+# Use the official Nginx image as the base
 FROM nginx
+
+# Install Fish shell
+RUN apt-get update && \
+    apt-get install -y fish && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy web files and Nginx configuration
 COPY ./web /usr/share/nginx/web
 COPY default.conf /etc/nginx/conf.d/default.conf
+
+# Set permissions for web files
+RUN chown -R nginx:nginx /usr/share/nginx/web && \
+    chmod 755 /usr/share/nginx/web
+
+# Set Fish as the default shell
+SHELL ["/usr/bin/fish", "-c"]
+
+
+CMD ["nginx", "-g", "daemon off;"]

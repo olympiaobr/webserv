@@ -30,7 +30,7 @@ rebuild: clean build run
 
 # Access the container in interactive mode
 interactive:
-	docker exec -it $(CONTAINER_NAME) /bin/sh
+	docker exec -it $(CONTAINER_NAME) /usr/bin/fish
 
 # View container logs
 logs:
