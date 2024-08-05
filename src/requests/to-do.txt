@@ -1,10 +1,10 @@
 Further steps:
-1. Check if method is allowed to this path
-2. Connect path + folder name (right now it is hard coded)
-3. Chunk files cleaning if socket closed and/or limit excided and/or other exceptions
-4. Take variables from configuration, rather than constant define
-
-
+    1. Check if method is allowed to this path
+    2. Connect path + folder name (right now it is hard coded)
+    3. Chunk files cleaning if socket closed and/or limit excided and/or other exceptions
+    4. Take variables from configuration, rather than constant define
+    5. Parse form data (if not file(s))
 Known issues:
-1. Files dropped if directory does not exist
-2. Parsing depends on headers with no checks if header exists
+    1. Files dropped if directory does not exist
+    2. Parsing depends on headers with no checks if header exists
+    3. Form containing data, but not ONLY file(s) is parsed incorrect
