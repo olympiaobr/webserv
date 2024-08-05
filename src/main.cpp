@@ -23,13 +23,14 @@ int	main(int argc, char *argv[])
 	}
 	const std::string configFile = argv[1];
 
-	std::cout << "Loading configuration from file: " << configFile << std::endl;
 	Config config(configFile);
 	if (!config.loadConfig())
 	{
 		std::cerr << "Failed to load configuration from " << configFile << std::endl;
 		return (EXIT_FAILURE);
 	}
+
+	std::cout << config << std::endl;
 
 	typedef std::map<short, ServerConfig> ConfType;
 

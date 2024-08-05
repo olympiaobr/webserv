@@ -18,6 +18,10 @@ Response::Response(const Request& req, const ServerConfig& config)
     : _httpVersion("HTTP/1.1"), _config(config) {
     initializeHttpErrors();
 
+    if (req.getHttpVersion() != "HTTP/1.1") {
+        _setError(505);
+        return;
+    }
     const RouteConfig* routeConfig = findMostSpecificRouteConfig(req.getUri());
     if (!routeConfig) {
         _setError(404);
@@ -29,6 +33,7 @@ Response::Response(const Request& req, const ServerConfig& config)
     }
     dispatchMethodHandler(req);
 }
+
 
 const RouteConfig* Response::findMostSpecificRouteConfig(const std::string& uri) const {
     const RouteConfig* bestMatch = NULL;
