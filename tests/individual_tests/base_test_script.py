@@ -1,7 +1,7 @@
 import requests
 import sys
 
-BASE_URL = "http://localhost:8080"
+BASE_URL = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080"
 
 def run_test(test_func):
     try:

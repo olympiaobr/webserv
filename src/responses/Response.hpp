@@ -6,6 +6,7 @@
 #include <algorithm>
 #include "../requests/Request.hpp"
 #include "../configuration/Config.hpp"
+#include "../utilities/Utils.hpp"
 
 class Request;
 

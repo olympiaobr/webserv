@@ -4,7 +4,8 @@ TARGET := ./webserv
 INCLUDES :=	-I./src/server \
  			-I./src/responses \
  			-I./src/requests \
-			-I./src/configuration
+			-I./src/configuration \
+			-I./src/utilities 
 RM := rm -rf
 SRC_DIR := src/
 OBJ_DIR := obj/

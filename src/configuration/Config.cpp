@@ -65,7 +65,6 @@ void Config::parseRouteConfig(RouteConfig& config, const std::string& line)
     std::string value;
     getline(iss, value);
 
-
     size_t start = value.find_first_not_of(" \t\"");
     value.erase(0, start);
     size_t end = value.find_last_not_of(" \t;\"");
@@ -84,10 +83,15 @@ void Config::parseRouteConfig(RouteConfig& config, const std::string& line)
     else if (key == "index") {
         config.default_file = value;
     }
+    else if (key == "autoindex") {
+        config.autoindex = (value == "on");
+    }
     else if (key == "root") {
         config.root = value;
     }
-
+     else if (key == "cgi") {
+        config.is_cgi = true;
+    }
 }
 
 bool Config::loadConfig() {

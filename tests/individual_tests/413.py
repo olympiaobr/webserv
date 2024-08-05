@@ -9,7 +9,7 @@ def test_413_payload_too_large_file_upload():
 
 def test_413_payload_too_large_json_body():
     # Test sending a JSON payload that exceeds the size limit
-    large_json = {'data': 'B' * (9 * 1024 * 1024)}  # 5 MB JSON payload
+    large_json = {'data': 'B' * (9 * 1024 * 1024)}  # 9 MB JSON payload
     response = requests.post(f"{BASE_URL}/upload", json=large_json)
     return check_status_code(response, 413, "Sending large JSON payload")
 

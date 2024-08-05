@@ -303,7 +303,21 @@ std::string Request::getHeader(const std::string& key) const {
     lowercase_key = utils::toLowerCase(lowercase_key);
     std::map<std::string, std::string>::const_iterator it = _headers.find(lowercase_key);
     if (it != _headers.end()) {
+        std::cout << "Parsed host: " << it->second << std::endl;
         return it->second;
+    }
+    return "";
+}
+
+std::string Request::getHost() const {
+    std::map<std::string, std::string>::const_iterator it = _headers.find("host");
+    if (it != _headers.end()) {
+        std::string host = it->second;
+        std::string::size_type colonPos = host.find(':');
+        if (colonPos != std::string::npos) {
+            return host.substr(0, colonPos);
+        }
+        return host;
     }
     return "";
 }

@@ -8,6 +8,10 @@
 # include <dirent.h>
 # include <ctime>
 # include <stdlib.h>
+# include <string>
+# include <dirent.h>
+# include <sys/types.h>
+# include <sys/stat.h>
 
 # include "../server/Server.hpp"
 # include "../configuration/Config.hpp"
@@ -22,6 +26,7 @@ namespace utils {
 	std::string	chunkFileName(int socket);
 	char		*strstr(const char *haystack, const char *needle, ssize_t len);
 	int			stoi(const std::string &str);
+	std::string generateDirectoryListing(const std::string& directoryPath);
 }
 
 #endif
