@@ -63,7 +63,7 @@ std::string utils::saveFile(const std::string &file_name, ServerConfig config) {
 	std::string new_file_name;
 	new_file_name += config.root;
 	new_file_name += "/";
-	new_file_name += "uploads/";
+	new_file_name += "upload/";
 	new_file_name += oss.str();
 	new_file_name += "-";
 	oss.clear();

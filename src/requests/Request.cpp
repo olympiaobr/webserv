@@ -212,7 +212,7 @@ void Request::_readBodyFile(const char *buffer, ssize_t bytesRead)
 			}
 		}
 		int file_fd = open(unique_filename.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
-		if (!file_fd)
+		if (file_fd < 0)
 			throw ParsingErrorException(FILE_SYSTEM, strerror(errno));
 		/* ******************************************** */
 
