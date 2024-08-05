@@ -2,6 +2,7 @@ Further steps:
 1. Check if method is allowed to this path
 2. Connect path + folder name (right now it is hard coded)
 3. Chunk files cleaning if socket closed and/or limit excided and/or other exceptions
+4. Take variables from configuration, rather than constant define
 
 
 Known issues:
