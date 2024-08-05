@@ -53,7 +53,7 @@ namespace utils {
         std::ostringstream listing;
         DIR* dir = opendir(directoryPath.c_str());
         if (dir == NULL) {
-            return "Error opening directory"; // Handle directory opening errors
+            return "Error opening directory";
         }
 
         struct dirent* entry;

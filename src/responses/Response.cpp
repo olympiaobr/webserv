@@ -108,7 +108,6 @@ void Response::handleGetRequest(const Request& req) {
                     addHeader("Content-Type", getMimeType(indexPath));
                 }
             } else {
-                // No index.html found, check autoindex setting
                 const RouteConfig* routeConfig = findMostSpecificRouteConfig(req.getUri());
                 if (routeConfig && routeConfig->autoindex) {
                     std::string listing = utils::generateDirectoryListing(path);
@@ -121,7 +120,6 @@ void Response::handleGetRequest(const Request& req) {
             }
             return;
         }
-
         // It's not a directory, handle as a regular file
         std::string content = readFile(path);
         if (content.empty()) {
