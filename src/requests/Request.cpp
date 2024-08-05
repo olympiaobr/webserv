@@ -168,7 +168,7 @@ void Request::_readBodyFile(const char *init_buffer, ssize_t bytesRead)
 {
 	size_t total_read = bytesRead;
     char buffer[BUFFER_SIZE + 1];
-	char *tmp;
+	char *start_pos;
 	std::string stream;
 
 	(void)init_buffer;
@@ -179,34 +179,36 @@ void Request::_readBodyFile(const char *init_buffer, ssize_t bytesRead)
 	boundary = "--" + boundary;
 
 	memmove(buffer, init_buffer, bytesRead);
-	tmp = utils::strstr(buffer, (char *)boundary.c_str(), bytesRead);
-	if (tmp) {
+	start_pos = utils::strstr(buffer, (char *)boundary.c_str(), bytesRead);
+	if (start_pos) {
 		/* Find start of data */
-		tmp += boundary.length() + 2;
-		std::string boundary_end = boundary + "--";
+		start_pos += boundary.length() + 2;
 
 		/* Start parsing data header */
-		const char *tmp2 = tmp;
-		tmp = utils::strstr(tmp, (const char *)"\r\n\r\n", bytesRead - (tmp - buffer)) + 4;
-		std::string headers = tmp2;
-		headers = headers.substr(0, tmp - tmp2);
-		/* ************************* */
-
-		/* Does it alway have filename in header? */
-		std::string new_file_name = headers.substr(headers.find("filename=") + 9);
-		new_file_name = new_file_name.substr(0, new_file_name.find('\r'));
-		new_file_name.erase(new_file_name.begin());
-		new_file_name.erase(new_file_name.end() - 1);
-		int i = 1;
 		std::string unique_filename;
-		unique_filename = TEMP_FILES_DIRECTORY + new_file_name;
-		while (access(unique_filename.c_str(), F_OK) == 0) {
-			std::stringstream ss;
-			ss << i;
-			std::string value;
-			ss >> value;
-			unique_filename = new_file_name + " (" + value + ")";
-			i++;
+		{
+			const char *header_pos = start_pos;
+			start_pos = utils::strstr(start_pos, (const char *)"\r\n\r\n", bytesRead - (start_pos - buffer)) + 4;
+			std::string headers = header_pos;
+			headers = headers.substr(0, start_pos - header_pos);
+			/* ************************* */
+
+			/* Does it alway have filename in header? */
+			std::string new_file_name = headers.substr(headers.find("filename=") + 9);
+			new_file_name = new_file_name.substr(0, new_file_name.find('\r'));
+			new_file_name.erase(new_file_name.begin());
+			new_file_name.erase(new_file_name.end() - 1);
+			int i = 1;
+
+			unique_filename = TEMP_FILES_DIRECTORY + new_file_name;
+			while (access(unique_filename.c_str(), F_OK) == 0) {
+				std::stringstream ss;
+				ss << i;
+				std::string value;
+				ss >> value;
+				unique_filename = new_file_name + " (" + value + ")";
+				i++;
+			}
 		}
 		int file_fd = open(unique_filename.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
 		if (!file_fd)
@@ -214,22 +216,24 @@ void Request::_readBodyFile(const char *init_buffer, ssize_t bytesRead)
 		/* ******************************************** */
 
 		/* Skip header and take data body length */
-		size_t len = bytesRead - (tmp - buffer);
-
-		/* Check if this chunk contains another data */
-		tmp2 = utils::strstr(tmp, boundary.c_str(), len);
-		if (tmp2) {
-			_readBodyFile(tmp2, len - (tmp2 - tmp));
-			len -= bytesRead - (tmp2 - buffer);
+		size_t len = bytesRead - (start_pos - buffer);
+		std::string boundary_end = boundary + "--";
+		/* Checking boundaries */
+		{
+			const char *boundary_pos = utils::strstr(start_pos, boundary.c_str(), len);
+			const char *boundary_end_pos = utils::strstr(start_pos, boundary_end.c_str(), len);
+			/* Check if this chunk contains another data */
+			if (boundary_pos && boundary_pos != boundary_end_pos) {
+				_readBodyFile(boundary_pos, len - (boundary_pos - start_pos));
+				len -= bytesRead - (boundary_pos - buffer) + 2;
+			}
+			/* Check if this chunk contains EOF */
+			else if (boundary_end_pos) {
+				len -= bytesRead - (boundary_end_pos - buffer) + 2;
+			}
 		}
-
-		/* Check if this chunk contains EOF */
-		tmp2 = utils::strstr(tmp, boundary_end.c_str(), len);
-		if (tmp2) {
-		}
-
 		/* Write data to file */
-		write(file_fd, tmp, len);
+		write(file_fd, start_pos, len);
 
 		/* Repeat */
 		while (bytesRead > 0) {
@@ -237,10 +241,10 @@ void Request::_readBodyFile(const char *init_buffer, ssize_t bytesRead)
 			if (bytesRead < 0)
 				break;
 			total_read += bytesRead;
-			tmp = utils::strstr(buffer, boundary_end.c_str(), bytesRead);
-			if (tmp) {
-				std::cout << RED << *(tmp - 1) << std::endl;
-				write(file_fd, buffer, tmp - buffer);
+			start_pos = utils::strstr(buffer, boundary_end.c_str(), bytesRead);
+			if (start_pos) {
+				std::cout << RED << *(start_pos - 1) << std::endl;
+				write(file_fd, buffer, start_pos - buffer);
 			}
 			else
 				write(file_fd, buffer, bytesRead);
