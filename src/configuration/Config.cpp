@@ -65,7 +65,6 @@ void Config::parseRouteConfig(RouteConfig& config, const std::string& line)
     std::string value;
     getline(iss, value);
 
-
     size_t start = value.find_first_not_of(" \t\"");
     value.erase(0, start);
     size_t end = value.find_last_not_of(" \t;\"");
