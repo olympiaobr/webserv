@@ -1,14 +1,9 @@
-tmp2 = utils::strstr(tmp, boundary.c_str(), len);
-		if (tmp2) {
-			_readBodyFile(tmp2, len - (tmp2 - tmp));
-			len -= bytesRead - (tmp2 - buffer);
-		}
-
-/* Check if this chunk contains EOF */
-tmp2 = utils::strstr(tmp, boundary_end.c_str(), len);
-if (tmp2) {
-}
+Further steps:
+1. Check if method is allowed to this path
+2. Connect path + folder name (right now it is hard coded)
+3. Chunk files cleaning if socket closed and/or limit excided and/or other exceptions
 
 
-I have to check if boundary met, but boundary_end not
-Because boundary met in boundary_end too
+Known issues:
+1. Files dropped if directory does not exist
+2. Parsing depends on headers with no checks if header exists

@@ -51,7 +51,7 @@ Praesent volutpat accumsan massa, nec fermentum metus euismod eu. Donec dignissi
 
 conn.request(
 	    'POST',
-    '/upload',
+    '/upload/',
     body= lorem,
     headers={
         'Content-Type': 'application/octet-stream',

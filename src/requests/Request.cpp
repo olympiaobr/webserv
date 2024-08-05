@@ -80,9 +80,11 @@ void Request::parse() {
         throw ParsingErrorException(CONTENT_LENGTH, "content length is above limit");
 	}
 	const char *body_buffer = utils::strstr(buffer, "\r\n\r\n", BUFFER_SIZE - 1);
-	body_buffer += 4;
-	bytesRead -= body_buffer - buffer;
-	if (*body_buffer == 0) {
+	if (body_buffer) {
+		body_buffer += 4;
+		bytesRead -= body_buffer - buffer;
+	}
+	if (body_buffer && *body_buffer == 0) {
 		bytesRead = recv(_clientSocket, buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
 		if (!bytesRead)
 			throw ParsingErrorException(INTERRUPT, "form-data is empty");
@@ -198,7 +200,8 @@ void Request::_readBodyFile(const char *buffer, ssize_t bytesRead)
 			new_file_name.erase(new_file_name.end() - 1);
 			int i = 1;
 
-			unique_filename = _config.root + "upload" + new_file_name;
+			unique_filename = _config.root + "/upload/" + new_file_name;
+			new_file_name = unique_filename;
 			while (access(unique_filename.c_str(), F_OK) == 0) {
 				std::stringstream ss;
 				ss << i;
