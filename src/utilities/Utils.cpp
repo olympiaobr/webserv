@@ -34,6 +34,7 @@ std::string utils::buildPath(int socket, const char *folder_name) {
 }
 
 bool utils::deleteFile(const std::string &file_name) {
+	/*ddavlety*/
 	/* IMPORTANT! remove function may be not allowed */
 	if (remove(file_name.c_str()) == 0)
         return true;

@@ -1,6 +1,7 @@
 #include "Server.hpp"
 
 Server::Server() {
+	/*ddavlety*/
 	/* Clean up temp files before server start up */
 	/* If there is already running server behaviour is undefined */
 	DIR* dir = opendir(TEMP_FILES_DIRECTORY);
@@ -14,6 +15,7 @@ Server::Server() {
 	while ((entry = readdir(dir)) != NULL) {
 		if (entry->d_type == DT_REG) {
 			std::string filePath = std::string(TEMP_FILES_DIRECTORY) + entry->d_name;
+			/*ddavlety*/
 			/* IMPORTANT! remove function may be not allowed */
 			remove(filePath.c_str());
 		}
@@ -85,16 +87,6 @@ size_t Server::getSocketsSize() const {
 	return _fds.size();
 }
 
-/*
-*	Loop through fds to check if the event happend.
-*	If event happend its revents is set accordingly.
-*	From poll mannual:
-*		struct pollfd {
-*		int    fd;        file descriptor
-*		short  events;    events to look for
-*		short  revents;   events returned
-*	};
-*/
 void Server::pollLoop() {
 	for (size_t i = 0; i < getSocketsSize(); ++i) {			//loop to ckeck if revent is set
 		if (_fds[i].revents & POLLERR) {					//man poll
@@ -118,9 +110,9 @@ void Server::pollLoop() {
 				Response res(_config);
 				try {
 					req.parse();
-					// chunkHandler(req, client_socket);
 					res = Response(req, _config);
 				} catch (Request::SocketCloseException &e) {
+					/*ddavlety*/
 					/* If socket closed by client we erase socket from polling list */
 					std::cout << e.what() << std::endl;
 					/* Delete .chunk file if exists */
@@ -136,23 +128,17 @@ void Server::pollLoop() {
 				}
 				/* Debug print */
 				std::cout << YELLOW << req << RESET << std::endl;
-				/* Processing routing */
-				/* Every type of request should processed its own way.
-				 * This router will control what should be done depending
-				 * on headers (or other control inputs) */
-				// _processingRouter(req);
 
 				/* Response */
 				if (res.getStatusCode() == -1)
 					res = Response(_config, 500); // Internal Server Error
 
 				const char* response = res.toCString();
+				/* Debug print */
 				std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
-				/* Temporary (testing) ddavlety 03.08 */
-				// if (req.getHeader("Content-Type").find(';') != std::string::npos)
-				// 	continue;
-				/* Temporary (testing) ddavlety 03.08 */
+
 				send(client_socket, response, strlen(response), 0);
+				/*ddavlety*/
 				/* Check other status codes */
 				if (res.getStatusCode() == 500) {
 					close(req.getSocket());
