@@ -41,6 +41,10 @@ class Config
 
 	void addServerConfig(short port, const ServerConfig &serverConfig);
 
+	friend std::ostream& operator<<(std::ostream& os, const RouteConfig& config);
+	friend std::ostream& operator<<(std::ostream& os, const ServerConfig& config);
+	friend std::ostream& operator<<(std::ostream& os, const Config& config);
+
   private:
 	std::string _filename;
 	std::map<short, ServerConfig> _servers;
