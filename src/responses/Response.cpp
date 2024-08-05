@@ -18,10 +18,23 @@ Response::Response(const Request& req, const ServerConfig& config)
     : _httpVersion("HTTP/1.1"), _config(config) {
     initializeHttpErrors();
 
+    // Ensure the request is using HTTP/1.1 standard
     if (req.getHttpVersion() != "HTTP/1.1") {
         _setError(505);
         return;
     }
+
+    // Ensure the hostname is valid
+    if (std::find(
+            config.hostnames.begin(),
+            config.hostnames.end(),
+            req.getHost()
+        ) == config.hostnames.end()) {
+        _setError(400);
+        return;
+    }
+
+    // Ensure the method is allowed in the requested route
     const RouteConfig* routeConfig = findMostSpecificRouteConfig(req.getUri());
     if (!routeConfig) {
         _setError(404);
