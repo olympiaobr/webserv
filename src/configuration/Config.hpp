@@ -26,7 +26,6 @@ struct			ServerConfig
 	int			body_limit;
 	std::map<std::string, RouteConfig> routes;
 	int port;
-
 };
 
 class Config

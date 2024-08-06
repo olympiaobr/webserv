@@ -85,16 +85,11 @@ size_t Server::getSocketsSize() const {
 	return _fds.size();
 }
 
-/*
-*	Loop through fds to check if the event happend.
-*	If event happend its revents is set accordingly.
-*	From poll mannual:
-*		struct pollfd {
-*		int    fd;        file descriptor
-*		short  events;    events to look for
-*		short  revents;   events returned
-*	};
-*/
+bool fileExists(const std::string& path) {
+    struct stat buffer;
+    return (stat(path.c_str(), &buffer) == 0);
+}
+
 void Server::pollLoop() {
 	for (size_t i = 0; i < getSocketsSize(); ++i) {			//loop to ckeck if revent is set
 		if (_fds[i].revents & POLLERR) {					//man poll
@@ -112,23 +107,50 @@ void Server::pollLoop() {
 				std::cout << "New connection established on fd: " << client_socket << std::endl;
 			} else {										//if it is existing connection
 				/* Request */
-				 Request req(client_socket);
-                try {
-                    req.parse();
-                    if (req.isTargetingCGI()) { // Function to check if the request targets a CGI script
-                        CGIHandler cgiHandler(req.getScriptPath(), req, _config); // Assuming CGIHandler is defined
-                        std::string cgiOutput = cgiHandler.execute();
-                        Response res(_config);
-                        res.setBody(cgiOutput);
-                        res.setStatus(200); // Assume success
-                        res.setContentType("text/html"); // Adjust based on CGI output
-                        const char* response = res.toCString();
-                        send(client_socket, response, strlen(response), 0);
-                    } else {
-                        chunkHandler(req, client_socket); // Handle chunked data
-                        Response res(req, _config);
-                        if (res.getStatusCode() == -1)
-                            res = Response(_config, 500); // Internal Server Error
+				Request req(client_socket, _config);
+				Response res(_config);
+				try {
+					req.parse();
+					if (req.isTargetingCGI()) {
+						std::string scriptPath = req.getScriptPath();
+						std::cout << "Attempting to execute CGI script at path: " << scriptPath << std::endl;
+
+						if (!fileExists(scriptPath)) {
+							std::cerr << "CGI script not found at path: " << scriptPath << std::endl;
+							res = Response(_config, 404);
+						} else {
+							CGIHandler cgiHandler(scriptPath, req, _config);
+							std::string cgiOutput = cgiHandler.execute();
+							if (cgiOutput.empty()) {
+								std::cerr << "CGI script execution failed or exited with error status" << std::endl;
+								res = Response(_config, 500);
+							} else {
+								res.setStatus(200);
+								res.setBody(cgiHandler.parseHeaders(cgiOutput));
+								std::cout << "CGI executed successfully." << std::endl;
+							}
+						}
+					}else {
+                        // Normal request handling
+						res = Response(req, _config);
+					}
+				} catch (Request::SocketCloseException &e) {
+					/*ddavlety*/
+					/* If socket closed by client we erase socket from polling list */
+					std::cout << e.what() << std::endl;
+					/* Delete .chunk file if exists */
+					if (utils::checkChunkFileExistance(utils::buildPath(client_socket, TEMP_FILES_DIRECTORY)))
+						utils::deleteFile(utils::buildPath(client_socket, TEMP_FILES_DIRECTORY));
+					_fds.erase(_fds.begin() + i);
+					continue ;
+				} catch (Request::ParsingErrorException& e) {
+					if (e.type == Request::BAD_REQUEST)
+						res = Response(_config, 405);
+					else if (e.type == Request::CONTENT_LENGTH)
+						res = Response(_config, 413);
+				}
+				/* Debug print */
+				std::cout << YELLOW << req << RESET << std::endl;
 
                         const char* response = res.toCString();
                         send(client_socket, response, strlen(response), 0);

@@ -18,7 +18,8 @@ namespace utils {
 	bool deleteFile(const std::string &file_name);
 	std::string getFileExtension(const std::string &file);
 	std::string generateDirectoryListing(const std::string& directoryPath);
-	char* strdup(const char* str);
+	std::time_t getCurrentTime();
+	std::string to_string(int value);
 }
 
 #endif

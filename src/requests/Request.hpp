@@ -37,12 +37,19 @@ public:
 	std::string getHeader(const std::string& key) const;
 	const std::map<std::string, std::string>& getHeaders() const;
 	std::string getBody() const;
+<<<<<<< Updated upstream
 
 	bool isTargetingCGI() const;
 	std::string getScriptPath() const;
 	std::string getQueryString() const;
     std::string getClientIPAddress() const;
 
+=======
+	int			getSocket() const;
+	std::string getQueryString() const;
+	bool isTargetingCGI() const;
+	std::string getScriptPath() const;
+>>>>>>> Stashed changes
 
 	void addHeader(const std::string& key, const std::string& value);
 

@@ -75,3 +75,9 @@ char* utils::strdup(const char* str) {
     strcpy(dup, str);
     return dup;
 }
+
+std::string utils::to_string(int value) {
+        std::ostringstream oss;
+        oss << value;
+        return oss.str();
+}

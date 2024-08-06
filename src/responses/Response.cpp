@@ -138,7 +138,6 @@ void Response::handleGetRequest(const Request& req) {
     }
 }
 
-
 void Response::handlePostRequest(const Request& req) {
     setStatus(200);
     setBody("POST request received for URI: " + req.getUri() + "\nBody: " + req.getBody());
@@ -237,6 +236,9 @@ std::string Response::toString(size_t num) const {
     return oss.str();
 }
 
+<<<<<<< Updated upstream
 void Response::setContentType(const std::string& type) {
     _headers["Content-Type"] = type;
 }
+=======
+>>>>>>> Stashed changes

@@ -91,7 +91,7 @@ void Config::parseRouteConfig(RouteConfig& config, const std::string& line)
         config.root = value;
     }
      else if (key == "cgi") {
-        config.is_cgi = true;
+        config.is_cgi = (value == "on");
     }
 }
 

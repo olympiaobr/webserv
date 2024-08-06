@@ -18,7 +18,10 @@
 # include "../configuration/Config.hpp"
 # include "../responses/Response.hpp"
 # include "../cgi/CGI.hpp"
+<<<<<<< Updated upstream
 // #include "../responses/Response.hpp"
+=======
+>>>>>>> Stashed changes
 
 # include "../include/debug.hpp"
 

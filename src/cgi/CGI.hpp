@@ -6,10 +6,13 @@
 #include "../requests/Request.hpp"
 #include "../configuration/Config.hpp"
 #include "../utilities/Utils.hpp"
+#include "../server/Server.hpp"
+
+class Request;
 
 class CGIHandler {
 public:
-    CGIHandler(const std::string& path, const Request& req, const ServerConfig& conf);
+	CGIHandler(const std::string& path, const Request& req, const ServerConfig& conf);
     ~CGIHandler();
     std::string execute();
 	void setupEnvironment();
@@ -17,9 +20,9 @@ public:
 
 private:
     std::string scriptPath;
-    Request request;
     ServerConfig serverConfig;
     std::map<std::string, std::string> environment;
+	const Request& request;
     char** envp;
 };
 

@@ -5,7 +5,11 @@ INCLUDES :=	-I./src/server \
  			-I./src/responses \
  			-I./src/requests \
 			-I./src/configuration \
+<<<<<<< Updated upstream
 			-I./src/utilities \
+=======
+			-I./src/utilitiesv \
+>>>>>>> Stashed changes
 			-I./src/cgi
 RM := rm -rf
 SRC_DIR := src/

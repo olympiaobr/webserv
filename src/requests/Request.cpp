@@ -211,14 +211,6 @@ const char *Request::SocketCloseException::what() const throw() {
     return _error;
 }
 
-bool Request::isTargetingCGI() const {
-    return _uri.find("/cgi-bin/") == 0 && (_method == "GET" || _method == "POST");
-}
-
-std::string Request::getScriptPath() const {
-    return "/path/to" + _uri;
-}
-
 std::string Request::getQueryString() const {
     size_t queryStart = _uri.find('?');
     if (queryStart != std::string::npos) {
@@ -227,6 +219,23 @@ std::string Request::getQueryString() const {
     return "";
 }
 
-std::string Request::getClientIPAddress() const {
-    return "127.0.0.1";
+bool Request::isTargetingCGI() const {
+    const std::string& uri = getUri();
+    size_t queryPos = uri.find('?');
+    std::string path = (queryPos != std::string::npos) ? uri.substr(0, queryPos) : uri;
+
+    std::string lowerPath = path;
+    std::transform(lowerPath.begin(), lowerPath.end(), lowerPath.begin(), ::tolower);
+
+    return (lowerPath.find("/cgi/") == 0 ||
+            lowerPath.rfind(".cgi") == lowerPath.length() - 4 ||
+            lowerPath.rfind(".php") == lowerPath.length() - 4 ||
+            lowerPath.rfind(".py") == lowerPath.length() - 3);
+}
+
+
+std::string Request::getScriptPath() const {
+    std::string basePath = "./web/cgi";
+    std::string scriptName = _uri.substr(_uri.rfind('/'));
+    return basePath + scriptName;
 }
