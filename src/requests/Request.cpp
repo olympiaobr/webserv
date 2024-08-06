@@ -7,21 +7,21 @@
 #include <fcntl.h>
 #include <errno.h>
 
-Request::Request(int clientSocket, ServerConfig &config)
-	: _clientSocket(clientSocket), _config(config) {}
+Request::Request(int clientSocket, ServerConfig &config, char *buffer, int buffer_len)
+	: _clientSocket(clientSocket), _config(config), _buffer(buffer), _buffer_size(buffer_len) {}
 
 Request::~Request() {}
 
-int Request::parseHeaders(char *buffer, int buffer_size) {
+int Request::parseHeaders() {
     std::string request;
     ssize_t bytesRead;
     bool headersComplete = false;
     size_t headerEnd;
 
-	bytesRead = recv(_clientSocket, buffer, buffer_size - 1, MSG_DONTWAIT);
+	bytesRead = recv(_clientSocket, _buffer, _buffer_size - 1, MSG_DONTWAIT);
 	if (bytesRead > 0) {
-		buffer[bytesRead] = '\0';
-		request += buffer;
+		_buffer[bytesRead] = '\0';
+		request += _buffer;
 		headerEnd = request.find("\r\n\r\n");
 		if (headerEnd != std::string::npos) {
 			headersComplete = true;
@@ -54,13 +54,13 @@ int Request::parseHeaders(char *buffer, int buffer_size) {
 
 
 /***********************************/
-	if (this->getUri() == "/exit")
-		exit (0);
+	// if (this->getUri() == "/exit")
+	// 	exit (0);
 /***********************************/
 	return bytesRead;
 }
 
-int Request::parseBody(char *buffer, int buffer_size, int bytesRead) {
+int Request::parseBody(int bytesRead) {
 	std::string content_length = getHeader("Content-Length");
     int contentLength = atoi(content_length.c_str());
     std::string content_type = getHeader("Content-Type");
@@ -68,23 +68,25 @@ int Request::parseBody(char *buffer, int buffer_size, int bytesRead) {
     if (contentLength > _config.body_limit) {
         throw ParsingErrorException(CONTENT_LENGTH, "content length is above limit");
 	}
-	const char *body_buffer = utils::strstr(buffer, "\r\n\r\n", bytesRead);
+	char *body_buffer = utils::strstr(_buffer, "\r\n\r\n", bytesRead);
 	if (body_buffer) {
 		body_buffer += 4;
-		bytesRead -= body_buffer - buffer;
+		bytesRead -= body_buffer - _buffer;
 	}
 	if (body_buffer && *body_buffer == 0) {
-		bytesRead = recv(_clientSocket, buffer, buffer_size - 1, MSG_DONTWAIT);
-		if (!bytesRead)
-			throw ParsingErrorException(INTERRUPT, "form-data is empty");
-		body_buffer = buffer;
+		bytesRead = recv(_clientSocket, _buffer, _buffer_size - 1, MSG_DONTWAIT);
+		if (bytesRead == 0)
+			throw SocketCloseException("connection closed by client");
+		if (bytesRead < 1)
+			return 0;
+		body_buffer = _buffer;
 	}
 	if (content_type.find("multipart/form-data") != content_type.npos) {
 		_readBodyFile(body_buffer, bytesRead);
-    } else if (getHeader("Transfer-Encoding") == "chunked"){
-        _readBodyChunked(body_buffer, bytesRead);
-    } else {
-        _readBody(body_buffer, bytesRead);
+	} else if (getHeader("Transfer-Encoding") == "chunked"){
+		_readBodyChunked(body_buffer, bytesRead);
+	} else {
+		_readBody(body_buffer, bytesRead);
 	}
 	return bytesRead;
 }
@@ -143,7 +145,7 @@ void Request::_readBodyChunked(const char *buffer, ssize_t bytesRead) {
 	close(file_fd);
 }
 
-void Request::_readBodyFile(const char *buffer, ssize_t bytesRead)
+void Request::_readBodyFile(char *buffer, ssize_t bytesRead)
 {
 	char *start_pos;
 	std::string stream;
@@ -190,24 +192,48 @@ void Request::_readBodyFile(const char *buffer, ssize_t bytesRead)
 		/* ******************************************** */
 
 		/* Take data body length */
-		size_t len = bytesRead - (start_pos - buffer);
-		std::string boundary_end = boundary + "--";
 		/* Checking boundaries */
 		{
-			const char *boundary_pos = utils::strstr(start_pos, boundary.c_str(), len);
-			const char *boundary_end_pos = utils::strstr(start_pos, boundary_end.c_str(), len);
+			size_t len = bytesRead - (start_pos - buffer);
+			std::string boundary_end = boundary + "--";
+			char *boundary_pos = utils::strstr(start_pos, boundary.c_str(), len);
+			char *boundary_end_pos = utils::strstr(start_pos, boundary_end.c_str(), len);
 			/* Check if this chunk contains another data */
 			if (boundary_pos && boundary_pos != boundary_end_pos) {
 				_readBodyFile(boundary_pos, len - (boundary_pos - start_pos));
 				len -= bytesRead - (boundary_pos - buffer) + 2;
+				write(file_fd, start_pos, len);
 			}
 			/* Check if this chunk contains EOF */
 			else if (boundary_end_pos) {
 				len -= bytesRead - (boundary_end_pos - buffer) + 2;
+				write(file_fd, start_pos, len);
+			}
+			/* read the rest */
+			else {
+				write(file_fd, start_pos, len);
+				while (bytesRead > 0) {
+					bytesRead = recv(_clientSocket, _buffer, _buffer_size - 1, MSG_DONTWAIT);
+					if (bytesRead <= 0)
+						break ;
+					char *boundary_pos = utils::strstr(_buffer, boundary.c_str(), bytesRead);
+					char *boundary_end_pos = utils::strstr(_buffer, boundary_end.c_str(), bytesRead);
+					if (boundary_pos && boundary_pos != boundary_end_pos) {
+						_readBodyFile(boundary_pos, bytesRead - (boundary_pos - start_pos));
+						bytesRead -= bytesRead - (boundary_pos - buffer) + 2;
+						write(file_fd, _buffer, bytesRead);
+						break ;
+					}
+					/* Check if this chunk contains EOF */
+					else if (boundary_end_pos) {
+						bytesRead -= bytesRead - (boundary_end_pos - buffer) + 2;
+						write(file_fd, _buffer, bytesRead);
+						break ;
+					}
+					write(file_fd, _buffer, bytesRead);
+				}
 			}
 		}
-		/* Write data to file */
-		write(file_fd, start_pos, len);
 		close (file_fd);
 	}
 }

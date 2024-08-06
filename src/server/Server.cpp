@@ -127,16 +127,15 @@ void Server::pollLoop() {
 				std::cout << "New connection established on fd: " << client_socket << std::endl;
 			} else {										//if it is existing connection
 				/* Request */
-				Request req(client_socket, _config);
+				Request req(client_socket, _config, _buffer, _buffer_size);
 				Response res(_config);
 				try {
-					int bytesRead = req.parseHeaders(_buffer, _buffer_size);
+					int bytesRead = req.parseHeaders();
 					res = Response(req, _config);
-					if (res.getStatusCode() < 300)
-						req.parseBody(_buffer, _buffer_size, bytesRead);
+					if (res.getStatusCode() < 300) {
+						req.parseBody(bytesRead);
+					}
 				} catch (Request::SocketCloseException &e) {
-					/*ddavlety*/
-					/* If socket closed by client we erase socket from polling list */
 					std::cout << e.what() << std::endl;
 					_cleanChunkFiles(client_socket);
 					_fds.erase(_fds.begin() + i);

@@ -22,6 +22,7 @@
 class Request;
 
 typedef std::vector<std::string> HostList;
+typedef std::vector<Request> RequestList;
 
 # define BACKLOG 3
 # define TEMP_FILES_DIRECTORY "tmp/"
@@ -95,6 +96,8 @@ class Server
 		std::map<int, std::time_t>	_request_time;
 		char*						_buffer;
 		int							_buffer_size;
+		RequestList					_pending_stream;
+
 		/*Functions*/
 		void _push(pollfd client_pollfd); //called when setPollfd is called
 		void _setSocketOpt();
