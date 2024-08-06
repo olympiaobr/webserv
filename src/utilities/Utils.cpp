@@ -135,3 +135,8 @@ std::string utils::generateDirectoryListing(const std::string& directoryPath) {
 	listing << "</ul></body></html>";
 	return listing.str();
 }
+
+std::time_t utils::getCurrentTime()
+{
+	return std::time(0);
+}

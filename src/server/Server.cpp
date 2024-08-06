@@ -77,6 +77,20 @@ void Server::pollfds() {
 	int poll_count;
 
 	poll_count = poll(_fds.data(), _fds.size(), 0);
+	for (size_t i = 0; i < _fds.size(); ++i)
+	{
+		if (_fds[i].fd != _main_socketfd && _checkRequestTimeout(_fds[i].fd)) {
+			Response res(_config, 408);
+			const char* response = res.toCString();
+			/* Debug print */
+			std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
+
+			send(_fds[i].fd, response, strlen(response), MSG_DONTWAIT);
+			close(_fds[i].fd);
+			_fds.erase(_fds.begin() + i);
+		}
+	}
+
 	if (poll_count == -1) {
 		close(_main_socketfd);
 		throw PollingErrorException(strerror(errno));
@@ -95,6 +109,8 @@ void Server::pollLoop() {
 		}
 		if (_fds[i].revents & POLLIN) {
 			int client_socket = _fds[i].fd;
+			if (client_socket != _main_socketfd)
+				_setRequestTime(client_socket);
 			if (client_socket == _main_socketfd) {			//if it is new connection
 				int new_client_socket = accept(_main_socketfd, (struct sockaddr *)&_address, (socklen_t*)&_address_len);
 				if (new_client_socket < 0) {
@@ -103,6 +119,7 @@ void Server::pollLoop() {
 				// Set socket to non-blocking mode
 				fcntl(client_socket, F_SETFL, O_NONBLOCK);
 				addPollfd(new_client_socket, POLLIN);
+				_setRequestTime(new_client_socket);
 				std::cout << "New connection established on fd: " << client_socket << std::endl;
 			} else {										//if it is existing connection
 				/* Request */
@@ -137,10 +154,12 @@ void Server::pollLoop() {
 				/* Debug print */
 				std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
 
-				send(client_socket, response, strlen(response), 0);
+				send(client_socket, response, strlen(response), MSG_DONTWAIT);
 				/*ddavlety*/
 				/* Check other status codes */
-				if (res.getStatusCode() == 500) {
+				int response_code = res.getStatusCode();
+				if (response_code >= 500
+					|| response_code >= 400) {
 					close(req.getSocket());
 					_fds.erase(_fds.begin() + i);
 				}
@@ -170,6 +189,18 @@ void Server::_bindSocketName() {
 	if (bind(_main_socketfd, (struct sockaddr *)&_address, sizeof(_address)) < 0) {
 		throw InitialisationException(strerror(errno));
 	}
+}
+
+void Server::_setRequestTime(int client_socket)
+{
+	_request_time[client_socket] = utils::getCurrentTime();
+}
+
+bool Server::_checkRequestTimeout(int client_socket)
+{
+	if (difftime(utils::getCurrentTime(), _request_time[client_socket]) >= REQUEST_TIMEOUT)
+		return true;
+	return false;
 }
 
 void Server::listenPort(int backlog) {
