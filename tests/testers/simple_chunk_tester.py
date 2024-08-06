@@ -14,7 +14,7 @@ chunks = [
 # Send first request
 conn.request(
     'POST',
-    '/',
+    '/upload/',
     body=chunks[0],
     headers={
         'Transfer-Encoding': 'chunked',
@@ -31,7 +31,7 @@ time.sleep(1)
 # Send second request
 conn.request(
     'POST',
-    '/',
+    '/upload/',
     body=chunks[1] + chunks[2],
     headers={
         'Transfer-Encoding': 'chunked',
@@ -51,7 +51,7 @@ Praesent volutpat accumsan massa, nec fermentum metus euismod eu. Donec dignissi
 
 conn.request(
 	    'POST',
-    '/',
+    '/upload/',
     body= lorem,
     headers={
         'Content-Type': 'application/octet-stream',

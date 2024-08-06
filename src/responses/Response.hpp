@@ -1,5 +1,5 @@
 #ifndef RESPONSE_HPP
-#define RESPONSE_HPP
+# define RESPONSE_HPP
 
 #include <string>
 #include <map>
@@ -7,6 +7,8 @@
 #include "../requests/Request.hpp"
 #include "../configuration/Config.hpp"
 #include "../utilities/Utils.hpp"
+
+class Request;
 
 class Response {
 private:

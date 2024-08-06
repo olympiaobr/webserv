@@ -1,6 +1,7 @@
 #include "Server.hpp"
 
 Server::Server() {
+	/*ddavlety*/
 	/* Clean up temp files before server start up */
 	/* If there is already running server behaviour is undefined */
 	DIR* dir = opendir(TEMP_FILES_DIRECTORY);
@@ -14,6 +15,7 @@ Server::Server() {
 	while ((entry = readdir(dir)) != NULL) {
 		if (entry->d_type == DT_REG) {
 			std::string filePath = std::string(TEMP_FILES_DIRECTORY) + entry->d_name;
+			/*ddavlety*/
 			/* IMPORTANT! remove function may be not allowed */
 			remove(filePath.c_str());
 		}
@@ -85,16 +87,6 @@ size_t Server::getSocketsSize() const {
 	return _fds.size();
 }
 
-/*
-*	Loop through fds to check if the event happend.
-*	If event happend its revents is set accordingly.
-*	From poll mannual:
-*		struct pollfd {
-*		int    fd;        file descriptor
-*		short  events;    events to look for
-*		short  revents;   events returned
-*	};
-*/
 void Server::pollLoop() {
 	for (size_t i = 0; i < getSocketsSize(); ++i) {			//loop to ckeck if revent is set
 		if (_fds[i].revents & POLLERR) {					//man poll
@@ -108,17 +100,19 @@ void Server::pollLoop() {
 				if (new_client_socket < 0) {
 						throw PollingErrorException(strerror(errno));
 					}
+				// Set socket to non-blocking mode
+				fcntl(client_socket, F_SETFL, O_NONBLOCK);
 				addPollfd(new_client_socket, POLLIN);
 				std::cout << "New connection established on fd: " << client_socket << std::endl;
 			} else {										//if it is existing connection
 				/* Request */
-				Request req(client_socket);
+				Request req(client_socket, _config);
 				Response res(_config);
 				try {
 					req.parse();
-					chunkHandler(req, client_socket);
 					res = Response(req, _config);
 				} catch (Request::SocketCloseException &e) {
+					/*ddavlety*/
 					/* If socket closed by client we erase socket from polling list */
 					std::cout << e.what() << std::endl;
 					/* Delete .chunk file if exists */
@@ -134,14 +128,22 @@ void Server::pollLoop() {
 				}
 				/* Debug print */
 				std::cout << YELLOW << req << RESET << std::endl;
-				/* Chunk handling */
+
 				/* Response */
 				if (res.getStatusCode() == -1)
 					res = Response(_config, 500); // Internal Server Error
 
 				const char* response = res.toCString();
+				/* Debug print */
 				std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
+
 				send(client_socket, response, strlen(response), 0);
+				/*ddavlety*/
+				/* Check other status codes */
+				if (res.getStatusCode() == 500) {
+					close(req.getSocket());
+					_fds.erase(_fds.begin() + i);
+				}
 			}
 		}
 	}
@@ -170,34 +172,6 @@ void Server::_bindSocketName() {
 	}
 }
 
-std::string Server::_saveFile(const std::string &file_name)
-{
-	std::time_t now = std::time(0);
-	std::tm* now_tm = std::localtime(&now);
-
-	std::ostringstream oss;
-	oss << (now_tm->tm_year + 1900)
-        << (now_tm->tm_mon + 1)
-        << now_tm->tm_mday
-        << now_tm->tm_hour
-        << now_tm->tm_min
-        << now_tm->tm_sec;
-
-	std::string new_file_name;
-	new_file_name += _config.root;
-	new_file_name += "/";
-	new_file_name += "uploads/";
-	new_file_name += oss.str();
-	new_file_name += "-";
-	oss.clear();
-	oss << rand() % 1000;
-	new_file_name += oss.str();
-	new_file_name += ".file";
-
-	rename(file_name.c_str(), new_file_name.c_str());
-	return new_file_name;
-}
-
 void Server::listenPort(int backlog) {
 	if (listen(_main_socketfd, backlog) < 0) {
 		ListenErrorException(strerror(errno));
@@ -218,62 +192,6 @@ int Server::getMainSocketFd() const {
 
 const std::vector<pollfd> &Server::getSockets() const {
 	return _fds;
-}
-
-bool Server::chunkHandler(Request &req, int client_socket) {
-	if (req.getHeader("Transfer-Encoding") == "chunked") {
-		/* Get data size */
-		std::stringstream ss;
-		size_t len;
-		std::string data;
-		std::string file_name;
-		std::string socket_name;
-
-		file_name = TEMP_FILES_DIRECTORY;
-		ss << client_socket;
-		ss >> socket_name;
-		ss.clear();
-		file_name += socket_name;
-		file_name += ".chunk";
-		if (!access(file_name.c_str(), W_OK | R_OK))
-			std::cout << BLACK << "File exists with permissions" << RESET << std::endl; // file exists, but it is from previous request?
-		int file_fd = open(file_name.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
-		if (!file_fd)
-			throw RuntimeErrorException("error opening the file");
-		data = req.getBody();
-		while (data != "")
-		{
-			std::string tmp;
-			tmp = data;
-			size_t end = data.find("\r\n");
-			data = data.substr(0, end);
-			ss << std::hex << data;
-			ss >> len;
-			ss.clear();
-			/* If end of chunks (save file) */
-			if (len == 0) {
-				close(file_fd);
-				req.addHeader("Transfer", "finished");
-				_saveFile(file_name);
-				return true;
-			}
-			/* Get data */
-			data = tmp;
-			size_t end_data = data.find("\r\n", end + 1);
-			end += 2;
-			end_data -= end;
-			data = data.substr(end, end_data);
-			if (write(file_fd, data.c_str(), len) < 0) // len or end_data??
-				throw RuntimeErrorException("error writing to file"); // throw error
-			end_data += 2 + end;
-			data = tmp.substr(end_data);
-		}
-		close(file_fd);
-	} else {
-		return true;
-	}
-	req.addHeader("Transfer", "in progress");
-	return false;
 }
 
 void Server::RUN(std::vector<Server> servers) {

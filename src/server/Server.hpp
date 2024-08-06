@@ -11,19 +11,17 @@
 # include <sys/errno.h>
 # include <fcntl.h>
 # include <sstream>
-# include <dirent.h>
-# include <ctime>
-# include <stdlib.h>
+
 # include "../requests/Request.hpp"
 # include "../configuration/Config.hpp"
 # include "../responses/Response.hpp"
-// #include "../responses/Response.hpp"
 
 # include "../include/debug.hpp"
 
+class Request;
 
 typedef std::vector<std::string> HostList;
-
+// typedef std::map<int, std::string> StreamMap;
 # define BACKLOG 3
 # define TEMP_FILES_DIRECTORY "tmp/"
 
@@ -79,7 +77,6 @@ class Server
 		const std::vector<pollfd>	&getSockets() const;
 
 		/* Server routines */
-		bool chunkHandler(Request &req, int client_socket);
 
 		/* Start all servers */
 		static void RUN(std::vector<Server>);
@@ -92,12 +89,13 @@ class Server
 		int					_address_len;
 		std::vector<pollfd>	_fds;
 		ServerConfig		_config;
+		// StreamMap			_streams;
 		/*Functions*/
 		void _push(pollfd client_pollfd); //called when setPollfd is called
 		void _setSocketOpt();
 		void _setSocketNonblock();
 		void _bindSocketName();
-		std::string _saveFile(const std::string &file_name);
+
 };
 
 std::ostream &operator<<(std::ostream &os, const Server &server);
