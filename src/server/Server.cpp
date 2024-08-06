@@ -131,8 +131,9 @@ void Server::pollLoop() {
 				Response res(_config);
 				try {
 					int bytesRead = req.parseHeaders();
+					// std::cout << YELLOW << req << RESET << std::endl;
 					res = Response(req, _config);
-					if (res.getStatusCode() < 300) {
+					if (res.getStatusCode() < 300 && req.getMethod() == "POST") {
 						req.parseBody(bytesRead);
 					}
 				} catch (Request::SocketCloseException &e) {
@@ -148,7 +149,7 @@ void Server::pollLoop() {
 					_cleanChunkFiles(client_socket);
 				}
 				/* Debug print */
-				std::cout << YELLOW << req << RESET << std::endl;
+				// std::cout << YELLOW << req << RESET << std::endl;
 
 				/* Response */
 				if (res.getStatusCode() == -1)
