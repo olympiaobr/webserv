@@ -24,9 +24,10 @@ int	main(int argc, char *argv[])
 	const std::string configFile = argv[1];
 
 	Config config(configFile);
-	if (!config.loadConfig())
-	{
-		std::cerr << "Failed to load configuration from " << configFile << std::endl;
+	try {
+		config.loadConfig();
+	} catch (std::exception& e) {
+		std::cerr << "Error: configuration error: " << e.what() << std::endl;
 		return (EXIT_FAILURE);
 	}
 

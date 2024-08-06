@@ -36,7 +36,7 @@ class Config
 
 	Config(const Config &other);
 	Config &operator=(const Config &other);
-	bool loadConfig();
+	void loadConfig();
 	const ServerConfig &getServerConfig(short port) const;
 	const std::map<short, ServerConfig> &getAllServerConfigs() const;
 

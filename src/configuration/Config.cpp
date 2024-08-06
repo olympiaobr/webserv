@@ -4,6 +4,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <algorithm>
+#include <stdexcept>
 
 Config::Config(const std::string& filename) : _filename(filename) {}
 
@@ -94,12 +95,10 @@ void Config::parseRouteConfig(RouteConfig& config, const std::string& line)
     }
 }
 
-bool Config::loadConfig() {
+void Config::loadConfig() {
     std::ifstream file(_filename.c_str());
-    if (!file.is_open()) {
-        std::cerr << "Failed to open config file: " << _filename << std::endl;
-        return false;
-    }
+    if (!file.is_open())
+        throw std::invalid_argument("failed to open config file: " + _filename);
 
     std::string line;
     ServerConfig currentServerConfig;
@@ -115,23 +114,17 @@ bool Config::loadConfig() {
         iss >> key;
 
         if (key == "server") {
-            if (inServerBlock) {
-                std::cerr << "Nested server block found, which is not allowed.\n";
-                return false;
-            }
+            if (inServerBlock)
+                throw std::invalid_argument("found forbidden nested server block");
             inServerBlock = true;
             currentServerConfig = ServerConfig();
             continue;
         }
         if (key == "location") {
-            if (!inServerBlock) {
-                std::cerr << "Location block outside of server block.\n";
-                return false;
-            }
-            if (inLocationBlock) {
-                std::cerr << "Nested location block found, which is not allowed.\n";
-                return false;
-            }
+            if (!inServerBlock)
+                throw std::invalid_argument("location block outside of server block");
+            if (inLocationBlock)
+                throw std::invalid_argument("found forbidden nested location block");
             inLocationBlock = true;
             currentRouteConfig = RouteConfig();
             iss >> currentLocationPath;
@@ -143,10 +136,8 @@ bool Config::loadConfig() {
                 currentServerConfig.routes[currentLocationPath] = currentRouteConfig;
             } else if (inServerBlock) {
                 inServerBlock = false;
-                if (currentPort == 0) {
-                    std::cerr << "Server block missing 'listen' directive.\n";
-                    return false;
-                }
+                if (currentPort == 0)
+                    throw std::invalid_argument("server block missing 'listen' directive");
                 _servers[currentPort] = currentServerConfig;
             }
             continue;
@@ -162,7 +153,6 @@ bool Config::loadConfig() {
         }
     }
     file.close();
-    return true;
 }
 
 const ServerConfig& Config::getServerConfig(short port) const {
