@@ -50,8 +50,8 @@ class Config
 	std::string _filename;
 	std::map<short, ServerConfig> _servers;
 
-	void parseRouteConfig(RouteConfig &config, const std::string &line);
-	void parseServerConfig(ServerConfig &config, const std::string &line);
+	void _parseRouteConfig(RouteConfig &config, const std::string &line);
+	void _parseServerConfig(ServerConfig &config, const std::string &line);
 };
 
 #endif
