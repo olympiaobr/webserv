@@ -49,7 +49,7 @@ std::string utils::getFileExtension(const std::string &file) {
 	return extension;
 }
 
-std::string utils::saveFile(const std::string &file_name, ServerConfig config) {
+std::string utils::saveFile(const std::string &file_name, const ServerConfig &config, const std::string uri) {
 	std::time_t now = std::time(0);
 	std::tm* now_tm = std::localtime(&now);
 
@@ -63,8 +63,7 @@ std::string utils::saveFile(const std::string &file_name, ServerConfig config) {
 
 	std::string new_file_name;
 	new_file_name += config.root;
-	new_file_name += "/";
-	new_file_name += "upload/";
+	new_file_name += uri;
 	new_file_name += oss.str();
 	new_file_name += "-";
 	oss.clear();

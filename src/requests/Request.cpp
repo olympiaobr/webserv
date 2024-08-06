@@ -12,33 +12,27 @@ Request::Request(int clientSocket, ServerConfig &config)
 
 Request::~Request() {}
 
-void Request::parse() {
-    char buffer[BUFFER_SIZE];
+int Request::parseHeaders(char *buffer, int buffer_size) {
     std::string request;
     ssize_t bytesRead;
     bool headersComplete = false;
     size_t headerEnd;
 
-    /*ddavlety*/
-    /* Do we need while loop here? We can make BUFFER > max content length + constant value*/
-    while (true) {
-        bytesRead = recv(_clientSocket, buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
-        if (bytesRead > 0) {
-            buffer[bytesRead] = '\0';
-            request += buffer;
-            headerEnd = request.find("\r\n\r\n");
-            if (headerEnd != std::string::npos) {
-                headersComplete = true;
-                break;
-            } else {
-               throw ParsingErrorException(BAD_REQUEST, "malformed request");
-            }
-        } else if (bytesRead == 0) {
-            throw SocketCloseException("connection closed by client");
-        } else {
+	bytesRead = recv(_clientSocket, buffer, buffer_size - 1, MSG_DONTWAIT);
+	if (bytesRead > 0) {
+		buffer[bytesRead] = '\0';
+		request += buffer;
+		headerEnd = request.find("\r\n\r\n");
+		if (headerEnd != std::string::npos) {
+			headersComplete = true;
+		} else {
 			throw ParsingErrorException(BAD_REQUEST, "malformed request");
-        }
-    }
+		}
+	} else if (bytesRead == 0) {
+		throw SocketCloseException("connection closed by client");
+	} else {
+		throw ParsingErrorException(BAD_REQUEST, "malformed request");
+	}
 
     /*ddavlety*/
     /* Parse headers only if it is complete
@@ -52,25 +46,35 @@ void Request::parse() {
         while (std::getline(requestStream, line) && line != "\r") {
             _parseHeader(line);
         }
-    }
+    } else {
+		throw ParsingErrorException(BAD_REQUEST, "malformed request");
+	}
 
-    // Handle body
-    std::string content_length = getHeader("Content-Length");
+	/* Check if method allowed to certain URI */
+
+
+/***********************************/
+	if (this->getUri() == "/exit")
+		exit (0);
+/***********************************/
+	return bytesRead;
+}
+
+int Request::parseBody(char *buffer, int buffer_size, int bytesRead) {
+	std::string content_length = getHeader("Content-Length");
     int contentLength = atoi(content_length.c_str());
-
     std::string content_type = getHeader("Content-Type");
-    std::string initialBodyData = request.substr(headerEnd + 4);
 
-    if (contentLength > CLIENT_MAX_BODY_SIZE) {
+    if (contentLength > _config.body_limit) {
         throw ParsingErrorException(CONTENT_LENGTH, "content length is above limit");
 	}
-	const char *body_buffer = utils::strstr(buffer, "\r\n\r\n", BUFFER_SIZE - 1);
+	const char *body_buffer = utils::strstr(buffer, "\r\n\r\n", bytesRead);
 	if (body_buffer) {
 		body_buffer += 4;
 		bytesRead -= body_buffer - buffer;
 	}
 	if (body_buffer && *body_buffer == 0) {
-		bytesRead = recv(_clientSocket, buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
+		bytesRead = recv(_clientSocket, buffer, buffer_size - 1, MSG_DONTWAIT);
 		if (!bytesRead)
 			throw ParsingErrorException(INTERRUPT, "form-data is empty");
 		body_buffer = buffer;
@@ -80,8 +84,9 @@ void Request::parse() {
     } else if (getHeader("Transfer-Encoding") == "chunked"){
         _readBodyChunked(body_buffer, bytesRead);
     } else {
-        _readBody(contentLength, initialBodyData);
+        _readBody(body_buffer, bytesRead);
 	}
+	return bytesRead;
 }
 
 void Request::_parseRequestLine(const std::string& line) {
@@ -105,24 +110,9 @@ void Request::_parseHeader(const std::string& line) {
     }
 }
 
-/*ddavlety*/
-/* I would rewrite this function */
-void Request::_readBody(int contentLength, const std::string& initialData) {
-    _body = initialData;
-    int remainingBytes = contentLength - initialData.length();
-
-    if (remainingBytes > 0) {
-        char *buffer = new char[remainingBytes + 1];
-        int bytesRead = recv(_clientSocket, buffer, remainingBytes, MSG_DONTWAIT);
-        std::cout << "Additional body bytes read: " << bytesRead << std::endl;
-        if (bytesRead > 0) {
-            buffer[bytesRead] = '\0';
-            _body += buffer;
-        }
-        delete[] buffer;
-    }
-
-    std::cout << "Total body length: " << _body.length() << std::endl;
+void Request::_readBody(const char *buffer, ssize_t bytesRead) {
+	_body += buffer;
+	(void)bytesRead;
 }
 
 void Request::_readBodyChunked(const char *buffer, ssize_t bytesRead) {
@@ -140,7 +130,7 @@ void Request::_readBodyChunked(const char *buffer, ssize_t bytesRead) {
 		read_len = atoi(stream);
 		if (read_len == 0) {
 			close(file_fd);
-			utils::saveFile(file_name, _config);
+			utils::saveFile(file_name, _config, getUri());
 			return ;
 		}
 		stream = utils::strstr(stream, "\r\n", bytesRead) + 2;
@@ -181,16 +171,16 @@ void Request::_readBodyFile(const char *buffer, ssize_t bytesRead)
 			new_file_name = new_file_name.substr(0, new_file_name.find('\r'));
 			new_file_name.erase(new_file_name.begin());
 			new_file_name.erase(new_file_name.end() - 1);
-			int i = 1;
-
-			unique_filename = _config.root + "/upload/" + new_file_name;
+			unique_filename = _config.root + getUri() + new_file_name;
 			new_file_name = unique_filename;
+			int i = 1;
 			while (access(unique_filename.c_str(), F_OK) == 0) {
 				std::stringstream ss;
 				ss << i;
 				std::string value;
 				ss >> value;
-				unique_filename = new_file_name + " (" + value + ")";
+				std::string extension = utils::getFileExtension(unique_filename);
+				unique_filename = new_file_name.substr(0, new_file_name.find(extension) - 1) + " (" + value + ")." + extension;
 				i++;
 			}
 		}

@@ -11,33 +11,17 @@
 # include "../utilities/Utils.hpp"
 # include "../configuration/Config.hpp"
 
-# define CLIENT_MAX_BODY_SIZE 10000 // temp
-# define BUFFER_SIZE 10000
+// # define CLIENT_MAX_BODY_SIZE 10000 // temp
+// # define BUFFER_SIZE 10000
 
 
 class Request {
-private:
-	int _clientSocket;
-	std::string _method;
-	std::string _uri;
-	std::string _httpVersion;
-	std::map<std::string, std::string> _headers;
-	std::string _body;
-	ServerConfig _config;
-
-
-	void _parseRequestLine(const std::string& line);
-	void _parseHeader(const std::string& line);
-	void _readBody(int contentLength, const std::string& initialData);
-	void _readBodyChunked(const char *init_buffer, ssize_t bytesRead);
-	void _readBodyFile(const char *init_buffer, ssize_t bytesRead);
-	// void _readBodyStream();
-
 public:
 	Request(int clientSocket, ServerConfig &config);
 	~Request();
 
-	void parse();
+	int parseHeaders(char *buffer, int buffer_size);
+	int parseBody(char *buffer, int buffer_size, int bytesRead);
 
 	std::string getMethod() const;
 	std::string getUri() const;
@@ -69,6 +53,23 @@ public:
 		private:
 			char _error[256];
 	};
+
+	private:
+	int _clientSocket;
+	std::string _method;
+	std::string _uri;
+	std::string _httpVersion;
+	std::map<std::string, std::string> _headers;
+	std::string _body;
+	ServerConfig _config;
+
+
+	void _parseRequestLine(const std::string& line);
+	void _parseHeader(const std::string& line);
+	void _readBody(const char *init_buffer, ssize_t bytesRead);
+	void _readBodyChunked(const char *init_buffer, ssize_t bytesRead);
+	void _readBodyFile(const char *init_buffer, ssize_t bytesRead);
+
 };
 
 #endif
