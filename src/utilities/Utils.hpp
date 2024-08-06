@@ -12,6 +12,7 @@
 # include <dirent.h>
 # include <sys/types.h>
 # include <sys/stat.h>
+# include <ctime>
 
 # include "../server/Server.hpp"
 # include "../configuration/Config.hpp"
@@ -27,6 +28,7 @@ namespace utils {
 	char		*strstr(const char *haystack, const char *needle, ssize_t len);
 	int			stoi(const std::string &str);
 	std::string generateDirectoryListing(const std::string& directoryPath);
+	std::time_t getCurrentTime();
 }
 
 #endif

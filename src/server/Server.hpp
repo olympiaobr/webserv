@@ -11,6 +11,7 @@
 # include <sys/errno.h>
 # include <fcntl.h>
 # include <sstream>
+# include <ctime>
 
 # include "../requests/Request.hpp"
 # include "../configuration/Config.hpp"
@@ -21,9 +22,10 @@
 class Request;
 
 typedef std::vector<std::string> HostList;
-// typedef std::map<int, std::string> StreamMap;
+
 # define BACKLOG 3
 # define TEMP_FILES_DIRECTORY "tmp/"
+# define REQUEST_TIMEOUT 10
 
 class Server
 {
@@ -82,20 +84,21 @@ class Server
 		static void RUN(std::vector<Server>);
 	private:
 		/*Variables*/
-		short				_port;
-		HostList			_hosts;
-		int					_main_socketfd;
-		sockaddr_in			_address;
-		int					_address_len;
-		std::vector<pollfd>	_fds;
-		ServerConfig		_config;
-		// StreamMap			_streams;
+		short						_port;
+		HostList					_hosts;
+		int							_main_socketfd;
+		sockaddr_in					_address;
+		int							_address_len;
+		std::vector<pollfd>			_fds;
+		ServerConfig				_config;
+		std::map<int, std::time_t>	_request_time;
 		/*Functions*/
 		void _push(pollfd client_pollfd); //called when setPollfd is called
 		void _setSocketOpt();
 		void _setSocketNonblock();
 		void _bindSocketName();
-
+		void _setRequestTime(int client_socket);
+		bool _checkRequestTimeout(int client_socket);
 };
 
 std::ostream &operator<<(std::ostream &os, const Server &server);
