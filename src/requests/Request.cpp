@@ -18,22 +18,25 @@ int Request::parseHeaders() {
     bool headersComplete = false;
     size_t headerEnd;
 
-	bytesRead = recv(_clientSocket, _buffer, _buffer_size - 1, MSG_DONTWAIT);
-	if (bytesRead > 0) {
-		_buffer[bytesRead] = '\0';
-		request += _buffer;
-		headerEnd = request.find("\r\n\r\n");
-		if (headerEnd != std::string::npos) {
-			headersComplete = true;
+	while (true) {
+		bytesRead = recv(_clientSocket, _buffer, _buffer_size - 1, 0);
+		if (bytesRead > 0) {
+			_buffer[bytesRead] = '\0';
+			request += _buffer;
+			std::cout << GREEN << _buffer << RESET << std::endl;
+			headerEnd = request.find("\r\n\r\n");
+			if (headerEnd != std::string::npos) {
+				headersComplete = true;
+				break ;
+			} else {
+				throw ParsingErrorException(BAD_REQUEST, "malformed request");
+			}
+		} else if (bytesRead == 0) {
+			throw SocketCloseException("connection closed by client");
 		} else {
 			throw ParsingErrorException(BAD_REQUEST, "malformed request");
 		}
-	} else if (bytesRead == 0) {
-		throw SocketCloseException("connection closed by client");
-	} else {
-		throw ParsingErrorException(BAD_REQUEST, "malformed request");
 	}
-
     /*ddavlety*/
     /* Parse headers only if it is complete
     * What we do if it is not ? */
@@ -74,11 +77,12 @@ int Request::parseBody(int bytesRead) {
 		bytesRead -= body_buffer - _buffer;
 	}
 	if (body_buffer && *body_buffer == 0) {
-		bytesRead = recv(_clientSocket, _buffer, _buffer_size - 1, MSG_DONTWAIT);
+		bytesRead = recv(_clientSocket, _buffer, _buffer_size - 1, 0);
 		if (bytesRead == 0)
 			throw SocketCloseException("connection closed by client");
-		if (bytesRead < 1)
+		if (bytesRead < 1) {
 			return 0;
+		}
 		body_buffer = _buffer;
 	}
 	if (content_type.find("multipart/form-data") != content_type.npos) {
@@ -213,14 +217,11 @@ void Request::_readBodyFile(char *buffer, ssize_t bytesRead)
 			else {
 				write(file_fd, start_pos, len);
 				while (bytesRead > 0) {
-					bytesRead = recv(_clientSocket, _buffer, _buffer_size - 1, MSG_DONTWAIT);
+					bytesRead = recv(_clientSocket, _buffer, _buffer_size - 1, 0);
 					if (bytesRead == 0)
 						throw SocketCloseException("connection closed by client");
 					if (bytesRead < 0)
 						throw ParsingErrorException(INTERRUPT, "form request suddenly endded");
-					/* There is a chance that it was read exatly untill boundary
-						in this case boundary end won't be found
-						extremely rare case though*/
 					char *boundary_pos = utils::strstr(_buffer, boundary.c_str(), bytesRead);
 					char *boundary_end_pos = utils::strstr(_buffer, boundary_end.c_str(), bytesRead);
 					if (boundary_pos && boundary_pos != boundary_end_pos) {
