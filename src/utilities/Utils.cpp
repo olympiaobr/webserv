@@ -68,3 +68,10 @@ namespace utils {
         return listing.str();
     }
 }
+
+char* utils::strdup(const char* str) {
+    size_t len = strlen(str);
+    char* dup = new char[len + 1];
+    strcpy(dup, str);
+    return dup;
+}

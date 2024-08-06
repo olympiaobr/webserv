@@ -40,6 +40,8 @@ public:
 
 	bool isTargetingCGI() const;
 	std::string getScriptPath() const;
+	std::string getQueryString() const;
+    std::string getClientIPAddress() const;
 
 
 	void addHeader(const std::string& key, const std::string& value);

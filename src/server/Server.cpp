@@ -115,8 +115,6 @@ void Server::pollLoop() {
 				 Request req(client_socket);
                 try {
                     req.parse();
-
-                    // Check if the request is for a CGI script
                     if (req.isTargetingCGI()) { // Function to check if the request targets a CGI script
                         CGIHandler cgiHandler(req.getScriptPath(), req, _config); // Assuming CGIHandler is defined
                         std::string cgiOutput = cgiHandler.execute();
@@ -160,6 +158,7 @@ void Server::pollLoop() {
         }
     }
 }
+
 
 void Server::_setSocketOpt() {
 	int opt = 1;

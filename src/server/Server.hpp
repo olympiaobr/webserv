@@ -17,6 +17,7 @@
 # include "../requests/Request.hpp"
 # include "../configuration/Config.hpp"
 # include "../responses/Response.hpp"
+# include "../cgi/CGI.hpp"
 // #include "../responses/Response.hpp"
 
 # include "../include/debug.hpp"
@@ -91,7 +92,6 @@ class Server
 		sockaddr_in			_address;
 		int					_address_len;
 		std::vector<pollfd>	_fds;
-		ServerConfig		_config;
 		/*Functions*/
 		void _push(pollfd client_pollfd); //called when setPollfd is called
 		void _setSocketOpt();

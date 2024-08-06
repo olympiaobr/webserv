@@ -43,6 +43,7 @@ public:
     void setBody(const std::string& body);
     std::string toString() const;
 	const char* toCString();
+    void setContentType(const std::string& type);
 };
 
 #endif

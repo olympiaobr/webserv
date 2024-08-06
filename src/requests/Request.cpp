@@ -216,8 +216,17 @@ bool Request::isTargetingCGI() const {
 }
 
 std::string Request::getScriptPath() const {
-    if (isTargetingCGI()) {
-        return serverConfig.root + _uri;
+    return "/path/to" + _uri;
+}
+
+std::string Request::getQueryString() const {
+    size_t queryStart = _uri.find('?');
+    if (queryStart != std::string::npos) {
+        return _uri.substr(queryStart + 1);
     }
     return "";
+}
+
+std::string Request::getClientIPAddress() const {
+    return "127.0.0.1";
 }

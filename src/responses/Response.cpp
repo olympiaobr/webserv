@@ -236,3 +236,7 @@ std::string Response::toString(size_t num) const {
     oss << num;
     return oss.str();
 }
+
+void Response::setContentType(const std::string& type) {
+    _headers["Content-Type"] = type;
+}

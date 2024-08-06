@@ -7,6 +7,7 @@
 # include <unistd.h>
 # include <string>
 #include <dirent.h>
+#include <cstring>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -17,6 +18,7 @@ namespace utils {
 	bool deleteFile(const std::string &file_name);
 	std::string getFileExtension(const std::string &file);
 	std::string generateDirectoryListing(const std::string& directoryPath);
+	char* strdup(const char* str);
 }
 
 #endif

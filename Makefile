@@ -1,5 +1,5 @@
 CC := c++
-CPPFLAGS := -Wall -Wextra -Werror -std=c++98 -g -fsanitize=address -fno-limit-debug-info
+CPPFLAGS := -Wall -Wextra -Werror -std=c++98 -g -fsanitize=address
 TARGET := ./webserv
 INCLUDES :=	-I./src/server \
  			-I./src/responses \
@@ -16,7 +16,7 @@ SOURCE :=	main.cpp \
  			requests/Request.cpp \
  			configuration/Config.cpp \
 			utilities/Utils.cpp \
-			cgi/Cgi.cpp
+			cgi/CGI.cpp
 
 TMPDIR = tmp
 
