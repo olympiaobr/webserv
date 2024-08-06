@@ -214,8 +214,13 @@ void Request::_readBodyFile(char *buffer, ssize_t bytesRead)
 				write(file_fd, start_pos, len);
 				while (bytesRead > 0) {
 					bytesRead = recv(_clientSocket, _buffer, _buffer_size - 1, MSG_DONTWAIT);
-					if (bytesRead <= 0)
-						break ;
+					if (bytesRead == 0)
+						throw SocketCloseException("connection closed by client");
+					if (bytesRead < 0)
+						throw ParsingErrorException(INTERRUPT, "form request suddenly endded");
+					/* There is a chance that it was read exatly untill boundary
+						in this case boundary end won't be found
+						extremely rare case though*/
 					char *boundary_pos = utils::strstr(_buffer, boundary.c_str(), bytesRead);
 					char *boundary_end_pos = utils::strstr(_buffer, boundary_end.c_str(), bytesRead);
 					if (boundary_pos && boundary_pos != boundary_end_pos) {
