@@ -21,16 +21,16 @@ private:
     std::string _responseString;
     std::map<int, std::string> _httpErrors;
 
-    std::string readFile(const std::string& filename);
-    std::string getMimeType(const std::string& filename);
-    std::string toString(size_t num) const;
+    std::string _readFile(const std::string& filename);
+    std::string _getMimeType(const std::string& filename);
+    std::string _toString(size_t num) const;
 
-    void handleGetRequest(const Request& req);
-    void handlePostRequest(const Request& req);
-    void handleDeleteRequest(const Request& req);
+    void _handleGetRequest(const Request& req);
+    void _handlePostRequest(const Request& req);
+    void _handleDeleteRequest(const Request& req);
 	void _setError(int code);
-    const RouteConfig* findMostSpecificRouteConfig(const std::string& uri) const;
-    void dispatchMethodHandler(const Request& req);
+    const RouteConfig* _findMostSpecificRouteConfig(const std::string& uri) const;
+    void _dispatchMethodHandler(const Request& req);
 
 public:
 	Response(const ServerConfig& config);
