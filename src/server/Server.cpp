@@ -170,6 +170,7 @@ void Server::pollLoop() {
 					if (res.getStatusCode() < 300 && req.getMethod() == "POST") {
 						req.parseBody(bytesRead);
 					}
+					}
 				} catch (Request::SocketCloseException &e) {
 					std::cout << e.what() << std::endl;
 					_cleanChunkFiles(client_socket);
