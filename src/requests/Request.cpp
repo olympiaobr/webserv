@@ -23,7 +23,6 @@ int Request::parseHeaders() {
 		if (bytesRead > 0) {
 			_buffer[bytesRead] = '\0';
 			request += _buffer;
-			std::cout << GREEN << _buffer << RESET << std::endl;
 			headerEnd = request.find("\r\n\r\n");
 			if (headerEnd != std::string::npos) {
 				headersComplete = true;
@@ -34,7 +33,11 @@ int Request::parseHeaders() {
 		} else if (bytesRead == 0) {
 			throw SocketCloseException("connection closed by client");
 		} else {
-			throw ParsingErrorException(BAD_REQUEST, "malformed request");
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				continue ;
+			} else {
+				throw ParsingErrorException(BAD_REQUEST, "malformed request");
+			}
 		}
 	}
     /*ddavlety*/
@@ -133,7 +136,7 @@ void Request::_readBodyChunked(const char *buffer, ssize_t bytesRead) {
 	stream = (char *)buffer;
 	std::string	file_name = utils::chunkFileName(getSocket());
 	if (!access(file_name.c_str(), W_OK | R_OK))
-		std::cout << BLACK << "File exists with permissions" << RESET << std::endl; // file exists, but it is from previous request?
+		std::cout << BLACK << "File exists with permissions" << RESET << std::endl;
 	int file_fd = open(file_name.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
 	if (file_fd < 0)
 		throw ParsingErrorException(FILE_SYSTEM, "chunk temp file open failed");
