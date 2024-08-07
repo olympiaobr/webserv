@@ -332,7 +332,7 @@ std::ostream& operator<<(std::ostream& os, const Request& request) {
 
 Request::ParsingErrorException::ParsingErrorException(ErrorType type, const char *error_msg) {
 	this->type = type;
-    bzero(_error, 256);
+    std::memset(_error, 0, 256);
     strncpy(_error, "Request parsing error: ", 24);
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
@@ -342,6 +342,7 @@ const char *Request::ParsingErrorException::what() const throw() {
 }
 
 Request::SocketCloseException::SocketCloseException(const char *error_msg) {
+	std::memset(_error, 0, 256);
     strncpy(_error, "Socket closed: ", 27);
     strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }

@@ -1,12 +1,14 @@
 #ifndef RESPONSE_HPP
 # define RESPONSE_HPP
 
-#include <string>
-#include <map>
-#include <algorithm>
-#include "../requests/Request.hpp"
-#include "../configuration/Config.hpp"
-#include "../utilities/Utils.hpp"
+# include <string>
+# include <map>
+# include <algorithm>
+// # include <fstream>
+// # include <filesystem>
+# include "../requests/Request.hpp"
+# include "../configuration/Config.hpp"
+# include "../utilities/Utils.hpp"
 
 class Request;
 
@@ -22,9 +24,31 @@ public:
     void setStatus(int code);
 	int getStatusCode();
     void addHeader(const std::string& key, const std::string& value);
-    void setBody(const std::string& body);
-    std::string toString() const;
-	const char* toCString();
+    // void setBody(const std::string& body);
+	// void setBody(const char* body);
+
+    std::string _headersToString() const;
+	void generateResponse(const std::string& filename);
+	void generateDirectoryListing(const std::string& directoryPath);
+	const char *getContent();
+	int			getConetentLength();
+	// const char* toCString();
+
+	/* Exceptions */
+	class FileSystemErrorException: public std::exception {
+		public:
+			FileSystemErrorException(const char *error_msg);
+			const char* what() const throw();
+		private:
+			char _error[256];
+	};
+	class ContentLengthException: public std::exception {
+		public:
+			ContentLengthException(const char *error_msg);
+			const char* what() const throw();
+		private:
+			char _error[256];
+	};
 
 private:
     std::string 						_httpVersion;
@@ -32,14 +56,14 @@ private:
     int									_statusCode;
     std::string							_statusMessage;
     std::map<std::string, std::string>	_headers;
-    std::string							_body;
-    std::string							_responseString;
     std::map<int, std::string>			_httpErrors;
+    const char*							_content;
 
 	char*								_buffer;
 	int									_buffer_size;
+	int									_content_length;
 
-    std::string _readFile(const std::string& filename);
+    // std::string _readFile(const std::string& filename);
     std::string _getMimeType(const std::string& filename);
     std::string _toString(size_t num) const;
 	std::vector<std::string> _chunkFile(const std::string& filename);

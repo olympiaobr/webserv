@@ -7,17 +7,17 @@
 #include <cstdio>
 
 Response::Response(const ServerConfig& config, char* buffer, int buffer_size):
-	_config(config), _statusCode(-1), _buffer(buffer), _buffer_size(buffer_size) {}
+	_config(config), _statusCode(-1), _buffer(buffer), _buffer_size(buffer_size), _content_length(0) {}
 
 Response::Response(const ServerConfig& config, int errorCode, char* buffer, int buffer_size)
-	: _httpVersion("HTTP/1.1"), _config(config), _buffer(buffer), _buffer_size(buffer_size) {
+	: _httpVersion("HTTP/1.1"), _config(config), _buffer(buffer), _buffer_size(buffer_size), _content_length(0) {
 	initializeHttpErrors();
 	_setError(errorCode);
 }
 
 
 Response::Response(const Request& req, const ServerConfig& config, char* buffer, int buffer_size)
-    : _httpVersion("HTTP/1.1"), _config(config), _buffer(buffer), _buffer_size(buffer_size) {
+    : _httpVersion("HTTP/1.1"), _config(config), _buffer(buffer), _buffer_size(buffer_size), _content_length(0) {
     initializeHttpErrors();
 
     // Ensure the request is using HTTP/1.1 standard
@@ -81,9 +81,11 @@ Response& Response::operator=(const Response& other) {
 		_statusCode = other._statusCode;
 		_statusMessage = other._statusMessage;
 		_headers = other._headers;
-		_body = other._body;
-		_responseString = other._responseString;
+		_content = other._content;
+		_buffer = other._buffer;
+		_buffer_size = other._buffer_size;
 		_httpErrors = other._httpErrors;
+		_content_length = other._content_length;
 	}
 	return *this;
 }
@@ -114,21 +116,26 @@ void Response::_handleGetRequest(const Request& req) {
         if (S_ISDIR(fileStat.st_mode)) {  // Check if it's a directory
             std::string indexPath = path + "/index.html";
             if (stat(indexPath.c_str(), &fileStat) == 0 && !S_ISDIR(fileStat.st_mode)) {
-                std::string content = _readFile(indexPath);
-                if (content.empty()) {
+                // std::string content = _readFile(indexPath);
+				try {
+					setStatus(200);
+					addHeader("Content-Type", _getMimeType(indexPath));
+					generateResponse(indexPath);
+				} catch (Response::FileSystemErrorException &e) {
                     _setError(404);
-                } else {
-                    setStatus(200);
-                    setBody(content);
-                    addHeader("Content-Type", _getMimeType(indexPath));
-                }
+				} catch (Response::ContentLengthException &e) {
+					throw e; //temp
+				}
             } else {
                 const RouteConfig* routeConfig = _findMostSpecificRouteConfig(req.getUri());
                 if (routeConfig && routeConfig->autoindex) {
-                    std::string listing = utils::generateDirectoryListing(path);
-                    setStatus(200);
-                    setBody(listing);
-                    addHeader("Content-Type", "text/html");
+					try {
+						setStatus(200);
+						addHeader("Content-Type", "text/html");
+						generateDirectoryListing(path);
+					} catch (Response::FileSystemErrorException &e) {
+						_setError(404);
+					}
                 } else {
                     _setError(404); // No index.html and autoindex is not enabled
                 }
@@ -136,24 +143,42 @@ void Response::_handleGetRequest(const Request& req) {
             return;
         }
         // It's not a directory, handle as a regular file
-        std::string content = _readFile(path);
-        if (content.empty()) {
-            _setError(404);
-        } else {
+        // std::string content = _readFile(path);
+		try {
             setStatus(200);
-            setBody(content);
             addHeader("Content-Type", _getMimeType(path));
-        }
+			addHeader("Content-Disposition", "inline");
+			generateResponse(path);
+		} catch (Response::FileSystemErrorException &e) {
+			_setError(404);
+		} catch (Response::ContentLengthException &e) {
+			throw e; //temp
+		}
     } else {
         _setError(404); // File or directory not found
     }
 }
 
-
+/* send page ? */
 void Response::_handlePostRequest(const Request& req) {
+	char* ptr;
     setStatus(200);
-    setBody("POST request received for URI: " + req.getUri() + "\nBody: \n" + req.getBody());
     addHeader("Content-Type", "text/plain");
+	{
+		std::stringstream ss;
+		ss << 31 + req.getUri().size();
+		std::string length = ss.str();
+ 		addHeader("Content-Length", length);
+	}
+	std::string headers = _headersToString();
+	std::memset(_buffer, 0, _buffer_size);
+	std::memcpy(_buffer, headers.c_str(), headers.size());
+	ptr = _buffer + headers.size();
+	std::memcpy(ptr, "POST request received for URI: ", 31);
+	ptr += 31;
+	std::memcpy(ptr, req.getUri().c_str(), req.getUri().size());
+    _content = _buffer;
+	_content_length = (ptr - _buffer) + req.getUri().size();
 }
 
 void Response::_handleDeleteRequest(const Request& req)
@@ -167,14 +192,16 @@ void Response::_handleDeleteRequest(const Request& req)
         _setError(404);
         return;
     }
-
-    // Attempt to delete the file
-    if (std::remove(filePath.c_str()) == 0) {
+	try
+	{
         setStatus(200);
-        setBody("The resource has been successfully deleted.");
-    } else {
+		addHeader("Content-Type", _getMimeType(filePath));
+		generateResponse(filePath);
+	} catch (Response::FileSystemErrorException &e) {
         _setError(500);
-    }
+	} catch (Response::ContentLengthException &e) {
+		throw e; //temp
+	}
 }
 
 void Response::setStatus(int code) {
@@ -190,15 +217,21 @@ void Response::setStatus(int code) {
     }
 }
 
-void Response::setBody(const std::string& body) {
-    _body = body;
-    addHeader("Content-Length", _toString(_body.length()));
-}
+// void Response::setBody(const std::string& body) {
 
+//     _body = body.c_str();
+//     addHeader("Content-Length", _toString(body.length()));
+// }
+
+// void Response::setBody(const char* body) {
+// 	_body = body;
+// }
 int Response::getStatusCode() {
 	return _statusCode;
 }
 
+
+/* We need plan B if original function won't work */
 void Response::_setError(int code) {
 	std::string path;
 	std::map<int, std::string>::const_iterator it = _config.error_pages.find(code);
@@ -209,21 +242,23 @@ void Response::_setError(int code) {
 		throw std::logic_error("Error code not found in configuration");
 	std::string filename = _config.root + path;
 
-    std::string content = _readFile(filename);
-    if (content.empty())
-		throw std::logic_error("Error file not found");
-    else {
+	try
+	{
         setStatus(code);
-        setBody(content);
         addHeader("Content-Type", _getMimeType(filename));
-    }
+		generateResponse(filename);
+	} catch (Response::FileSystemErrorException &e) {
+		_setError(404);
+	} catch (Response::ContentLengthException &e) {
+		throw e; //temp
+	}
 }
 
 void Response::addHeader(const std::string& key, const std::string& value) {
     _headers[key] = value;
 }
 
-std::string Response::toString() const {
+std::string Response::_headersToString() const {
     std::ostringstream oss;
     oss << _httpVersion << " " << _statusCode << " " << _statusMessage << "\r\n";
 
@@ -231,22 +266,84 @@ std::string Response::toString() const {
         oss << it->first << ": " << it->second << "\r\n";
     }
 
-    oss << "\r\n" << _body;
+    oss << "\r\n";
     return oss.str();
 }
 
-const char* Response::toCString() {
-    _responseString = toString();
-    return _responseString.c_str();
+void Response::generateResponse(const std::string& filename) {
+	// std::ifstream file(filename.c_str());
+    // if (!file) {
+    //     throw FileSystemErrorException("could not find the file");
+    // }
+    // file >> _buffer;
+	char*	body;
+	char*	moved_body;
+	int fd = open(filename.c_str(), O_RDONLY);
+	if (fd < 0)
+		throw FileSystemErrorException("could not open the file"); //catch it
+	std::string headers = _headersToString();
+	body = _buffer + headers.size() + 50; //can be implemented as fixed value
+	std::memset(_buffer, 0, _buffer_size);
+	memcpy(_buffer, headers.c_str(), headers.size());
+	size_t bytesRead = read(fd, body, _buffer_size - (headers.size() + 24));
+	if (bytesRead < 0)
+		throw FileSystemErrorException("could not read the file");
+	if (bytesRead < _buffer_size - (headers.size() + 50)) {
+		_content_length = headers.size() + bytesRead;
+	} else {
+		throw ContentLengthException("body is too long");
+	}
+
+
+	std::stringstream ss;
+	ss << bytesRead;
+	addHeader("Content-Length", ss.str());
+	headers = _headersToString();
+	moved_body = _buffer + headers.size();
+	if (moved_body - body > 50)
+		throw "fatal error (^_^') ";
+	memcpy(_buffer, headers.c_str(), headers.size());
+	for (size_t i = 0; i < bytesRead; i++)
+	{
+		moved_body[i] = body[i];
+	}
+	_content = _buffer;
+	_content_length = moved_body - _buffer + bytesRead;
 }
 
-std::string Response::_readFile(const std::string& filename) {
-    std::ifstream file(filename.c_str());
-    if (!file) {
-        return "";
-    }
-    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    return content;
+void Response::generateDirectoryListing(const std::string& directoryPath) {
+	std::ostringstream listing;
+	std::string headers = _headersToString();
+	listing << headers;
+	DIR* dir = opendir(directoryPath.c_str());
+	if (dir == NULL) {
+		throw FileSystemErrorException("cannot open directory");
+	}
+
+	struct dirent* entry;
+	listing << "<html><head><title>Index of " << directoryPath
+			<< "</title></head><body><h1>Index of " << directoryPath
+			<< "</h1><ul>";
+	while ((entry = readdir(dir)) != NULL) {
+		listing << "<li><a href=\"" << entry->d_name << "\">" << entry->d_name << "</a></li>";
+	}
+	closedir(dir);
+	listing << "</ul></body></html>";
+	std::memset(_buffer, 0, _buffer_size);
+	std::string list = listing.str();
+	std::memcpy(_buffer, list.c_str(), list.size());
+	_content = _buffer;
+	_content_length = list.size();
+}
+
+const char *Response::getContent()
+{
+	return _content;
+}
+
+int Response::getConetentLength()
+{
+	return _content_length;
 }
 
 std::string Response::_getMimeType(const std::string& filename) {
@@ -254,6 +351,7 @@ std::string Response::_getMimeType(const std::string& filename) {
     if (filename.find(".css") != std::string::npos) return "text/css";
     if (filename.find(".js") != std::string::npos) return "application/javascript";
     if (filename.find(".ico") != std::string::npos) return "image/x-icon";
+	if (filename.find(".pdf") != std::string::npos) return "application/pdf";
     return "text/plain";
 }
 
@@ -261,4 +359,24 @@ std::string Response::_toString(size_t num) const {
     std::ostringstream oss;
     oss << num;
     return oss.str();
+}
+
+Response::FileSystemErrorException::FileSystemErrorException(const char *error_msg) {
+    std::memset(_error, 0, 256);
+    strncpy(_error, "Response file system error: ", 28);
+	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
+}
+
+const char *Response::FileSystemErrorException::what() const throw() {
+	return _error;
+}
+
+Response::ContentLengthException::ContentLengthException(const char *error_msg) {
+    std::memset(_error, 0, 256);
+    strncpy(_error, "Content length is too long: ", 28);
+	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
+}
+
+const char *Response::ContentLengthException::what() const throw() {
+	return _error;
 }

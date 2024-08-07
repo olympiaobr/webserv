@@ -74,6 +74,12 @@ void Server::setBuffer(char *buffer, int buffer_size)
 	_buffer_size = buffer_size;
 }
 
+void Server::setResBuffer(char *buffer, int buffer_size)
+{
+	_res_buffer = buffer;
+	_res_buffer_size = buffer_size;
+}
+
 void Server::initEndpoint(const HostList &hosts, short port, const ServerConfig &config) {
 	_port = port;
 	_hosts = hosts;
@@ -140,11 +146,11 @@ void Server::pollLoop() {
 			} else {										//if it is existing connection
 				/* Request */
 				Request req(client_socket, _config, _buffer, _buffer_size);
-				Response res(_config, _buffer, _buffer_size);
+				Response res(_config, _res_buffer, _res_buffer_size);
 				try {
 					int bytesRead = req.parseHeaders();
 					// std::cout << YELLOW << req << RESET << std::endl;
-					res = Response(req, _config, _buffer, _buffer_size);
+					res = Response(req, _config, _res_buffer, _res_buffer_size);
 					if (res.getStatusCode() < 300 && req.getMethod() == "POST") {
 						req.parseBody(bytesRead);
 					}
@@ -155,9 +161,9 @@ void Server::pollLoop() {
 					continue ;
 				} catch (Request::ParsingErrorException& e) {
 					if (e.type == Request::BAD_REQUEST)
-						res = Response(_config, 405, _buffer, _buffer_size);
+						res = Response(_config, 405, _res_buffer, _res_buffer_size);
 					else if (e.type == Request::CONTENT_LENGTH)
-						res = Response(_config, 413, _buffer, _buffer_size);
+						res = Response(_config, 413, _res_buffer, _res_buffer_size);
 					_cleanChunkFiles(client_socket);
 				}
 				/* Debug print */
@@ -165,13 +171,15 @@ void Server::pollLoop() {
 
 				/* Response */
 				if (res.getStatusCode() == -1)
-					res = Response(_config, 500, _buffer, _buffer_size); // Internal Server Error
+					res = Response(_config, 500, _res_buffer, _res_buffer_size); // Internal Server Error
 
-				const char* response = res.toCString();
+				// const char* response = res.toCString();
 				/* Debug print */
-				std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
+				std::cout << CYAN << "Response sent:" << std::endl << res.getContent() << RESET << std::endl;
 
-				send(client_socket, response, strlen(response), MSG_DONTWAIT);
+				const char *msg = res.getContent();
+				int len = res.getConetentLength();
+				send(client_socket, msg, len, MSG_DONTWAIT);
 				/*ddavlety*/
 				/* Check other status codes */
 				int response_code = res.getStatusCode();
@@ -254,10 +262,17 @@ size_t Server::getSocketsSize() const {
 
 void Server::RUN(std::vector<Server> servers) {
 	for (size_t i = 0; i < servers.size(); ++i) {
-		int buffer_size = servers[i]._config.body_limit + 10 * 1024;
-		char *buffer = new char[buffer_size];
+		{
+			int buffer_size = servers[i]._config.body_limit + 10 * 1024;
+			char *buffer = new char[buffer_size];
+			servers[i].setBuffer(buffer, buffer_size);
+		}
+		{
+			int buffer_size = RESPONSE_MAX_BODY_SIZE + 10 * 1024;
+			char* buffer = new char[buffer_size];
+			servers[i].setResBuffer(buffer, buffer_size);
+		}
 		servers[i].listenPort(BACKLOG);
-		servers[i].setBuffer(buffer, buffer_size);
 		std::cout << "Server 1 is listening on port "
 			<< servers[i].getPort() << std::endl;
 	}
@@ -283,6 +298,7 @@ const char *Server::PollingErrorException::what() const throw() {
 }
 
 Server::InitialisationException::InitialisationException(const char *error_msg) {
+	std::memset(_error, 0, 256);
 	strncpy(_error, "Initialisation error: ", 23);
 	_error[sizeof(_error) - 1] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
@@ -293,6 +309,7 @@ const char *Server::InitialisationException::what() const throw() {
 }
 
 Server::ListenErrorException::ListenErrorException(const char *error_msg) {
+	std::memset(_error, 0, 256);
 	strncpy(_error, "Listening error: ", 18);
 	_error[sizeof(_error) - 1] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
@@ -303,6 +320,7 @@ const char *Server::ListenErrorException::what() const throw() {
 }
 
 Server::RuntimeErrorException::RuntimeErrorException(const char *error_msg) {
+	std::memset(_error, 0, 256);
 	strncpy(_error, "Runtime error: ", 16);
 	_error[sizeof(_error) - 1] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;

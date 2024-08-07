@@ -4,7 +4,7 @@
 # include <string>
 # include <map>
 # include <iostream>
-# include <string.h>
+# include <cstring>
 
 # include "../server/Server.hpp"
 # include "../include/debug.hpp"
@@ -58,11 +58,11 @@ public:
 		std::map<std::string, std::string>		_headers;
 		std::string								_body;
 		ServerConfig							_config;
-	
+
 		char*									_buffer;
 		int										_buffer_size;
-	
-	
+
+
 		void _parseRequestLine(const std::string& line);
 		void _parseHeader(const std::string& line);
 		void _readBody(const char *init_buffer, ssize_t bytesRead);

@@ -6,7 +6,6 @@
 # include <unistd.h>
 # include <netinet/in.h>
 # include <iostream>
-# include <string.h>
 # include <sys/errno.h>
 # include <fcntl.h>
 # include <sstream>
@@ -26,6 +25,7 @@ typedef std::vector<std::string> HostList;
 # define BACKLOG 3
 # define TEMP_FILES_DIRECTORY "tmp/"
 # define REQUEST_TIMEOUT 10
+# define RESPONSE_MAX_BODY_SIZE 8000000
 
 class Server
 {
@@ -74,6 +74,7 @@ class Server
 		size_t		getSocketsSize() const;
 		void		listenPort(int backlog);
 		void		setBuffer(char *buffer, int buffer_size);
+		void		setResBuffer(char *buffer, int buffer_size);
 
 		/* Getters */
 		const HostList				&getHostList() const;
@@ -96,6 +97,9 @@ class Server
 		std::map<int, std::time_t>	_request_time;
 		char*						_buffer;
 		int							_buffer_size;
+
+		char*						_res_buffer;
+		int							_res_buffer_size;
 
 		/*Functions*/
 		void _push(pollfd client_pollfd); //called when setPollfd is called
