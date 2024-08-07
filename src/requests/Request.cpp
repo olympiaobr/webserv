@@ -33,7 +33,11 @@ int Request::parseHeaders() {
 		} else if (bytesRead == 0) {
 			throw SocketCloseException("connection closed by client");
 		} else {
-			throw ParsingErrorException(BAD_REQUEST, "malformed request");
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				continue ;
+			} else {
+				throw ParsingErrorException(BAD_REQUEST, "malformed request");
+			}
 		}
 	}
     /*ddavlety*/
