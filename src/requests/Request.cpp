@@ -360,6 +360,15 @@ std::string Request::getQueryString() const {
     return "";
 }
 
+std::string Request::RemoveQueryString(std::string uri) const {
+    size_t queryEnd = uri.find('?');
+    if (queryEnd != std::string::npos) {
+        return uri.substr(0, queryEnd);
+    }
+    return "";
+}
+
+
 bool Request::isTargetingCGI() const {
     const std::string& uri = getUri();
     size_t queryPos = uri.find('?');
@@ -388,6 +397,6 @@ std::string Request::getScriptPath() const {
     std::string fullPath = basePath + scriptName;
     std::cout << "Constructed CGI script path: " << fullPath << std::endl;
 
-    return fullPath;
+    return RemoveQueryString(fullPath);
 }
 

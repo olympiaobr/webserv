@@ -144,7 +144,7 @@ void Server::pollLoop() {
 						std::string scriptPath = req.getScriptPath();
 						std::cout << "Attempting to execute CGI script at path: " << scriptPath << std::endl;
 
-						if (!fileExists(scriptPath)) {
+						if (!fileExists(scriptPath)) { // passing uri including form data after "?" triggers if which yields 404
 							std::cerr << "CGI script not found at path: " << scriptPath << std::endl;
 							res = Response(_config, 404);
 						} else {

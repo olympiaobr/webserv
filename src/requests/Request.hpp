@@ -28,6 +28,7 @@ public:
 	std::string getBody() const;
 	int			getSocket() const;
 	std::string getQueryString() const;
+	std::string RemoveQueryString(std::string uri) const;
 	bool isTargetingCGI() const;
 	std::string getScriptPath() const;
 
