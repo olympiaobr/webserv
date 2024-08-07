@@ -20,7 +20,7 @@ Config& Config::operator=(const Config& other) {
     return *this;
 }
 
-void Config::parseServerConfig(ServerConfig& config, const std::string& line)
+void Config::_parseServerConfig(ServerConfig& config, const std::string& line)
 {
     std::istringstream iss(line);
 
@@ -57,7 +57,7 @@ void Config::parseServerConfig(ServerConfig& config, const std::string& line)
     }
 }
 
-void Config::parseRouteConfig(RouteConfig& config, const std::string& line)
+void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
 {
     std::istringstream iss(line);
 
@@ -145,10 +145,10 @@ void Config::loadConfig() {
             if (key == "listen") {
                 iss >> currentPort;
             } else {
-                parseServerConfig(currentServerConfig, line);
+                _parseServerConfig(currentServerConfig, line);
             }
         } else if (inLocationBlock) {
-            parseRouteConfig(currentRouteConfig, line);
+            _parseRouteConfig(currentRouteConfig, line);
         }
     }
     file.close();
