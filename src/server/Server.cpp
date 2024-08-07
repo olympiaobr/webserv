@@ -4,6 +4,7 @@ Server::Server(): _buffer(0) {
 	/*ddavlety*/
 	/* Clean up temp files before server start up */
 	/* If there is already running server behaviour is undefined */
+	/* look issue #46 */
 	DIR* dir = opendir(TEMP_FILES_DIRECTORY);
 	if (dir == NULL) {
 		std::string error_msg;
@@ -15,9 +16,7 @@ Server::Server(): _buffer(0) {
 	while ((entry = readdir(dir)) != NULL) {
 		if (entry->d_type == DT_REG) {
 			std::string filePath = std::string(TEMP_FILES_DIRECTORY) + entry->d_name;
-			/*ddavlety*/
-			/* IMPORTANT! remove function may be not allowed */
-			remove(filePath.c_str());
+			std::remove(filePath.c_str());
 		}
 	}
 	closedir(dir);
@@ -41,6 +40,18 @@ Server::Server(const HostList &hosts, short port): _port(port), _hosts(hosts), _
 Server::~Server() {
 	for (size_t i = 0; i < getSocketsSize(); ++i) {
 		close(_fds[i].fd);
+	}
+	/* If there is running server behaviour is undefined */
+	/* look issue #46 */
+	DIR* dir = opendir(TEMP_FILES_DIRECTORY);
+	if (dir != NULL) {
+		struct dirent* entry;
+		while ((entry = readdir(dir)) != NULL) {
+			if (entry->d_type == DT_REG) {
+				std::string filePath = std::string(TEMP_FILES_DIRECTORY) + entry->d_name;
+				std::remove(filePath.c_str());
+			}
+		}
 	}
 	delete _buffer;
 }
@@ -96,6 +107,7 @@ void Server::pollfds() {
 			// send(_fds[i].fd, response, strlen(response), MSG_DONTWAIT);
 			// close(_fds[i].fd);
 			// _fds.erase(_fds.begin() + i);
+			// _cleanChunkFiles(_fds[i].fd);
 		}
 	}
 
