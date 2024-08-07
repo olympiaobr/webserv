@@ -15,7 +15,6 @@ Response::Response(const ServerConfig& config, int errorCode, char* buffer, int 
 	_setError(errorCode);
 }
 
-
 Response::Response(const Request& req, const ServerConfig& config, char* buffer, int buffer_size)
     : _httpVersion("HTTP/1.1"), _config(config), _buffer(buffer), _buffer_size(buffer_size), _content_length(0) {
     initializeHttpErrors();
@@ -164,12 +163,7 @@ void Response::_handlePostRequest(const Request& req) {
 	char* ptr;
     setStatus(200);
     addHeader("Content-Type", "text/plain");
-	{
-		std::stringstream ss;
-		ss << 31 + req.getUri().size();
-		std::string length = ss.str();
- 		addHeader("Content-Length", length);
-	}
+	addHeader("Content-Length", _toString(31 + req.getUri().size()));
 	std::string headers = _headersToString();
 	std::memset(_buffer, 0, _buffer_size);
 	std::memcpy(_buffer, headers.c_str(), headers.size());
@@ -217,19 +211,9 @@ void Response::setStatus(int code) {
     }
 }
 
-// void Response::setBody(const std::string& body) {
-
-//     _body = body.c_str();
-//     addHeader("Content-Length", _toString(body.length()));
-// }
-
-// void Response::setBody(const char* body) {
-// 	_body = body;
-// }
 int Response::getStatusCode() {
 	return _statusCode;
 }
-
 
 /* We need plan B if original function won't work */
 void Response::_setError(int code) {
@@ -271,11 +255,6 @@ std::string Response::_headersToString() const {
 }
 
 void Response::generateResponse(const std::string& filename) {
-	// std::ifstream file(filename.c_str());
-    // if (!file) {
-    //     throw FileSystemErrorException("could not find the file");
-    // }
-    // file >> _buffer;
 	char*	body;
 	char*	moved_body;
 	int fd = open(filename.c_str(), O_RDONLY);
@@ -295,9 +274,7 @@ void Response::generateResponse(const std::string& filename) {
 	}
 
 
-	std::stringstream ss;
-	ss << bytesRead;
-	addHeader("Content-Length", ss.str());
+	addHeader("Content-Length", _toString(bytesRead));
 	headers = _headersToString();
 	moved_body = _buffer + headers.size();
 	if (moved_body - body > 50)
@@ -334,6 +311,20 @@ void Response::generateDirectoryListing(const std::string& directoryPath) {
 	std::memcpy(_buffer, list.c_str(), list.size());
 	_content = _buffer;
 	_content_length = list.size();
+}
+
+void Response::generateCGIResponse(const std::string &cgi_response)
+{
+	addHeader("Content-Length", _toString(cgi_response.length()));
+	// addHeader("Content-Type", "??");
+	std::string headers = _headersToString();
+	char* body;
+	memset(_buffer, 0, _buffer_size);
+	memcpy(_buffer, headers.c_str(), headers.size());
+	body = _buffer + headers.size() - 4;
+	memcpy(body, cgi_response.c_str(), cgi_response.size());
+	_content_length = headers.size() - 4 + cgi_response.size();
+	_content = _buffer;
 }
 
 const char *Response::getContent()

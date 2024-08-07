@@ -30,6 +30,7 @@ public:
     std::string _headersToString() const;
 	void generateResponse(const std::string& filename);
 	void generateDirectoryListing(const std::string& directoryPath);
+	void generateCGIResponse(const std::string &cgi_response);
 	const char *getContent();
 	int			getConetentLength();
 	// const char* toCString();
