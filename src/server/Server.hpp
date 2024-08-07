@@ -16,6 +16,7 @@
 # include "../requests/Request.hpp"
 # include "../configuration/Config.hpp"
 # include "../responses/Response.hpp"
+# include "../cgi/CGI.hpp"
 
 # include "../include/debug.hpp"
 
@@ -69,19 +70,21 @@ class Server
 		void	addPollfd(int socket_fd, short events);
 		void	pollfds();
 		void	pollLoop();
+
 		/* Utility functions */
 		size_t		getSocketsSize() const;
 		void		listenPort(int backlog);
+		void		setBuffer(char *buffer, int buffer_size);
+
 		/* Getters */
 		const HostList				&getHostList() const;
 		short						getPort() const;
 		int							getMainSocketFd() const;
 		const std::vector<pollfd>	&getSockets() const;
 
-		/* Server routines */
-
 		/* Start all servers */
 		static void RUN(std::vector<Server>);
+
 	private:
 		/*Variables*/
 		short						_port;
@@ -92,6 +95,9 @@ class Server
 		std::vector<pollfd>			_fds;
 		ServerConfig				_config;
 		std::map<int, std::time_t>	_request_time;
+		char*						_buffer;
+		int							_buffer_size;
+
 		/*Functions*/
 		void _push(pollfd client_pollfd); //called when setPollfd is called
 		void _setSocketOpt();
@@ -99,6 +105,7 @@ class Server
 		void _bindSocketName();
 		void _setRequestTime(int client_socket);
 		bool _checkRequestTimeout(int client_socket);
+		void _cleanChunkFiles(int client_socket);
 };
 
 std::ostream &operator<<(std::ostream &os, const Server &server);

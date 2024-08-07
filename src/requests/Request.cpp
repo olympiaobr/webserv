@@ -7,39 +7,39 @@
 #include <fcntl.h>
 #include <errno.h>
 
-Request::Request(int clientSocket, ServerConfig &config)
-	: _clientSocket(clientSocket), _config(config) {}
+Request::Request(int clientSocket, ServerConfig &config, char *buffer, int buffer_len)
+	: _clientSocket(clientSocket), _config(config), _buffer(buffer), _buffer_size(buffer_len) {}
 
 Request::~Request() {}
 
-void Request::parse() {
-    char buffer[BUFFER_SIZE];
+int Request::parseHeaders() {
     std::string request;
     ssize_t bytesRead;
     bool headersComplete = false;
     size_t headerEnd;
 
-    /*ddavlety*/
-    /* Do we need while loop here? We can make BUFFER > max content length + constant value*/
-    while (true) {
-        bytesRead = recv(_clientSocket, buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
-        if (bytesRead > 0) {
-            buffer[bytesRead] = '\0';
-            request += buffer;
-            headerEnd = request.find("\r\n\r\n");
-            if (headerEnd != std::string::npos) {
-                headersComplete = true;
-                break;
-            } else {
-               throw ParsingErrorException(BAD_REQUEST, "malformed request");
-            }
-        } else if (bytesRead == 0) {
-            throw SocketCloseException("connection closed by client");
-        } else {
-			throw ParsingErrorException(BAD_REQUEST, "malformed request");
-        }
-    }
-
+	while (true) {
+		bytesRead = recv(_clientSocket, _buffer, _buffer_size - 1, 0);
+		if (bytesRead > 0) {
+			_buffer[bytesRead] = '\0';
+			request += _buffer;
+			headerEnd = request.find("\r\n\r\n");
+			if (headerEnd != std::string::npos) {
+				headersComplete = true;
+				break ;
+			} else {
+				throw ParsingErrorException(BAD_REQUEST, "malformed request");
+			}
+		} else if (bytesRead == 0) {
+			throw SocketCloseException("connection closed by client");
+		} else {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				continue ;
+			} else {
+				throw ParsingErrorException(BAD_REQUEST, "malformed request");
+			}
+		}
+	}
     /*ddavlety*/
     /* Parse headers only if it is complete
     * What we do if it is not ? */
@@ -52,36 +52,55 @@ void Request::parse() {
         while (std::getline(requestStream, line) && line != "\r") {
             _parseHeader(line);
         }
-    }
+    } else {
+		throw ParsingErrorException(BAD_REQUEST, "malformed request");
+	}
 
-    // Handle body
-    std::string content_length = getHeader("Content-Length");
+	/* Check if method allowed to certain URI */
+
+
+/***********************************/
+	// if (this->getUri() == "/exit")
+	// 	exit (0);
+/***********************************/
+	return bytesRead;
+}
+
+int Request::parseBody(int bytesRead) {
+	std::string content_length = getHeader("Content-Length");
     int contentLength = atoi(content_length.c_str());
-
     std::string content_type = getHeader("Content-Type");
-    std::string initialBodyData = request.substr(headerEnd + 4);
 
-    if (contentLength > CLIENT_MAX_BODY_SIZE) {
+    if (contentLength > _config.body_limit) {
         throw ParsingErrorException(CONTENT_LENGTH, "content length is above limit");
 	}
-	const char *body_buffer = utils::strstr(buffer, "\r\n\r\n", BUFFER_SIZE - 1);
+	char *body_buffer = utils::strstr(_buffer, "\r\n\r\n", bytesRead);
 	if (body_buffer) {
 		body_buffer += 4;
-		bytesRead -= body_buffer - buffer;
+		bytesRead -= body_buffer - _buffer;
 	}
 	if (body_buffer && *body_buffer == 0) {
-		bytesRead = recv(_clientSocket, buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
-		if (!bytesRead)
-			throw ParsingErrorException(INTERRUPT, "form-data is empty");
-		body_buffer = buffer;
+		read:
+		bytesRead = recv(_clientSocket, _buffer, _buffer_size - 1, 0);
+		if (bytesRead == 0)
+			throw SocketCloseException("connection closed by client");
+		if (bytesRead < 0) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				goto read;
+			} else {
+				throw ParsingErrorException(BAD_REQUEST, "malformed request");
+			}
+		}
+		body_buffer = _buffer;
 	}
 	if (content_type.find("multipart/form-data") != content_type.npos) {
 		_readBodyFile(body_buffer, bytesRead);
-    } else if (getHeader("Transfer-Encoding") == "chunked"){
-        _readBodyChunked(body_buffer, bytesRead);
-    } else {
-        _readBody(contentLength, initialBodyData);
+	} else if (getHeader("Transfer-Encoding") == "chunked"){
+		_readBodyChunked(body_buffer, bytesRead);
+	} else {
+		_readBody(body_buffer, bytesRead);
 	}
+	return bytesRead;
 }
 
 void Request::_parseRequestLine(const std::string& line) {
@@ -105,24 +124,9 @@ void Request::_parseHeader(const std::string& line) {
     }
 }
 
-/*ddavlety*/
-/* I would rewrite this function */
-void Request::_readBody(int contentLength, const std::string& initialData) {
-    _body = initialData;
-    int remainingBytes = contentLength - initialData.length();
-
-    if (remainingBytes > 0) {
-        char *buffer = new char[remainingBytes + 1];
-        int bytesRead = recv(_clientSocket, buffer, remainingBytes, MSG_DONTWAIT);
-        std::cout << "Additional body bytes read: " << bytesRead << std::endl;
-        if (bytesRead > 0) {
-            buffer[bytesRead] = '\0';
-            _body += buffer;
-        }
-        delete[] buffer;
-    }
-
-    std::cout << "Total body length: " << _body.length() << std::endl;
+void Request::_readBody(const char *buffer, ssize_t bytesRead) {
+	_body += buffer;
+	(void)bytesRead;
 }
 
 void Request::_readBodyChunked(const char *buffer, ssize_t bytesRead) {
@@ -132,7 +136,7 @@ void Request::_readBodyChunked(const char *buffer, ssize_t bytesRead) {
 	stream = (char *)buffer;
 	std::string	file_name = utils::chunkFileName(getSocket());
 	if (!access(file_name.c_str(), W_OK | R_OK))
-		std::cout << BLACK << "File exists with permissions" << RESET << std::endl; // file exists, but it is from previous request?
+		std::cout << BLACK << "File exists with permissions" << RESET << std::endl;
 	int file_fd = open(file_name.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
 	if (file_fd < 0)
 		throw ParsingErrorException(FILE_SYSTEM, "chunk temp file open failed");
@@ -140,7 +144,7 @@ void Request::_readBodyChunked(const char *buffer, ssize_t bytesRead) {
 		read_len = atoi(stream);
 		if (read_len == 0) {
 			close(file_fd);
-			utils::saveFile(file_name, _config);
+			utils::saveFile(file_name, _config, getUri());
 			return ;
 		}
 		stream = utils::strstr(stream, "\r\n", bytesRead) + 2;
@@ -153,7 +157,7 @@ void Request::_readBodyChunked(const char *buffer, ssize_t bytesRead) {
 	close(file_fd);
 }
 
-void Request::_readBodyFile(const char *buffer, ssize_t bytesRead)
+void Request::_readBodyFile(char *buffer, ssize_t bytesRead)
 {
 	char *start_pos;
 	std::string stream;
@@ -181,16 +185,16 @@ void Request::_readBodyFile(const char *buffer, ssize_t bytesRead)
 			new_file_name = new_file_name.substr(0, new_file_name.find('\r'));
 			new_file_name.erase(new_file_name.begin());
 			new_file_name.erase(new_file_name.end() - 1);
-			int i = 1;
-
-			unique_filename = _config.root + "/upload/" + new_file_name;
+			unique_filename = _config.root + getUri() + new_file_name;
 			new_file_name = unique_filename;
+			int i = 1;
 			while (access(unique_filename.c_str(), F_OK) == 0) {
 				std::stringstream ss;
 				ss << i;
 				std::string value;
 				ss >> value;
-				unique_filename = new_file_name + " (" + value + ")";
+				std::string extension = utils::getFileExtension(unique_filename);
+				unique_filename = new_file_name.substr(0, new_file_name.find(extension) - 1) + " (" + value + ")." + extension;
 				i++;
 			}
 		}
@@ -200,24 +204,54 @@ void Request::_readBodyFile(const char *buffer, ssize_t bytesRead)
 		/* ******************************************** */
 
 		/* Take data body length */
-		size_t len = bytesRead - (start_pos - buffer);
-		std::string boundary_end = boundary + "--";
 		/* Checking boundaries */
 		{
-			const char *boundary_pos = utils::strstr(start_pos, boundary.c_str(), len);
-			const char *boundary_end_pos = utils::strstr(start_pos, boundary_end.c_str(), len);
+			size_t len = bytesRead - (start_pos - buffer);
+			std::string boundary_end = boundary + "--";
+			char *boundary_pos = utils::strstr(start_pos, boundary.c_str(), len);
+			char *boundary_end_pos = utils::strstr(start_pos, boundary_end.c_str(), len);
 			/* Check if this chunk contains another data */
 			if (boundary_pos && boundary_pos != boundary_end_pos) {
-				_readBodyFile(boundary_pos, len - (boundary_pos - start_pos));
-				len -= bytesRead - (boundary_pos - buffer) + 2;
+				write(file_fd, start_pos, len - (bytesRead - (boundary_pos - buffer)));
+				_readBodyFile(boundary_pos, bytesRead - (boundary_pos - buffer));
 			}
 			/* Check if this chunk contains EOF */
 			else if (boundary_end_pos) {
 				len -= bytesRead - (boundary_end_pos - buffer) + 2;
+				write(file_fd, start_pos, len);
+			}
+			/* read the rest */
+			else {
+				write(file_fd, start_pos, len);
+				while (bytesRead > 0) {
+					bytesRead = recv(_clientSocket, _buffer, _buffer_size - 1, 0);
+					if (bytesRead == 0)
+						throw SocketCloseException("connection closed by client");
+					if (bytesRead < 0) {
+						if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                			continue;
+						} else {
+							throw ParsingErrorException(BAD_REQUEST, "malformed request");
+						}
+					}
+					char *boundary_pos = utils::strstr(_buffer, boundary.c_str(), bytesRead);
+					char *boundary_end_pos = utils::strstr(_buffer, boundary_end.c_str(), bytesRead);
+					/* Check if this chunk contains another data */
+					if (boundary_pos && boundary_pos != boundary_end_pos) {
+						write(file_fd, _buffer, (boundary_pos - _buffer));
+						_readBodyFile(boundary_pos, bytesRead - (boundary_pos - _buffer));
+						break ;
+					}
+					/* Check if this chunk contains EOF */
+					else if (boundary_end_pos) {
+						bytesRead -= bytesRead - (boundary_end_pos - buffer) + 2;
+						write(file_fd, _buffer, bytesRead);
+						break ;
+					}
+					write(file_fd, _buffer, bytesRead);
+				}
 			}
 		}
-		/* Write data to file */
-		write(file_fd, start_pos, len);
 		close (file_fd);
 	}
 }
@@ -249,7 +283,6 @@ std::string Request::getHeader(const std::string& key) const {
     lowercase_key = utils::toLowerCase(lowercase_key);
     std::map<std::string, std::string>::const_iterator it = _headers.find(lowercase_key);
     if (it != _headers.end()) {
-        std::cout << "Parsed host: " << it->second << std::endl;
         return it->second;
     }
     return "";
@@ -318,3 +351,43 @@ Request::SocketCloseException::SocketCloseException(const char *error_msg) {
 const char *Request::SocketCloseException::what() const throw() {
     return _error;
 }
+
+std::string Request::getQueryString() const {
+    size_t queryStart = _uri.find('?');
+    if (queryStart != std::string::npos) {
+        return _uri.substr(queryStart + 1);
+    }
+    return "";
+}
+
+bool Request::isTargetingCGI() const {
+    const std::string& uri = getUri();
+    size_t queryPos = uri.find('?');
+    std::string path = (queryPos != std::string::npos) ? uri.substr(0, queryPos) : uri;
+
+    std::string lowerPath = path;
+    std::transform(lowerPath.begin(), lowerPath.end(), lowerPath.begin(), ::tolower);
+
+    return (lowerPath.find("/cgi/") == 0 ||
+            lowerPath.rfind(".cgi") == lowerPath.length() - 4 ||
+            lowerPath.rfind(".php") == lowerPath.length() - 4 ||
+            lowerPath.rfind(".py") == lowerPath.length() - 3);
+}
+
+
+std::string Request::getScriptPath() const {
+    char cwd[1024];
+    if (getcwd(cwd, sizeof(cwd)) == NULL) {
+        std::cerr << "Error getting current working directory: " << strerror(errno) << std::endl;
+        throw std::runtime_error("Failed to get current working directory");
+    }
+
+    std::string basePath = std::string(cwd) + "/web/cgi";
+    std::string scriptName = _uri.substr(_uri.rfind('/'));
+
+    std::string fullPath = basePath + scriptName;
+    std::cout << "Constructed CGI script path: " << fullPath << std::endl;
+
+    return fullPath;
+}
+

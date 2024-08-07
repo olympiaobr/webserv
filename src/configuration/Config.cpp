@@ -45,7 +45,8 @@ void Config::_parseServerConfig(ServerConfig& config, const std::string& line)
         config.root = value;
     }
     else if (key == "client_max_body_size") {
-        config.body_limit = atoi(value.c_str());
+		/* Temp assume M */
+        config.body_limit = atoi(value.c_str()) * 1024 * 1024;
     }
     else if (key.find("error_page") == 0) {
         std::istringstream errorPageIss(value);
@@ -90,7 +91,7 @@ void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
         config.root = value;
     }
      else if (key == "cgi") {
-        config.is_cgi = true;
+        config.is_cgi = (value == "on");
     }
 }
 

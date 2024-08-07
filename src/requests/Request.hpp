@@ -11,33 +11,13 @@
 # include "../utilities/Utils.hpp"
 # include "../configuration/Config.hpp"
 
-# define CLIENT_MAX_BODY_SIZE 10000 // temp
-# define BUFFER_SIZE 10000
-
-
 class Request {
-private:
-	int _clientSocket;
-	std::string _method;
-	std::string _uri;
-	std::string _httpVersion;
-	std::map<std::string, std::string> _headers;
-	std::string _body;
-	ServerConfig _config;
-
-
-	void _parseRequestLine(const std::string& line);
-	void _parseHeader(const std::string& line);
-	void _readBody(int contentLength, const std::string& initialData);
-	void _readBodyChunked(const char *init_buffer, ssize_t bytesRead);
-	void _readBodyFile(const char *init_buffer, ssize_t bytesRead);
-	// void _readBodyStream();
-
 public:
-	Request(int clientSocket, ServerConfig &config);
+	Request(int clientSocket, ServerConfig &config, char *buffer, int buffer_len);
 	~Request();
 
-	void parse();
+	int parseHeaders();
+	int parseBody(int bytesRead);
 
 	std::string getMethod() const;
 	std::string getUri() const;
@@ -47,6 +27,9 @@ public:
 	const std::map<std::string, std::string>& getHeaders() const;
 	std::string getBody() const;
 	int			getSocket() const;
+	std::string getQueryString() const;
+	bool isTargetingCGI() const;
+	std::string getScriptPath() const;
 
 	void addHeader(const std::string& key, const std::string& value);
 
@@ -69,6 +52,26 @@ public:
 		private:
 			char _error[256];
 	};
+
+	private:
+		int 									_clientSocket;
+		std::string								_method;
+		std::string								_uri;
+		std::string								_httpVersion;
+		std::map<std::string, std::string>		_headers;
+		std::string								_body;
+		ServerConfig							_config;
+	
+		char*									_buffer;
+		int										_buffer_size;
+	
+	
+		void _parseRequestLine(const std::string& line);
+		void _parseHeader(const std::string& line);
+		void _readBody(const char *init_buffer, ssize_t bytesRead);
+		void _readBodyChunked(const char *init_buffer, ssize_t bytesRead);
+		void _readBodyFile(char *init_buffer, ssize_t bytesRead);
+
 };
 
 #endif

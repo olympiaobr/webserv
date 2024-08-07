@@ -28,16 +28,30 @@
 			"program": "${workspaceFolder}/webserv",
 			"args": ["${workspaceFolder}/c_file.conf"],
 			"cwd": "${workspaceFolder}",
-            "preLaunchTask": "build"
 		},
-		{
-			"type": "lldb",
-			"request": "launch",
-			"name": "Ubuntu_lldb",
-			"program": "${workspaceFolder}/webserv",
-			"args": ["./c_file.conf"],
-			"cwd": "${workspaceFolder}",
-			"preLaunchTask": "build"
-		}
+        {
+            "name": "Fork debug",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/webserv",
+            "args": ["./c_file.conf"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "preLaunchTask": "build",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set follow-fork-mode to child",
+                    "text": "set follow-fork-mode child"
+                }
+            ]
+        },
     ]
 }
