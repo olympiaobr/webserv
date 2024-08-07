@@ -7,24 +7,22 @@
 #include <fcntl.h>
 #include <errno.h>
 
-Request::Request(int clientSocket)
-	: _clientSocket(clientSocket) {}
+Request::Request(int clientSocket, ServerConfig &config)
+	: _clientSocket(clientSocket), _config(config) {}
 
 Request::~Request() {}
 
 void Request::parse() {
     char buffer[BUFFER_SIZE];
     std::string request;
-    int bytesRead;
+    ssize_t bytesRead;
     bool headersComplete = false;
     size_t headerEnd;
 
-    // Set socket to non-blocking mode
-    fcntl(_clientSocket, F_SETFL, O_NONBLOCK);
-
+    /*ddavlety*/
+    /* Do we need while loop here? We can make BUFFER > max content length + constant value*/
     while (true) {
-        // Read from socket until the end of the headers is found
-        bytesRead = recv(_clientSocket, buffer, sizeof(buffer) - 1, 0);
+        bytesRead = recv(_clientSocket, buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
         if (bytesRead > 0) {
             buffer[bytesRead] = '\0';
             request += buffer;
@@ -32,6 +30,8 @@ void Request::parse() {
             if (headerEnd != std::string::npos) {
                 headersComplete = true;
                 break;
+            } else {
+               throw ParsingErrorException(BAD_REQUEST, "malformed request");
             }
         } else if (bytesRead == 0) {
             throw SocketCloseException("connection closed by client");
@@ -40,34 +40,48 @@ void Request::parse() {
         }
     }
 
-    if (!headersComplete) {
-        std::cerr << "Incomplete headers" << std::endl;
-        return ;
-    }
-
-    // Parse headers
-    std::istringstream requestStream(request.substr(0, headerEnd));
-    std::string line;
-    if (std::getline(requestStream, line)) {
-        _parseRequestLine(line);
-    }
-    while (std::getline(requestStream, line) && line != "\r") {
-        _parseHeader(line);
+    /*ddavlety*/
+    /* Parse headers only if it is complete
+    * What we do if it is not ? */
+    if (headersComplete) {
+        std::istringstream requestStream(request.substr(0, headerEnd));
+        std::string line;
+        if (std::getline(requestStream, line)) {
+            _parseRequestLine(line);
+        }
+        while (std::getline(requestStream, line) && line != "\r") {
+            _parseHeader(line);
+        }
     }
 
     // Handle body
     std::string content_length = getHeader("Content-Length");
+    int contentLength = atoi(content_length.c_str());
+
+    std::string content_type = getHeader("Content-Type");
     std::string initialBodyData = request.substr(headerEnd + 4);
-    if (content_length != "" && getHeader("Transfer-Encoding") != "chunked") {
-        int contentLength = atoi(content_length.c_str());
-		if (contentLength > CLIENT_MAX_BODY_SIZE)
-			throw ParsingErrorException(CONTENT_LENGTH, "content length is above limit");
-        std::string initialBodyData = request.substr(headerEnd + 4); // +4 to skip "\r\n\r\n"
-        _readBody(contentLength, initialBodyData); // works incorect with some types of data in body
+
+    if (contentLength > CLIENT_MAX_BODY_SIZE) {
+        throw ParsingErrorException(CONTENT_LENGTH, "content length is above limit");
+	}
+	const char *body_buffer = utils::strstr(buffer, "\r\n\r\n", BUFFER_SIZE - 1);
+	if (body_buffer) {
+		body_buffer += 4;
+		bytesRead -= body_buffer - buffer;
+	}
+	if (body_buffer && *body_buffer == 0) {
+		bytesRead = recv(_clientSocket, buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
+		if (!bytesRead)
+			throw ParsingErrorException(INTERRUPT, "form-data is empty");
+		body_buffer = buffer;
+	}
+	if (content_type.find("multipart/form-data") != content_type.npos) {
+		_readBodyFile(body_buffer, bytesRead);
+    } else if (getHeader("Transfer-Encoding") == "chunked"){
+        _readBodyChunked(body_buffer, bytesRead);
     } else {
-        /* Chunked data recieved with no Content-lenght */
-        _readBodyChunked(initialBodyData);
-    }
+        _readBody(contentLength, initialBodyData);
+	}
 }
 
 void Request::_parseRequestLine(const std::string& line) {
@@ -91,13 +105,15 @@ void Request::_parseHeader(const std::string& line) {
     }
 }
 
+/*ddavlety*/
+/* I would rewrite this function */
 void Request::_readBody(int contentLength, const std::string& initialData) {
     _body = initialData;
     int remainingBytes = contentLength - initialData.length();
 
     if (remainingBytes > 0) {
         char *buffer = new char[remainingBytes + 1];
-        int bytesRead = recv(_clientSocket, buffer, remainingBytes, 0);
+        int bytesRead = recv(_clientSocket, buffer, remainingBytes, MSG_DONTWAIT);
         std::cout << "Additional body bytes read: " << bytesRead << std::endl;
         if (bytesRead > 0) {
             buffer[bytesRead] = '\0';
@@ -109,28 +125,101 @@ void Request::_readBody(int contentLength, const std::string& initialData) {
     std::cout << "Total body length: " << _body.length() << std::endl;
 }
 
-void Request::_readBodyChunked(const std::string& initialData) {
-    int bytesRead;
-    char buffer[BUFFER_SIZE + 1];
+void Request::_readBodyChunked(const char *buffer, ssize_t bytesRead) {
+	int read_len;
+	char *stream;
 
-    _body += initialData;
-    bzero(buffer, BUFFER_SIZE + 1);
-    bytesRead = recv(_clientSocket, buffer, BUFFER_SIZE, 0);
-    while (bytesRead > 0) {
-        _body += buffer;
-        bzero(buffer, BUFFER_SIZE + 1);
-        bytesRead = recv(_clientSocket, buffer, BUFFER_SIZE, 0);
-        if (bytesRead == 0) {
-            throw SocketCloseException("unexpected connection interrupt");
-        } else if (bytesRead < 0) {
-            break;
-        }
-        std::cout << "Additional body bytes read: " << bytesRead << std::endl;
-        std::cout << _body.size() << std::endl;
-        if (_body.size() > CLIENT_MAX_BODY_SIZE)
-            throw ParsingErrorException(CONTENT_LENGTH, "body is too big");
-    }
-    std::cout << "Total body length: " << _body.length() << std::endl;
+	stream = (char *)buffer;
+	std::string	file_name = utils::chunkFileName(getSocket());
+	if (!access(file_name.c_str(), W_OK | R_OK))
+		std::cout << BLACK << "File exists with permissions" << RESET << std::endl; // file exists, but it is from previous request?
+	int file_fd = open(file_name.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
+	if (file_fd < 0)
+		throw ParsingErrorException(FILE_SYSTEM, "chunk temp file open failed");
+	while (*stream) {
+		read_len = atoi(stream);
+		if (read_len == 0) {
+			close(file_fd);
+			utils::saveFile(file_name, _config);
+			return ;
+		}
+		stream = utils::strstr(stream, "\r\n", bytesRead) + 2;
+		bytesRead -= stream - buffer;
+		buffer = stream;
+		write(file_fd, stream, read_len);
+		stream = utils::strstr(stream, "\r\n", bytesRead) + 2;
+		bytesRead -= stream - buffer;
+	}
+	close(file_fd);
+}
+
+void Request::_readBodyFile(const char *buffer, ssize_t bytesRead)
+{
+	char *start_pos;
+	std::string stream;
+
+	std::string boundary = getHeader("Content-Type");
+	int pos = boundary.find("boundary=");
+	boundary = boundary.substr(pos + 9);
+	boundary = "--" + boundary;
+
+	start_pos = utils::strstr(buffer, (char *)boundary.c_str(), bytesRead);
+	if (start_pos) {
+		/* Find start of data */
+		start_pos += boundary.length() + 2;
+
+		/* Start parsing data header */
+		std::string unique_filename;
+		{
+			const char *header_pos = start_pos;
+			start_pos = utils::strstr(start_pos, (const char *)"\r\n\r\n", bytesRead - (start_pos - buffer)) + 4;
+			std::string headers = header_pos;
+			headers = headers.substr(0, start_pos - header_pos);
+
+			/* Does it alway have filename in header? */
+			std::string new_file_name = headers.substr(headers.find("filename=") + 9);
+			new_file_name = new_file_name.substr(0, new_file_name.find('\r'));
+			new_file_name.erase(new_file_name.begin());
+			new_file_name.erase(new_file_name.end() - 1);
+			int i = 1;
+
+			unique_filename = _config.root + "/upload/" + new_file_name;
+			new_file_name = unique_filename;
+			while (access(unique_filename.c_str(), F_OK) == 0) {
+				std::stringstream ss;
+				ss << i;
+				std::string value;
+				ss >> value;
+				unique_filename = new_file_name + " (" + value + ")";
+				i++;
+			}
+		}
+		int file_fd = open(unique_filename.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
+		if (file_fd < 0)
+			throw ParsingErrorException(FILE_SYSTEM, strerror(errno));
+		/* ******************************************** */
+
+		/* Take data body length */
+		size_t len = bytesRead - (start_pos - buffer);
+		std::string boundary_end = boundary + "--";
+		/* Checking boundaries */
+		{
+			const char *boundary_pos = utils::strstr(start_pos, boundary.c_str(), len);
+			const char *boundary_end_pos = utils::strstr(start_pos, boundary_end.c_str(), len);
+			/* Check if this chunk contains another data */
+			if (boundary_pos && boundary_pos != boundary_end_pos) {
+				_readBodyFile(boundary_pos, len - (boundary_pos - start_pos));
+				len -= bytesRead - (boundary_pos - buffer) + 2;
+			}
+			/* Check if this chunk contains EOF */
+			else if (boundary_end_pos) {
+				len -= bytesRead - (boundary_end_pos - buffer) + 2;
+			}
+		}
+		/* Write data to file */
+		write(file_fd, start_pos, len);
+		close (file_fd);
+	}
 }
 
 void Request::addHeader(const std::string& key, const std::string& value) {
@@ -160,7 +249,21 @@ std::string Request::getHeader(const std::string& key) const {
     lowercase_key = utils::toLowerCase(lowercase_key);
     std::map<std::string, std::string>::const_iterator it = _headers.find(lowercase_key);
     if (it != _headers.end()) {
+        std::cout << "Parsed host: " << it->second << std::endl;
         return it->second;
+    }
+    return "";
+}
+
+std::string Request::getHost() const {
+    std::map<std::string, std::string>::const_iterator it = _headers.find("host");
+    if (it != _headers.end()) {
+        std::string host = it->second;
+        std::string::size_type colonPos = host.find(':');
+        if (colonPos != std::string::npos) {
+            return host.substr(0, colonPos);
+        }
+        return host;
     }
     return "";
 }
@@ -171,6 +274,11 @@ const std::map<std::string, std::string>& Request::getHeaders() const {
 
 std::string Request::getBody() const {
     return _body;
+}
+
+int Request::getSocket() const
+{
+    return _clientSocket;
 }
 
 std::ostream& operator<<(std::ostream& os, const Request& request) {

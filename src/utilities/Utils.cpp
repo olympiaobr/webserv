@@ -34,46 +34,111 @@ std::string utils::buildPath(int socket, const char *folder_name) {
 }
 
 bool utils::deleteFile(const std::string &file_name) {
+	/*ddavlety*/
 	/* IMPORTANT! remove function may be not allowed */
 	if (remove(file_name.c_str()) == 0)
         return true;
 	return false;
 }
 
-std::string utils::getFileExtension(const std::string &file)
-{
+std::string utils::getFileExtension(const std::string &file) {
     std::string extension;
 
 	size_t  i = file.find_last_of('.');
 	extension = file.substr(i + 1);
 	return extension;
 }
-namespace utils {
-    std::string generateDirectoryListing(const std::string& directoryPath) {
-        std::ostringstream listing;
-        DIR* dir = opendir(directoryPath.c_str());
-        if (dir == NULL) {
-            return "Error opening directory"; // Handle directory opening errors
-        }
 
-        struct dirent* entry;
-        listing << "<html><head><title>Index of " << directoryPath
-                << "</title></head><body><h1>Index of " << directoryPath
-                << "</h1><ul>";
-        while ((entry = readdir(dir)) != NULL) {
-            listing << "<li><a href=\"" << entry->d_name << "\">" << entry->d_name << "</a></li>";
-        }
-        closedir(dir);
-        listing << "</ul></body></html>";
-        return listing.str();
-    }
+std::string utils::saveFile(const std::string &file_name, ServerConfig config) {
+	std::time_t now = std::time(0);
+	std::tm* now_tm = std::localtime(&now);
+
+	std::ostringstream oss;
+	oss << (now_tm->tm_year + 1900)
+        << (now_tm->tm_mon + 1)
+        << now_tm->tm_mday
+        << now_tm->tm_hour
+        << now_tm->tm_min
+        << now_tm->tm_sec;
+
+	std::string new_file_name;
+	new_file_name += config.root;
+	new_file_name += "/";
+	new_file_name += "upload/";
+	new_file_name += oss.str();
+	new_file_name += "-";
+	oss.clear();
+	oss << rand() % 1000;
+	new_file_name += oss.str();
+	new_file_name += ".file";
+
+	rename(file_name.c_str(), new_file_name.c_str());
+	return new_file_name;
 }
 
-char* utils::strdup(const char* str) {
-    size_t len = strlen(str);
-    char* dup = new char[len + 1];
-    strcpy(dup, str);
-    return dup;
+std::string utils::chunkFileName(int socket) {
+	std::stringstream ss;
+	std::string file_name;
+	std::string socket_name;
+
+	file_name = TEMP_FILES_DIRECTORY;
+	ss << socket;
+	ss >> socket_name;
+	ss.clear();
+	file_name += socket_name;
+	file_name += ".chunk";
+    return file_name;
+}
+
+char	*utils::strstr(const char *haystack, const char *needle, ssize_t len) {
+	if (!(*needle))
+		return ((char *)haystack);
+	if (len < 0)
+		return (NULL);
+	if ((size_t)len < strlen((char *)needle))
+		return (NULL);
+	while (len != 0)
+	{
+		if (strncmp((char *)haystack, (char *)needle, strlen((char *)needle)) == 0)
+			return ((char *)haystack);
+		haystack++;
+		len--;
+	}
+	return (NULL);
+}
+
+int utils::stoi(const std::string &str)
+{
+	int out;
+	std::stringstream ss;
+
+	ss << str;
+	ss >> out;
+	return out;
+}
+
+std::string utils::generateDirectoryListing(const std::string& directoryPath) {
+	std::ostringstream listing;
+	DIR* dir = opendir(directoryPath.c_str());
+	if (dir == NULL) {
+		return "Error opening directory";
+	}
+
+	struct dirent* entry;
+	listing << "<html><head><title>Index of " << directoryPath
+			<< "</title></head><body><h1>Index of " << directoryPath
+			<< "</h1><ul>";
+	while ((entry = readdir(dir)) != NULL) {
+		listing << "<li><a href=\"" << entry->d_name << "\">" << entry->d_name << "</a></li>";
+	}
+	closedir(dir);
+	listing << "</ul></body></html>";
+	return listing.str();
+}
+
+std::time_t utils::getCurrentTime()
+{
+	return std::time(0);
 }
 
 std::string utils::to_string(int value) {

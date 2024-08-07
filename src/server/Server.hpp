@@ -11,25 +11,22 @@
 # include <sys/errno.h>
 # include <fcntl.h>
 # include <sstream>
-# include <dirent.h>
 # include <ctime>
-# include <stdlib.h>
+
 # include "../requests/Request.hpp"
 # include "../configuration/Config.hpp"
 # include "../responses/Response.hpp"
 # include "../cgi/CGI.hpp"
-<<<<<<< Updated upstream
-// #include "../responses/Response.hpp"
-=======
->>>>>>> Stashed changes
 
 # include "../include/debug.hpp"
 
+class Request;
 
 typedef std::vector<std::string> HostList;
 
 # define BACKLOG 3
 # define TEMP_FILES_DIRECTORY "tmp/"
+# define REQUEST_TIMEOUT 10
 
 class Server
 {
@@ -83,24 +80,26 @@ class Server
 		const std::vector<pollfd>	&getSockets() const;
 
 		/* Server routines */
-		bool chunkHandler(Request &req, int client_socket);
 
 		/* Start all servers */
 		static void RUN(std::vector<Server>);
 	private:
 		/*Variables*/
-		short				_port;
-		HostList			_hosts;
-		int					_main_socketfd;
-		sockaddr_in			_address;
-		int					_address_len;
-		std::vector<pollfd>	_fds;
+		short						_port;
+		HostList					_hosts;
+		int							_main_socketfd;
+		sockaddr_in					_address;
+		int							_address_len;
+		std::vector<pollfd>			_fds;
+		ServerConfig				_config;
+		std::map<int, std::time_t>	_request_time;
 		/*Functions*/
 		void _push(pollfd client_pollfd); //called when setPollfd is called
 		void _setSocketOpt();
 		void _setSocketNonblock();
 		void _bindSocketName();
-		std::string _saveFile(const std::string &file_name);
+		void _setRequestTime(int client_socket);
+		bool _checkRequestTimeout(int client_socket);
 };
 
 std::ostream &operator<<(std::ostream &os, const Server &server);

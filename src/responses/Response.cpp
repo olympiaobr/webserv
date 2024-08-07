@@ -18,10 +18,23 @@ Response::Response(const Request& req, const ServerConfig& config)
     : _httpVersion("HTTP/1.1"), _config(config) {
     initializeHttpErrors();
 
+    // Ensure the request is using HTTP/1.1 standard
     if (req.getHttpVersion() != "HTTP/1.1") {
         _setError(505);
         return;
     }
+
+    // Ensure the hostname is valid
+    if (std::find(
+            config.hostnames.begin(),
+            config.hostnames.end(),
+            req.getHost()
+        ) == config.hostnames.end()) {
+        _setError(400);
+        return;
+    }
+
+    // Ensure the method is allowed in the requested route
     const RouteConfig* routeConfig = findMostSpecificRouteConfig(req.getUri());
     if (!routeConfig) {
         _setError(404);
@@ -102,15 +115,12 @@ void Response::handleGetRequest(const Request& req) {
                 std::string content = readFile(indexPath);
                 if (content.empty()) {
                     _setError(404);
-                }
-                else {
+                } else {
                     setStatus(200);
                     setBody(content);
                     addHeader("Content-Type", getMimeType(indexPath));
                 }
-            }
-            else {
-                // No index.html found, check autoindex setting
+            } else {
                 const RouteConfig* routeConfig = findMostSpecificRouteConfig(req.getUri());
                 if (routeConfig && routeConfig->autoindex) {
                     std::string listing = utils::generateDirectoryListing(path);
@@ -118,12 +128,12 @@ void Response::handleGetRequest(const Request& req) {
                     setBody(listing);
                     addHeader("Content-Type", "text/html");
                 } else {
-                    _setError(404);
+                    _setError(404); // No index.html and autoindex is not enabled
                 }
             }
             return;
         }
-        // if not a directory, handle as a regular file
+        // It's not a directory, handle as a regular file
         std::string content = readFile(path);
         if (content.empty()) {
             _setError(404);
@@ -132,15 +142,14 @@ void Response::handleGetRequest(const Request& req) {
             setBody(content);
             addHeader("Content-Type", getMimeType(path));
         }
-    }
-    else {
-        _setError(404);
+    } else {
+        _setError(404); // File or directory not found
     }
 }
 
 void Response::handlePostRequest(const Request& req) {
     setStatus(200);
-    setBody("POST request received for URI: " + req.getUri() + "\nBody: " + req.getBody());
+    setBody("POST request received for URI: " + req.getUri() + "\nBody: \n" + req.getBody());
     addHeader("Content-Type", "text/plain");
 }
 
@@ -236,9 +245,3 @@ std::string Response::toString(size_t num) const {
     return oss.str();
 }
 
-<<<<<<< Updated upstream
-void Response::setContentType(const std::string& type) {
-    _headers["Content-Type"] = type;
-}
-=======
->>>>>>> Stashed changes

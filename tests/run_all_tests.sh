@@ -54,6 +54,8 @@ find tests/individual_tests -name "*[0-9]*.py" | while read test; do
     echo
 done
 
+$PYTHON_CMD "tests/testers/simple_chunk_tester.py"
+
 # Deactivate virtual environment if it was activated
 if [ -n "$VENV_NAME" ]; then
     deactivate

@@ -1,5 +1,5 @@
 #ifndef RESPONSE_HPP
-#define RESPONSE_HPP
+# define RESPONSE_HPP
 
 #include <string>
 #include <map>
@@ -7,6 +7,8 @@
 #include "../requests/Request.hpp"
 #include "../configuration/Config.hpp"
 #include "../utilities/Utils.hpp"
+
+class Request;
 
 class Response {
 private:
@@ -43,7 +45,6 @@ public:
     void setBody(const std::string& body);
     std::string toString() const;
 	const char* toCString();
-    void setContentType(const std::string& type);
 };
 
 #endif

@@ -4,12 +4,16 @@
 # include <string>
 # include <map>
 # include <iostream>
+# include <string.h>
 
+# include "../server/Server.hpp"
 # include "../include/debug.hpp"
 # include "../utilities/Utils.hpp"
+# include "../configuration/Config.hpp"
 
-# define CLIENT_MAX_BODY_SIZE 10000000 // temp
-# define BUFFER_SIZE 1024
+# define CLIENT_MAX_BODY_SIZE 10000 // temp
+# define BUFFER_SIZE 10000
+
 
 class Request {
 private:
@@ -19,44 +23,40 @@ private:
 	std::string _httpVersion;
 	std::map<std::string, std::string> _headers;
 	std::string _body;
+	ServerConfig _config;
+
 
 	void _parseRequestLine(const std::string& line);
 	void _parseHeader(const std::string& line);
 	void _readBody(int contentLength, const std::string& initialData);
-	void _readBodyChunked(const std::string& initialData);
+	void _readBodyChunked(const char *init_buffer, ssize_t bytesRead);
+	void _readBodyFile(const char *init_buffer, ssize_t bytesRead);
+	// void _readBodyStream();
 
 public:
-	Request(int clientSocket);
+	Request(int clientSocket, ServerConfig &config);
 	~Request();
 
 	void parse();
 
 	std::string getMethod() const;
 	std::string getUri() const;
+	std::string getHost() const;
 	std::string getHttpVersion() const;
 	std::string getHeader(const std::string& key) const;
 	const std::map<std::string, std::string>& getHeaders() const;
 	std::string getBody() const;
-<<<<<<< Updated upstream
-
-	bool isTargetingCGI() const;
-	std::string getScriptPath() const;
-	std::string getQueryString() const;
-    std::string getClientIPAddress() const;
-
-=======
 	int			getSocket() const;
 	std::string getQueryString() const;
 	bool isTargetingCGI() const;
 	std::string getScriptPath() const;
->>>>>>> Stashed changes
 
 	void addHeader(const std::string& key, const std::string& value);
 
 	friend std::ostream& operator<<(std::ostream& os, const Request& request);
 
 	/* Exceptions */
-	enum ErrorType {CONTENT_LENGTH, BAD_REQUEST};
+	enum ErrorType {CONTENT_LENGTH, BAD_REQUEST, FILE_SYSTEM, INTERRUPT};
 	class ParsingErrorException: public std::exception {
 		public:
 			ParsingErrorException(ErrorType type, const char *error_msg);
