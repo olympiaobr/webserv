@@ -3,22 +3,36 @@ import cgi
 import cgitb; cgitb.enable()
 import sys
 
+print("Content-Type: text/html\n")
+
 form = cgi.FieldStorage()
 
-if form.getvalue("data"):
-    data = form.getvalue("data")
-    print("<h1>Data received: {}</h1>".format(data))
+if form.getvalue("username"):
+    username = form.getvalue("username")
+    print(f"""
+    <html>
+    <head>
+        <title>Welcome, {username}!</title>
+    </head>
+    <body>
+        <h1>Welcome, {username}!</h1>
+        <p>Thank you for submitting your username.</p>
+        <a href="/">Return to homepage</a>
+    </body>
+    </html>
+    """)
 else:
     print("""
-        <html>
-        <body>
-            <form method="post" action="/cgi-bin/form_handler.py">
-                <label for="data">Enter Data:</label>
-                <input type="text" id="data" name="data">
-                <input type="submit" value="Submit">
-            </form>
-        </body>
-        </html>
+    <html>
+    <head>
+        <title>Error</title>
+    </head>
+    <body>
+        <h1>Error</h1>
+        <p>No username provided. Please go back and enter a username.</p>
+        <a href="/">Return to homepage</a>
+    </body>
+    </html>
     """)
+
 sys.stdout.flush()
-sys.stdout.close()
