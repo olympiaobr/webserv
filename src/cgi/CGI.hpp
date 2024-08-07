@@ -16,7 +16,6 @@ public:
     ~CGIHandler();
     std::string execute();
 	void setupEnvironment();
-    std::string parseHeaders(std::string& output);
 
 private:
     std::string scriptPath;

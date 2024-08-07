@@ -109,10 +109,15 @@ std::string CGIHandler::execute() {
             exit(EXIT_FAILURE);
         }
         close(pipe_fds[1]);  // No longer need this after dup2
+		const char* python_path = "/usr/bin/python3";
+		char* const args[] = {
+			const_cast<char*>(python_path),
+			const_cast<char*>(scriptPath.c_str()),
+			NULL
+		};
 
-        char* args[] = {NULL};  // CGI scripts may not need arguments
-        execve(scriptPath.c_str(), args, envp);  // Execute the CGI script
-        perror("execve failed");  // Execve doesn't return on success
+		execve(python_path, args, envp);
+		perror("execve failed");  // Execve doesn't return on success
         exit(EXIT_FAILURE);
     } else {  // Parent process
         close(pipe_fds[1]);  // Close the write end in the parent
@@ -140,28 +145,9 @@ std::string CGIHandler::execute() {
         }
 
         std::cout << "CGI process completed successfully.\n";
-        return updateHttpResponse("HTTP/1.1 200 OK\r\n" + output, scriptPath);
+        return updateHttpResponse("\r\n" + output, scriptPath);
     }
 }
 
 
 
-std::string CGIHandler::parseHeaders(std::string& output) {
-    std::istringstream stream(output);
-    std::string headers;
-    std::string body;
-    std::string line;
-    bool inBody = false;
-    while (std::getline(stream, line)) {
-        if (!inBody && line == "\r") {
-            inBody = true;
-            continue;
-        }
-        if (inBody) {
-            body += line + "\n";
-        } else {
-            headers += line + "\n";
-        }
-    }
-    return body;
-}

@@ -280,7 +280,6 @@ std::string Request::getHeader(const std::string& key) const {
     lowercase_key = utils::toLowerCase(lowercase_key);
     std::map<std::string, std::string>::const_iterator it = _headers.find(lowercase_key);
     if (it != _headers.end()) {
-        std::cout << "Parsed host: " << it->second << std::endl;
         return it->second;
     }
     return "";

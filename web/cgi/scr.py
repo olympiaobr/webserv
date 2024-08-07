@@ -3,8 +3,6 @@ import cgi
 import cgitb; cgitb.enable()
 import sys
 
-print("Content-type: text/html\n")
-
 form = cgi.FieldStorage()
 
 if form.getvalue("data"):
