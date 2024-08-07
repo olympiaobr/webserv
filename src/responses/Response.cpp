@@ -4,6 +4,7 @@
 #include <sstream>
 #include <iostream>
 #include <sys/stat.h>
+#include <cstdio>
 
 Response::Response(const ServerConfig& config): _config(config), _statusCode(-1) {}
 
@@ -154,10 +155,25 @@ void Response::_handlePostRequest(const Request& req) {
     addHeader("Content-Type", "text/plain");
 }
 
-void Response::_handleDeleteRequest(const Request& req) {
-    setStatus(200);
-    setBody("DELETE request received for URI: " + req.getUri());
-    addHeader("Content-Type", "text/plain");
+void Response::_handleDeleteRequest(const Request& req)
+{
+    std::string uri = req.getUri();
+    std::string filePath = _config.root + uri;
+
+    // Check if the file exists
+    struct stat buffer;
+    if (stat(filePath.c_str(), &buffer) != 0) {
+        _setError(404);
+        return;
+    }
+
+    // Attempt to delete the file
+    if (std::remove(filePath.c_str()) == 0) {
+        setStatus(200);
+        setBody("The resource has been successfully deleted.");
+    } else {
+        _setError(500);
+    }
 }
 
 void Response::setStatus(int code) {
