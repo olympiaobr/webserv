@@ -131,7 +131,6 @@ void Server::pollLoop() {
 				Response res(_config);
 				try {
 					int bytesRead = req.parseHeaders();
-					// std::cout << YELLOW << req << RESET << std::endl;
 					res = Response(req, _config);
 					if (res.getStatusCode() < 300 && req.getMethod() == "POST") {
 						req.parseBody(bytesRead);
@@ -146,10 +145,12 @@ void Server::pollLoop() {
 						res = Response(_config, 405);
 					else if (e.type == Request::CONTENT_LENGTH)
 						res = Response(_config, 413);
+					else if (e.type == Request::FILE_SYSTEM)
+						res = Response(_config, 500);
 					_cleanChunkFiles(client_socket);
 				}
 				/* Debug print */
-				// std::cout << YELLOW << req << RESET << std::endl;
+				std::cout << YELLOW << req << RESET << std::endl;
 
 				/* Response */
 				if (res.getStatusCode() == -1)
@@ -160,8 +161,7 @@ void Server::pollLoop() {
 				std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
 
 				send(client_socket, response, strlen(response), MSG_DONTWAIT);
-				/*ddavlety*/
-				/* Check other status codes */
+
 				int response_code = res.getStatusCode();
 				if (response_code >= 500 || response_code >= 400) {
 					_cleanChunkFiles(client_socket);
