@@ -23,7 +23,7 @@ namespace utils {
 	bool		checkChunkFileExistance(const std::string &file_name);
 	bool		deleteFile(const std::string &file_name);
 	std::string	getFileExtension(const std::string &file);
-	std::string	saveFile(const std::string &file_name, ServerConfig config);
+	std::string	saveFile(const std::string &file_name, const ServerConfig &config, const std::string uri);
 	std::string	chunkFileName(int socket);
 	char		*strstr(const char *haystack, const char *needle, ssize_t len);
 	int			stoi(const std::string &str);

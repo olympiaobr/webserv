@@ -1,6 +1,6 @@
 #include "Server.hpp"
 
-Server::Server() {
+Server::Server(): _buffer(0) {
 	/*ddavlety*/
 	/* Clean up temp files before server start up */
 	/* If there is already running server behaviour is undefined */
@@ -23,7 +23,7 @@ Server::Server() {
 	closedir(dir);
 }
 
-Server::Server(const HostList &hosts, short port): _port(port), _hosts(hosts) {
+Server::Server(const HostList &hosts, short port): _port(port), _hosts(hosts), _buffer(0) {
 	_main_socketfd = socket(PF_INET, SOCK_STREAM, 0);
 	if (_main_socketfd < 0) {
 		throw InitialisationException("server socket endpoint is not created");
@@ -42,17 +42,25 @@ Server::~Server() {
 	for (size_t i = 0; i < getSocketsSize(); ++i) {
 		close(_fds[i].fd);
 	}
+	delete _buffer;
 }
 
 void Server::addPollfd(int socket_fd, short events) {
 	pollfd fd;
 	fd.fd = socket_fd;
 	fd.events = events;
+	fd.revents = 0;
 	_push(fd);
 }
 
 void Server::_push(pollfd client_pollfd) {
 	_fds.push_back(client_pollfd);
+}
+
+void Server::setBuffer(char *buffer, int buffer_size)
+{
+	_buffer = buffer;
+	_buffer_size = buffer_size;
 }
 
 void Server::initEndpoint(const HostList &hosts, short port, const ServerConfig &config) {
@@ -80,14 +88,14 @@ void Server::pollfds() {
 	for (size_t i = 0; i < _fds.size(); ++i)
 	{
 		if (_fds[i].fd != _main_socketfd && _checkRequestTimeout(_fds[i].fd)) {
-			Response res(_config, 408);
-			const char* response = res.toCString();
+			// Response res(_config, 408);
+			// const char* response = res.toCString();
 			/* Debug print */
-			std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
+			// std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
 
-			send(_fds[i].fd, response, strlen(response), MSG_DONTWAIT);
-			close(_fds[i].fd);
-			_fds.erase(_fds.begin() + i);
+			// send(_fds[i].fd, response, strlen(response), MSG_DONTWAIT);
+			// close(_fds[i].fd);
+			// _fds.erase(_fds.begin() + i);
 		}
 	}
 
@@ -128,10 +136,10 @@ void Server::pollLoop() {
 				std::cout << "New connection established on fd: " << client_socket << std::endl;
 			} else {										//if it is existing connection
 				/* Request */
-				Request req(client_socket, _config);
-				Response res(_config);
+				Request req(client_socket, _config, _buffer, _buffer_size);
+				Response res(req, _config);
 				try {
-					req.parse();
+					int bytesRead = req.parseHeaders();
 					if (req.isTargetingCGI()) {
 						std::string scriptPath = req.getScriptPath();
 						std::cout << "Attempting to execute CGI script at path: " << scriptPath << std::endl;
@@ -147,21 +155,21 @@ void Server::pollLoop() {
 								res = Response(_config, 500);
 							} else {
 								res.setStatus(200);
-								res.setBody(cgiHandler.parseHeaders(cgiOutput));
+								res.setBody(cgiOutput);
 								std::cout << "CGI executed successfully." << std::endl;
 							}
 						}
-					}else {
+					} else {
                         // Normal request handling
+						// std::cout << YELLOW << req << RESET << std::endl;
 						res = Response(req, _config);
+						if (res.getStatusCode() < 300 && req.getMethod() == "POST") {
+							req.parseBody(bytesRead);
+						}
 					}
 				} catch (Request::SocketCloseException &e) {
-					/*ddavlety*/
-					/* If socket closed by client we erase socket from polling list */
 					std::cout << e.what() << std::endl;
-					/* Delete .chunk file if exists */
-					if (utils::checkChunkFileExistance(utils::buildPath(client_socket, TEMP_FILES_DIRECTORY)))
-						utils::deleteFile(utils::buildPath(client_socket, TEMP_FILES_DIRECTORY));
+					_cleanChunkFiles(client_socket);
 					_fds.erase(_fds.begin() + i);
 					continue ;
 				} catch (Request::ParsingErrorException& e) {
@@ -169,9 +177,10 @@ void Server::pollLoop() {
 						res = Response(_config, 405);
 					else if (e.type == Request::CONTENT_LENGTH)
 						res = Response(_config, 413);
+					_cleanChunkFiles(client_socket);
 				}
 				/* Debug print */
-				std::cout << YELLOW << req << RESET << std::endl;
+				// std::cout << YELLOW << req << RESET << std::endl;
 
 				/* Response */
 				if (res.getStatusCode() == -1)
@@ -185,8 +194,8 @@ void Server::pollLoop() {
 				/*ddavlety*/
 				/* Check other status codes */
 				int response_code = res.getStatusCode();
-				if (response_code >= 500
-					|| response_code >= 400) {
+				if (response_code >= 500 || response_code >= 400) {
+					_cleanChunkFiles(client_socket);
 					close(req.getSocket());
 					_fds.erase(_fds.begin() + i);
 				}
@@ -230,6 +239,12 @@ bool Server::_checkRequestTimeout(int client_socket)
 	return false;
 }
 
+void Server::_cleanChunkFiles(int client_socket)
+{
+	if (utils::checkChunkFileExistance(utils::buildPath(client_socket, TEMP_FILES_DIRECTORY)))
+		utils::deleteFile(utils::buildPath(client_socket, TEMP_FILES_DIRECTORY));
+}
+
 void Server::listenPort(int backlog) {
 	if (listen(_main_socketfd, backlog) < 0) {
 		ListenErrorException(strerror(errno));
@@ -254,7 +269,10 @@ const std::vector<pollfd> &Server::getSockets() const {
 
 void Server::RUN(std::vector<Server> servers) {
 	for (size_t i = 0; i < servers.size(); ++i) {
+		int buffer_size = servers[i]._config.body_limit + 10 * 1024;
+		char *buffer = new char[buffer_size];
 		servers[i].listenPort(BACKLOG);
+		servers[i].setBuffer(buffer, buffer_size);
 		std::cout << "Server 1 is listening on port "
 			<< servers[i].getPort() << std::endl;
 	}
