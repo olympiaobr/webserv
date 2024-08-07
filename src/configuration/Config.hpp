@@ -37,7 +37,7 @@ class Config
 
 	Config(const Config &other);
 	Config &operator=(const Config &other);
-	bool loadConfig();
+	void loadConfig();
 	const ServerConfig &getServerConfig(short port) const;
 	const std::map<short, ServerConfig> &getAllServerConfigs() const;
 
@@ -51,8 +51,8 @@ class Config
 	std::string _filename;
 	std::map<short, ServerConfig> _servers;
 
-	void parseRouteConfig(RouteConfig &config, const std::string &line);
-	void parseServerConfig(ServerConfig &config, const std::string &line);
+	void _parseRouteConfig(RouteConfig &config, const std::string &line);
+	void _parseServerConfig(ServerConfig &config, const std::string &line);
 };
 
 #endif

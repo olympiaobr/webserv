@@ -4,6 +4,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <algorithm>
+#include <stdexcept>
 
 Config::Config(const std::string& filename) : _filename(filename) {}
 
@@ -19,7 +20,7 @@ Config& Config::operator=(const Config& other) {
     return *this;
 }
 
-void Config::parseServerConfig(ServerConfig& config, const std::string& line)
+void Config::_parseServerConfig(ServerConfig& config, const std::string& line)
 {
     std::istringstream iss(line);
 
@@ -56,7 +57,7 @@ void Config::parseServerConfig(ServerConfig& config, const std::string& line)
     }
 }
 
-void Config::parseRouteConfig(RouteConfig& config, const std::string& line)
+void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
 {
     std::istringstream iss(line);
 
@@ -71,7 +72,6 @@ void Config::parseRouteConfig(RouteConfig& config, const std::string& line)
     if (end != std::string::npos) {
         value.erase(end + 1);
     }
-    std::cout << "Parsing route config: " << key << " = " << value << std::endl;
     if (key == "allow_methods") {
         std::istringstream methods(value);
         std::string method;
@@ -94,12 +94,10 @@ void Config::parseRouteConfig(RouteConfig& config, const std::string& line)
     }
 }
 
-bool Config::loadConfig() {
+void Config::loadConfig() {
     std::ifstream file(_filename.c_str());
-    if (!file.is_open()) {
-        std::cerr << "Failed to open config file: " << _filename << std::endl;
-        return false;
-    }
+    if (!file.is_open())
+        throw std::invalid_argument("failed to open config file: " + _filename);
 
     std::string line;
     ServerConfig currentServerConfig;
@@ -115,23 +113,17 @@ bool Config::loadConfig() {
         iss >> key;
 
         if (key == "server") {
-            if (inServerBlock) {
-                std::cerr << "Nested server block found, which is not allowed.\n";
-                return false;
-            }
+            if (inServerBlock)
+                throw std::invalid_argument("found forbidden nested server block");
             inServerBlock = true;
             currentServerConfig = ServerConfig();
             continue;
         }
         if (key == "location") {
-            if (!inServerBlock) {
-                std::cerr << "Location block outside of server block.\n";
-                return false;
-            }
-            if (inLocationBlock) {
-                std::cerr << "Nested location block found, which is not allowed.\n";
-                return false;
-            }
+            if (!inServerBlock)
+                throw std::invalid_argument("location block outside of server block");
+            if (inLocationBlock)
+                throw std::invalid_argument("found forbidden nested location block");
             inLocationBlock = true;
             currentRouteConfig = RouteConfig();
             iss >> currentLocationPath;
@@ -143,10 +135,8 @@ bool Config::loadConfig() {
                 currentServerConfig.routes[currentLocationPath] = currentRouteConfig;
             } else if (inServerBlock) {
                 inServerBlock = false;
-                if (currentPort == 0) {
-                    std::cerr << "Server block missing 'listen' directive.\n";
-                    return false;
-                }
+                if (currentPort == 0)
+                    throw std::invalid_argument("server block missing 'listen' directive");
                 _servers[currentPort] = currentServerConfig;
             }
             continue;
@@ -155,14 +145,13 @@ bool Config::loadConfig() {
             if (key == "listen") {
                 iss >> currentPort;
             } else {
-                parseServerConfig(currentServerConfig, line);
+                _parseServerConfig(currentServerConfig, line);
             }
         } else if (inLocationBlock) {
-            parseRouteConfig(currentRouteConfig, line);
+            _parseRouteConfig(currentRouteConfig, line);
         }
     }
     file.close();
-    return true;
 }
 
 const ServerConfig& Config::getServerConfig(short port) const {
@@ -191,7 +180,9 @@ std::ostream& operator<<(std::ostream& os, const RouteConfig& config) {
         if (i > 0) os << ", ";
         os << config.allowed_methods[i];
     }
-    os << "\n";
+    os  << "\n"
+        << "      Is CGI: " << config.is_cgi << "\n"
+        << "      Autoindex: " << config.autoindex << "\n";
 
     return os;
 }
