@@ -77,11 +77,16 @@ int Request::parseBody(int bytesRead) {
 		bytesRead -= body_buffer - _buffer;
 	}
 	if (body_buffer && *body_buffer == 0) {
+		read:
 		bytesRead = recv(_clientSocket, _buffer, _buffer_size - 1, 0);
 		if (bytesRead == 0)
 			throw SocketCloseException("connection closed by client");
-		if (bytesRead < 1) {
-			return 0;
+		if (bytesRead < 0) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				goto read;
+			} else {
+				throw ParsingErrorException(BAD_REQUEST, "malformed request");
+			}
 		}
 		body_buffer = _buffer;
 	}
@@ -204,9 +209,8 @@ void Request::_readBodyFile(char *buffer, ssize_t bytesRead)
 			char *boundary_end_pos = utils::strstr(start_pos, boundary_end.c_str(), len);
 			/* Check if this chunk contains another data */
 			if (boundary_pos && boundary_pos != boundary_end_pos) {
-				_readBodyFile(boundary_pos, len - (boundary_pos - start_pos));
-				len -= bytesRead - (boundary_pos - buffer) + 2;
-				write(file_fd, start_pos, len);
+				write(file_fd, start_pos, len - (bytesRead - (boundary_pos - buffer)));
+				_readBodyFile(boundary_pos, bytesRead - (boundary_pos - buffer));
 			}
 			/* Check if this chunk contains EOF */
 			else if (boundary_end_pos) {
@@ -220,14 +224,19 @@ void Request::_readBodyFile(char *buffer, ssize_t bytesRead)
 					bytesRead = recv(_clientSocket, _buffer, _buffer_size - 1, 0);
 					if (bytesRead == 0)
 						throw SocketCloseException("connection closed by client");
-					if (bytesRead < 0)
-						throw ParsingErrorException(INTERRUPT, "form request suddenly endded");
+					if (bytesRead < 0) {
+						if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                			continue;
+						} else {
+							throw ParsingErrorException(BAD_REQUEST, "malformed request");
+						}
+					}
 					char *boundary_pos = utils::strstr(_buffer, boundary.c_str(), bytesRead);
 					char *boundary_end_pos = utils::strstr(_buffer, boundary_end.c_str(), bytesRead);
+					/* Check if this chunk contains another data */
 					if (boundary_pos && boundary_pos != boundary_end_pos) {
-						_readBodyFile(boundary_pos, bytesRead - (boundary_pos - start_pos));
-						bytesRead -= bytesRead - (boundary_pos - buffer) + 2;
-						write(file_fd, _buffer, bytesRead);
+						write(file_fd, _buffer, (boundary_pos - _buffer));
+						_readBodyFile(boundary_pos, bytesRead - (boundary_pos - _buffer));
 						break ;
 					}
 					/* Check if this chunk contains EOF */
