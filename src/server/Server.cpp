@@ -123,6 +123,15 @@ void Server::pollfds() {
 	}
 }
 
+size_t Server::getSocketsSize() const {
+	return _fds.size();
+}
+
+bool fileExists(const std::string& path) {
+    struct stat buffer;
+    return (stat(path.c_str(), &buffer) == 0);
+}
+
 void Server::pollLoop() {
 	for (size_t i = 0; i < getSocketsSize(); ++i) {			//loop to ckeck if revent is set
 		if (_fds[i].revents & POLLERR) {					//man poll
@@ -146,13 +155,40 @@ void Server::pollLoop() {
 			} else {										//if it is existing connection
 				/* Request */
 				Request req(client_socket, _config, _buffer, _buffer_size);
-				Response res(_config, _res_buffer, _res_buffer_size);
+				Response res(req, _config, _res_buffer, _res_buffer_size);
 				try {
 					int bytesRead = req.parseHeaders();
-					// std::cout << YELLOW << req << RESET << std::endl;
+					if (req.isTargetingCGI()) {
+						std::string scriptPath = req.getScriptPath();
+						std::cout << "Attempting to execute CGI script at path: " << scriptPath << std::endl;
+
+						if (!fileExists(scriptPath)) { // passing uri including form data after "?" triggers if which yields 404
+							std::cerr << "CGI script not found at path: " << scriptPath << std::endl;
+							res = Response(_config, 404, _res_buffer, _res_buffer_size);
+						} else {
+							CGIHandler cgiHandler(scriptPath, req, _config);
+							std::string cgiOutput = cgiHandler.execute();
+							if (cgiOutput.empty()) {
+								std::cerr << "CGI script execution failed or exited with error status" << std::endl;
+								res = Response(_config, 500, _res_buffer, _res_buffer_size);
+							} else {
+								res.setStatus(200);
+								res.addHeader("Content-Type", "whatever");
+								res.generateCGIResponse(cgiOutput);
+								std::cout << "CGI response generated successfully." << std::endl;
+							}
+						}
+					} else {
+                        // Normal request handling
+						// std::cout << YELLOW << req << RESET << std::endl;
+						res = Response(req, _config, _res_buffer, _res_buffer_size);
+						if (res.getStatusCode() < 300 && req.getMethod() == "POST") {
+							req.parseBody(bytesRead);
+						}
 					res = Response(req, _config, _res_buffer, _res_buffer_size);
 					if (res.getStatusCode() < 300 && req.getMethod() == "POST") {
 						req.parseBody(bytesRead);
+					}
 					}
 				} catch (Request::SocketCloseException &e) {
 					std::cout << e.what() << std::endl;
@@ -164,6 +200,8 @@ void Server::pollLoop() {
 						res = Response(_config, 405, _res_buffer, _res_buffer_size);
 					else if (e.type == Request::CONTENT_LENGTH)
 						res = Response(_config, 413, _res_buffer, _res_buffer_size);
+					else if (e.type == Request::FILE_SYSTEM)
+						res = Response(_config, 500, _res_buffer, _res_buffer_size);
 					_cleanChunkFiles(client_socket);
 				}
 				/* Debug print */
@@ -177,11 +215,9 @@ void Server::pollLoop() {
 				/* Debug print */
 				std::cout << CYAN << "Response sent:" << std::endl << res.getContent() << RESET << std::endl;
 
-				const char *msg = res.getContent();
-				int len = res.getConetentLength();
-				send(client_socket, msg, len, MSG_DONTWAIT);
-				/*ddavlety*/
-				/* Check other status codes */
+				send(client_socket, res.getContent(), res.getConetentLength(), MSG_DONTWAIT);
+
+
 				int response_code = res.getStatusCode();
 				if (response_code >= 500 || response_code >= 400) {
 					_cleanChunkFiles(client_socket);
@@ -254,10 +290,6 @@ int Server::getMainSocketFd() const {
 
 const std::vector<pollfd> &Server::getSockets() const {
 	return _fds;
-}
-
-size_t Server::getSocketsSize() const {
-	return _fds.size();
 }
 
 void Server::RUN(std::vector<Server> servers) {

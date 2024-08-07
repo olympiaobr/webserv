@@ -27,6 +27,10 @@ public:
 	const std::map<std::string, std::string>& getHeaders() const;
 	std::string getBody() const;
 	int			getSocket() const;
+	std::string getQueryString() const;
+	std::string RemoveQueryString(std::string uri) const;
+	bool isTargetingCGI() const;
+	std::string getScriptPath() const;
 
 	void addHeader(const std::string& key, const std::string& value);
 

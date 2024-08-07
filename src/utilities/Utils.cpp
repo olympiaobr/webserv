@@ -141,3 +141,9 @@ std::time_t utils::getCurrentTime()
 {
 	return std::time(0);
 }
+
+std::string utils::to_string(int value) {
+        std::ostringstream oss;
+        oss << value;
+        return oss.str();
+}
