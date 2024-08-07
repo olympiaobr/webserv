@@ -283,7 +283,6 @@ std::string Request::getHeader(const std::string& key) const {
     lowercase_key = utils::toLowerCase(lowercase_key);
     std::map<std::string, std::string>::const_iterator it = _headers.find(lowercase_key);
     if (it != _headers.end()) {
-        std::cout << "Parsed host: " << it->second << std::endl;
         return it->second;
     }
     return "";
@@ -352,3 +351,43 @@ Request::SocketCloseException::SocketCloseException(const char *error_msg) {
 const char *Request::SocketCloseException::what() const throw() {
     return _error;
 }
+
+std::string Request::getQueryString() const {
+    size_t queryStart = _uri.find('?');
+    if (queryStart != std::string::npos) {
+        return _uri.substr(queryStart + 1);
+    }
+    return "";
+}
+
+bool Request::isTargetingCGI() const {
+    const std::string& uri = getUri();
+    size_t queryPos = uri.find('?');
+    std::string path = (queryPos != std::string::npos) ? uri.substr(0, queryPos) : uri;
+
+    std::string lowerPath = path;
+    std::transform(lowerPath.begin(), lowerPath.end(), lowerPath.begin(), ::tolower);
+
+    return (lowerPath.find("/cgi/") == 0 ||
+            lowerPath.rfind(".cgi") == lowerPath.length() - 4 ||
+            lowerPath.rfind(".php") == lowerPath.length() - 4 ||
+            lowerPath.rfind(".py") == lowerPath.length() - 3);
+}
+
+
+std::string Request::getScriptPath() const {
+    char cwd[1024];
+    if (getcwd(cwd, sizeof(cwd)) == NULL) {
+        std::cerr << "Error getting current working directory: " << strerror(errno) << std::endl;
+        throw std::runtime_error("Failed to get current working directory");
+    }
+
+    std::string basePath = std::string(cwd) + "/web/cgi";
+    std::string scriptName = _uri.substr(_uri.rfind('/'));
+
+    std::string fullPath = basePath + scriptName;
+    std::cout << "Constructed CGI script path: " << fullPath << std::endl;
+
+    return fullPath;
+}
+

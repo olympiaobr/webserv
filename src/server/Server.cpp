@@ -105,6 +105,15 @@ void Server::pollfds() {
 	}
 }
 
+size_t Server::getSocketsSize() const {
+	return _fds.size();
+}
+
+bool fileExists(const std::string& path) {
+    struct stat buffer;
+    return (stat(path.c_str(), &buffer) == 0);
+}
+
 void Server::pollLoop() {
 	for (size_t i = 0; i < getSocketsSize(); ++i) {			//loop to ckeck if revent is set
 		if (_fds[i].revents & POLLERR) {					//man poll
@@ -128,9 +137,35 @@ void Server::pollLoop() {
 			} else {										//if it is existing connection
 				/* Request */
 				Request req(client_socket, _config, _buffer, _buffer_size);
-				Response res(_config);
+				Response res(req, _config);
 				try {
 					int bytesRead = req.parseHeaders();
+					if (req.isTargetingCGI()) {
+						std::string scriptPath = req.getScriptPath();
+						std::cout << "Attempting to execute CGI script at path: " << scriptPath << std::endl;
+
+						if (!fileExists(scriptPath)) {
+							std::cerr << "CGI script not found at path: " << scriptPath << std::endl;
+							res = Response(_config, 404);
+						} else {
+							CGIHandler cgiHandler(scriptPath, req, _config);
+							std::string cgiOutput = cgiHandler.execute();
+							if (cgiOutput.empty()) {
+								std::cerr << "CGI script execution failed or exited with error status" << std::endl;
+								res = Response(_config, 500);
+							} else {
+								res.setStatus(200);
+								res.setBody(cgiOutput);
+								std::cout << "CGI executed successfully." << std::endl;
+							}
+						}
+					} else {
+                        // Normal request handling
+						// std::cout << YELLOW << req << RESET << std::endl;
+						res = Response(req, _config);
+						if (res.getStatusCode() < 300 && req.getMethod() == "POST") {
+							req.parseBody(bytesRead);
+						}
 					res = Response(req, _config);
 					if (res.getStatusCode() < 300 && req.getMethod() == "POST") {
 						req.parseBody(bytesRead);
@@ -234,10 +269,6 @@ int Server::getMainSocketFd() const {
 
 const std::vector<pollfd> &Server::getSockets() const {
 	return _fds;
-}
-
-size_t Server::getSocketsSize() const {
-	return _fds.size();
 }
 
 void Server::RUN(std::vector<Server> servers) {

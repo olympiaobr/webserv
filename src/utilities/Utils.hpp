@@ -29,6 +29,7 @@ namespace utils {
 	int			stoi(const std::string &str);
 	std::string generateDirectoryListing(const std::string& directoryPath);
 	std::time_t getCurrentTime();
+	std::string to_string(int value);
 }
 
 #endif

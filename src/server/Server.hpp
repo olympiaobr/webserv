@@ -16,6 +16,7 @@
 # include "../requests/Request.hpp"
 # include "../configuration/Config.hpp"
 # include "../responses/Response.hpp"
+# include "../cgi/CGI.hpp"
 
 # include "../include/debug.hpp"
 
