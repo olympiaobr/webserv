@@ -4,6 +4,7 @@
 #include <sstream>
 #include <iostream>
 #include <sys/stat.h>
+#include <cstdio>
 
 Response::Response(const ServerConfig& config): _config(config), _statusCode(-1) {}
 
@@ -35,7 +36,7 @@ Response::Response(const Request& req, const ServerConfig& config)
     }
 
     // Ensure the method is allowed in the requested route
-    const RouteConfig* routeConfig = findMostSpecificRouteConfig(req.getUri());
+    const RouteConfig* routeConfig = _findMostSpecificRouteConfig(req.getUri());
     if (!routeConfig) {
         _setError(404);
         return;
@@ -44,11 +45,11 @@ Response::Response(const Request& req, const ServerConfig& config)
         _setError(405);
         return;
     }
-    dispatchMethodHandler(req);
+    _dispatchMethodHandler(req);
 }
 
 
-const RouteConfig* Response::findMostSpecificRouteConfig(const std::string& uri) const {
+const RouteConfig* Response::_findMostSpecificRouteConfig(const std::string& uri) const {
     const RouteConfig* bestMatch = NULL;
     size_t longestMatchLength = 0;
 
@@ -62,13 +63,13 @@ const RouteConfig* Response::findMostSpecificRouteConfig(const std::string& uri)
     return bestMatch;
 }
 
-void Response::dispatchMethodHandler(const Request& req) {
+void Response::_dispatchMethodHandler(const Request& req) {
     if (req.getMethod() == "GET")
-        handleGetRequest(req);
+        _handleGetRequest(req);
     else if (req.getMethod() == "POST")
-        handlePostRequest(req);
+        _handlePostRequest(req);
     else if (req.getMethod() == "DELETE")
-        handleDeleteRequest(req);
+        _handleDeleteRequest(req);
     else
         _setError(405);
 }
@@ -104,7 +105,7 @@ void Response::initializeHttpErrors() {
     _httpErrors[505] = "HTTP Version Not Supported";
 }
 
-void Response::handleGetRequest(const Request& req) {
+void Response::_handleGetRequest(const Request& req) {
     std::string path = _config.root + req.getUri();
 
     struct stat fileStat;
@@ -112,16 +113,16 @@ void Response::handleGetRequest(const Request& req) {
         if (S_ISDIR(fileStat.st_mode)) {  // Check if it's a directory
             std::string indexPath = path + "/index.html";
             if (stat(indexPath.c_str(), &fileStat) == 0 && !S_ISDIR(fileStat.st_mode)) {
-                std::string content = readFile(indexPath);
+                std::string content = _readFile(indexPath);
                 if (content.empty()) {
                     _setError(404);
                 } else {
                     setStatus(200);
                     setBody(content);
-                    addHeader("Content-Type", getMimeType(indexPath));
+                    addHeader("Content-Type", _getMimeType(indexPath));
                 }
             } else {
-                const RouteConfig* routeConfig = findMostSpecificRouteConfig(req.getUri());
+                const RouteConfig* routeConfig = _findMostSpecificRouteConfig(req.getUri());
                 if (routeConfig && routeConfig->autoindex) {
                     std::string listing = utils::generateDirectoryListing(path);
                     setStatus(200);
@@ -134,13 +135,13 @@ void Response::handleGetRequest(const Request& req) {
             return;
         }
         // It's not a directory, handle as a regular file
-        std::string content = readFile(path);
+        std::string content = _readFile(path);
         if (content.empty()) {
             _setError(404);
         } else {
             setStatus(200);
             setBody(content);
-            addHeader("Content-Type", getMimeType(path));
+            addHeader("Content-Type", _getMimeType(path));
         }
     } else {
         _setError(404); // File or directory not found
@@ -148,16 +149,31 @@ void Response::handleGetRequest(const Request& req) {
 }
 
 
-void Response::handlePostRequest(const Request& req) {
+void Response::_handlePostRequest(const Request& req) {
     setStatus(200);
     setBody("POST request received for URI: " + req.getUri() + "\nBody: \n" + req.getBody());
     addHeader("Content-Type", "text/plain");
 }
 
-void Response::handleDeleteRequest(const Request& req) {
-    setStatus(200);
-    setBody("DELETE request received for URI: " + req.getUri());
-    addHeader("Content-Type", "text/plain");
+void Response::_handleDeleteRequest(const Request& req)
+{
+    std::string uri = req.getUri();
+    std::string filePath = _config.root + uri;
+
+    // Check if the file exists
+    struct stat buffer;
+    if (stat(filePath.c_str(), &buffer) != 0) {
+        _setError(404);
+        return;
+    }
+
+    // Attempt to delete the file
+    if (std::remove(filePath.c_str()) == 0) {
+        setStatus(200);
+        setBody("The resource has been successfully deleted.");
+    } else {
+        _setError(500);
+    }
 }
 
 void Response::setStatus(int code) {
@@ -175,7 +191,7 @@ void Response::setStatus(int code) {
 
 void Response::setBody(const std::string& body) {
     _body = body;
-    addHeader("Content-Length", toString(_body.length()));
+    addHeader("Content-Length", _toString(_body.length()));
 }
 
 int Response::getStatusCode() {
@@ -192,13 +208,13 @@ void Response::_setError(int code) {
 		throw std::logic_error("Error code not found in configuration");
 	std::string filename = _config.root + path;
 
-    std::string content = readFile(filename);
+    std::string content = _readFile(filename);
     if (content.empty())
 		throw std::logic_error("Error file not found");
     else {
         setStatus(code);
         setBody(content);
-        addHeader("Content-Type", getMimeType(filename));
+        addHeader("Content-Type", _getMimeType(filename));
     }
 }
 
@@ -223,7 +239,7 @@ const char* Response::toCString() {
     return _responseString.c_str();
 }
 
-std::string Response::readFile(const std::string& filename) {
+std::string Response::_readFile(const std::string& filename) {
     std::ifstream file(filename.c_str());
     if (!file) {
         return "";
@@ -232,7 +248,7 @@ std::string Response::readFile(const std::string& filename) {
     return content;
 }
 
-std::string Response::getMimeType(const std::string& filename) {
+std::string Response::_getMimeType(const std::string& filename) {
     if (filename.find(".html") != std::string::npos) return "text/html";
     if (filename.find(".css") != std::string::npos) return "text/css";
     if (filename.find(".js") != std::string::npos) return "application/javascript";
@@ -240,7 +256,7 @@ std::string Response::getMimeType(const std::string& filename) {
     return "text/plain";
 }
 
-std::string Response::toString(size_t num) const {
+std::string Response::_toString(size_t num) const {
     std::ostringstream oss;
     oss << num;
     return oss.str();
