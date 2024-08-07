@@ -343,7 +343,18 @@ bool Request::isTargetingCGI() const {
 
 
 std::string Request::getScriptPath() const {
-    std::string basePath = "./web/cgi";
+    char cwd[1024];
+    if (getcwd(cwd, sizeof(cwd)) == NULL) {
+        std::cerr << "Error getting current working directory: " << strerror(errno) << std::endl;
+        throw std::runtime_error("Failed to get current working directory");
+    }
+
+    std::string basePath = std::string(cwd) + "/web/cgi";
     std::string scriptName = _uri.substr(_uri.rfind('/'));
-    return basePath + scriptName;
+
+    std::string fullPath = basePath + scriptName;
+    std::cout << "Constructed CGI script path: " << fullPath << std::endl;
+
+    return fullPath;
 }
+

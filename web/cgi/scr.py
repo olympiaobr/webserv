@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import cgi
 import cgitb; cgitb.enable()
+import sys
 
 print("Content-type: text/html\n")
 
@@ -21,3 +22,5 @@ else:
         </body>
         </html>
     """)
+sys.stdout.flush()
+sys.stdout.close()

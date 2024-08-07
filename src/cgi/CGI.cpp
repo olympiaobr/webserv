@@ -120,22 +120,19 @@ std::string CGIHandler::execute() {
         char buffer[1024];
         ssize_t bytesRead;
 
-        while ((bytesRead = read(pipe_fds[0], buffer, sizeof(buffer) - 1)) > 0) {
+         while ((bytesRead = read(pipe_fds[0], buffer, sizeof(buffer) - 1)) > 0) {
+            if (bytesRead == -1) {
+                std::cerr << "Read error: " << strerror(errno) << std::endl;
+                close(pipe_fds[0]);
+                return "Status code 500 Internal Server Error\r\n";
+            }
             buffer[bytesRead] = '\0';
             output.append(buffer);
         }
-        close(pipe_fds[0]);  // Close the read end
+        close(pipe_fds[0]);
 
         int status;
-        if (waitpid(pid, &status, 0) == -1) {
-            std::cerr << "Error waiting for child process: " << strerror(errno) << std::endl;
-        }
-
-        // Cleanup environment pointers
-        for (int i = 0; envp[i] != NULL; i++) {
-            delete[] envp[i];
-        }
-        delete[] envp;
+        waitpid(pid, &status, 0); // Consider checking for errors in waitpid as well
 
         if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
             std::cerr << "CGI script execution failed or exited with error status" << std::endl;
