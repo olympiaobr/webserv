@@ -1,5 +1,5 @@
 CC := c++
-CPPFLAGS := -Wall -Wextra -Werror -std=c++98 -g -fsanitize=address
+CPPFLAGS := -Wall -Wextra -Werror -std=c++98 -g -fsanitize=address 
 TARGET := ./webserv
 INCLUDES :=	-I./src/server \
  			-I./src/responses \
