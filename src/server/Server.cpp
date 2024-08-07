@@ -140,11 +140,11 @@ void Server::pollLoop() {
 			} else {										//if it is existing connection
 				/* Request */
 				Request req(client_socket, _config, _buffer, _buffer_size);
-				Response res(_config);
+				Response res(_config, _buffer, _buffer_size);
 				try {
 					int bytesRead = req.parseHeaders();
 					// std::cout << YELLOW << req << RESET << std::endl;
-					res = Response(req, _config);
+					res = Response(req, _config, _buffer, _buffer_size);
 					if (res.getStatusCode() < 300 && req.getMethod() == "POST") {
 						req.parseBody(bytesRead);
 					}
@@ -155,17 +155,17 @@ void Server::pollLoop() {
 					continue ;
 				} catch (Request::ParsingErrorException& e) {
 					if (e.type == Request::BAD_REQUEST)
-						res = Response(_config, 405);
+						res = Response(_config, 405, _buffer, _buffer_size);
 					else if (e.type == Request::CONTENT_LENGTH)
-						res = Response(_config, 413);
+						res = Response(_config, 413, _buffer, _buffer_size);
 					_cleanChunkFiles(client_socket);
 				}
 				/* Debug print */
-				// std::cout << YELLOW << req << RESET << std::endl;
+				std::cout << YELLOW << req << RESET << std::endl;
 
 				/* Response */
 				if (res.getStatusCode() == -1)
-					res = Response(_config, 500); // Internal Server Error
+					res = Response(_config, 500, _buffer, _buffer_size); // Internal Server Error
 
 				const char* response = res.toCString();
 				/* Debug print */

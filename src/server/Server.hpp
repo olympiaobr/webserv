@@ -6,12 +6,12 @@
 # include <unistd.h>
 # include <netinet/in.h>
 # include <iostream>
-# include <stdio.h>
 # include <string.h>
 # include <sys/errno.h>
 # include <fcntl.h>
 # include <sstream>
 # include <ctime>
+# include <cstdio>
 
 # include "../requests/Request.hpp"
 # include "../configuration/Config.hpp"

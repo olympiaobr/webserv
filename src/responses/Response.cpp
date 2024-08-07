@@ -6,17 +6,18 @@
 #include <sys/stat.h>
 #include <cstdio>
 
-Response::Response(const ServerConfig& config): _config(config), _statusCode(-1) {}
+Response::Response(const ServerConfig& config, char* buffer, int buffer_size):
+	_config(config), _statusCode(-1), _buffer(buffer), _buffer_size(buffer_size) {}
 
-Response::Response(const ServerConfig& config, int errorCode)
-	: _httpVersion("HTTP/1.1"), _config(config) {
+Response::Response(const ServerConfig& config, int errorCode, char* buffer, int buffer_size)
+	: _httpVersion("HTTP/1.1"), _config(config), _buffer(buffer), _buffer_size(buffer_size) {
 	initializeHttpErrors();
 	_setError(errorCode);
 }
 
 
-Response::Response(const Request& req, const ServerConfig& config)
-    : _httpVersion("HTTP/1.1"), _config(config) {
+Response::Response(const Request& req, const ServerConfig& config, char* buffer, int buffer_size)
+    : _httpVersion("HTTP/1.1"), _config(config), _buffer(buffer), _buffer_size(buffer_size) {
     initializeHttpErrors();
 
     // Ensure the request is using HTTP/1.1 standard
