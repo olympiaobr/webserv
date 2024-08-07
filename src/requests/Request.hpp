@@ -11,8 +11,6 @@
 # include "../utilities/Utils.hpp"
 # include "../configuration/Config.hpp"
 
-typedef std::map<std::string, std::string> HeadList;
-
 class Request {
 public:
 	Request(int clientSocket, ServerConfig &config, char *buffer, int buffer_len);
@@ -53,23 +51,23 @@ public:
 	};
 
 	private:
-	int 			_clientSocket;
-	std::string		_method;
-	std::string		_uri;
-	std::string		_httpVersion;
-	HeadList		_headers;
-	std::string		_body;
-	ServerConfig	_config;
-
-	char*			_buffer;
-	int				_buffer_size;
-
-
-	void _parseRequestLine(const std::string& line);
-	void _parseHeader(const std::string& line);
-	void _readBody(const char *init_buffer, ssize_t bytesRead);
-	void _readBodyChunked(const char *init_buffer, ssize_t bytesRead);
-	void _readBodyFile(char *init_buffer, ssize_t bytesRead);
+		int 									_clientSocket;
+		std::string								_method;
+		std::string								_uri;
+		std::string								_httpVersion;
+		std::map<std::string, std::string>		_headers;
+		std::string								_body;
+		ServerConfig							_config;
+	
+		char*									_buffer;
+		int										_buffer_size;
+	
+	
+		void _parseRequestLine(const std::string& line);
+		void _parseHeader(const std::string& line);
+		void _readBody(const char *init_buffer, ssize_t bytesRead);
+		void _readBodyChunked(const char *init_buffer, ssize_t bytesRead);
+		void _readBodyFile(char *init_buffer, ssize_t bytesRead);
 
 };
 
