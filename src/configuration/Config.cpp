@@ -72,7 +72,6 @@ void Config::parseRouteConfig(RouteConfig& config, const std::string& line)
     if (end != std::string::npos) {
         value.erase(end + 1);
     }
-    std::cout << "Parsing route config: " << key << " = " << value << std::endl;
     if (key == "allow_methods") {
         std::istringstream methods(value);
         std::string method;
@@ -181,7 +180,9 @@ std::ostream& operator<<(std::ostream& os, const RouteConfig& config) {
         if (i > 0) os << ", ";
         os << config.allowed_methods[i];
     }
-    os << "\n";
+    os  << "\n"
+        << "      Is CGI: " << config.is_cgi << "\n"
+        << "      Autoindex: " << config.autoindex << "\n";
 
     return os;
 }
