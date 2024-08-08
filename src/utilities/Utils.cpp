@@ -36,7 +36,7 @@ std::string utils::buildPath(int socket, const char *folder_name) {
 bool utils::deleteFile(const std::string &file_name) {
 	/*ddavlety*/
 	/* IMPORTANT! remove function may be not allowed */
-	if (remove(file_name.c_str()) == 0)
+	if (std::remove(file_name.c_str()) == 0)
         return true;
 	return false;
 }
@@ -116,24 +116,26 @@ int utils::stoi(const std::string &str)
 	return out;
 }
 
-std::string utils::generateDirectoryListing(const std::string& directoryPath) {
-	std::ostringstream listing;
-	DIR* dir = opendir(directoryPath.c_str());
-	if (dir == NULL) {
-		return "Error opening directory";
-	}
+// std::string utils::generateDirectoryListing(const std::string& directoryPath) {
+// 	std::ostringstream listing;
+// 	std::string headers;
+// 	listing << headers;
+// 	DIR* dir = opendir(directoryPath.c_str());
+// 	if (dir == NULL) {
+// 		return "Error opening directory";
+// 	}
 
-	struct dirent* entry;
-	listing << "<html><head><title>Index of " << directoryPath
-			<< "</title></head><body><h1>Index of " << directoryPath
-			<< "</h1><ul>";
-	while ((entry = readdir(dir)) != NULL) {
-		listing << "<li><a href=\"" << entry->d_name << "\">" << entry->d_name << "</a></li>";
-	}
-	closedir(dir);
-	listing << "</ul></body></html>";
-	return listing.str();
-}
+// 	struct dirent* entry;
+// 	listing << "<html><head><title>Index of " << directoryPath
+// 			<< "</title></head><body><h1>Index of " << directoryPath
+// 			<< "</h1><ul>";
+// 	while ((entry = readdir(dir)) != NULL) {
+// 		listing << "<li><a href=\"" << entry->d_name << "\">" << entry->d_name << "</a></li>";
+// 	}
+// 	closedir(dir);
+// 	listing << "</ul></body></html>";
+// 	return listing.str();
+// }
 
 std::time_t utils::getCurrentTime()
 {

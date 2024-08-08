@@ -22,8 +22,7 @@ CGIHandler::~CGIHandler() {
 }
 
 void CGIHandler::setupEnvironment() {
-    char contentLength[20];
-    sprintf(contentLength, "%ld", request.getBody().length());
+    std::string contentLength = utils::to_string(request.getBody().length());
 
     environment["REQUEST_METHOD"] = request.getMethod();
     environment["SCRIPT_NAME"] = scriptPath;
@@ -50,44 +49,12 @@ void CGIHandler::setupEnvironment() {
     envp[i] = NULL;
 }
 
-
 std::string extractFileExtension(const std::string& path) {
     std::size_t lastDot = path.find_last_of('.');
     if (lastDot == std::string::npos)
 		return "";
     return path.substr(lastDot + 1);
 }
-
-std::string updateHttpResponse(const std::string& httpResponse, const std::string& scriptPath) {
-    std::string extension = extractFileExtension(scriptPath);
-    if (extension != "php") return httpResponse; // Only modify PHP responses
-
-    // Find the end of the header section
-    size_t headerEnd = httpResponse.find("\r\n\r\n");
-    if (headerEnd == std::string::npos) return httpResponse; // Malformed response
-
-    std::string headers = httpResponse.substr(0, headerEnd);
-    std::string body = httpResponse.substr(headerEnd + 4);
-
-    std::stringstream headerStream(headers);
-    std::vector<std::string> headerLines;
-    std::string line;
-
-    while (std::getline(headerStream, line)) {
-        if (!line.empty()) {
-            headerLines.push_back(line);
-        }
-    }
-
-    std::ostringstream modifiedHeaders;
-    modifiedHeaders << "Content-Length: " << body.length() << "\r\n";
-    for (size_t i = 0; i < headerLines.size(); i++) {
-        modifiedHeaders << headerLines[i] << "\r\n";
-    }
-
-    return modifiedHeaders.str() + "\r\n" + body;
-}
-
 
 std::string CGIHandler::execute() {
     int pipe_fds[2];
@@ -145,7 +112,7 @@ std::string CGIHandler::execute() {
         }
 
         std::cout << "CGI process completed successfully.\n";
-        return updateHttpResponse("\r\n" + output, scriptPath);
+        return output;
     }
 }
 

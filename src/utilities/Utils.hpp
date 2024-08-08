@@ -27,7 +27,7 @@ namespace utils {
 	std::string	chunkFileName(int socket);
 	char		*strstr(const char *haystack, const char *needle, ssize_t len);
 	int			stoi(const std::string &str);
-	std::string generateDirectoryListing(const std::string& directoryPath);
+	// std::string generateDirectoryListing(const std::string& directoryPath);
 	std::time_t getCurrentTime();
 	std::string to_string(int value);
 }
