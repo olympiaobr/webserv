@@ -212,9 +212,8 @@ void Server::pollLoop() {
 				/* Debug print */
 				std::cout << CYAN << "Response sent:" << std::endl << res.getContent() << RESET << std::endl;
 
-				send(client_socket, res.getContent(), res.getContentLength(), MSG_DONTWAIT);
-
-
+				ssize_t sent = send(client_socket, res.getContent(), res.getContentLength(), MSG_DONTWAIT);
+				std::cout << res.getContentLength() - sent << std::endl;
 				int response_code = res.getStatusCode();
 				if (response_code >= 500 || response_code >= 400) {
 					_cleanChunkFiles(client_socket);

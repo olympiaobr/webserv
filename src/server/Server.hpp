@@ -28,8 +28,12 @@ typedef std::vector<std::string> HostList;
 # define REQUEST_TIMEOUT 10
 # define RESPONSE_MAX_BODY_SIZE 8000000
 
-class Server
-{
+struct Stream {
+	std::string boundary;
+	std::string unique_filename;
+};
+
+class Server {
 	public:
 		Server();
 		Server(const HostList &hosts, short port);
@@ -98,6 +102,7 @@ class Server
 		std::map<int, std::time_t>	_request_time;
 		char*						_buffer;
 		int							_buffer_size;
+		std::map<int, Stream>		_requests;
 
 		char*						_res_buffer;
 		int							_res_buffer_size;
