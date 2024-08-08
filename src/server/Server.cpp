@@ -174,7 +174,7 @@ void Server::pollLoop() {
 								res = Response(_config, 500, _res_buffer, _res_buffer_size);
 							} else {
 								res.setStatus(200);
-								res.addHeader("Content-Type", "whatever");
+								res.addHeader("Content-Type", "text/html");
 								res.generateCGIResponse(cgiOutput);
 								std::cout << "CGI response generated successfully." << std::endl;
 							}
