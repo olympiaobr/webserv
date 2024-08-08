@@ -54,6 +54,7 @@ Server::~Server() {
 		}
 	}
 	delete _buffer;
+	delete _res_buffer;
 }
 
 void Server::addPollfd(int socket_fd, short events) {
@@ -185,10 +186,6 @@ void Server::pollLoop() {
 						if (res.getStatusCode() < 300 && req.getMethod() == "POST") {
 							req.parseBody(bytesRead);
 						}
-					res = Response(req, _config, _res_buffer, _res_buffer_size);
-					if (res.getStatusCode() < 300 && req.getMethod() == "POST") {
-						req.parseBody(bytesRead);
-					}
 					}
 				} catch (Request::SocketCloseException &e) {
 					std::cout << e.what() << std::endl;

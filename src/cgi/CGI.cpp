@@ -22,8 +22,7 @@ CGIHandler::~CGIHandler() {
 }
 
 void CGIHandler::setupEnvironment() {
-    char contentLength[20];
-    sprintf(contentLength, "%ld", request.getBody().length());
+    std::string contentLength = utils::to_string(request.getBody().length());
 
     environment["REQUEST_METHOD"] = request.getMethod();
     environment["SCRIPT_NAME"] = scriptPath;

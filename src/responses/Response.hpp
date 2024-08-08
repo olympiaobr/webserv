@@ -4,8 +4,6 @@
 # include <string>
 # include <map>
 # include <algorithm>
-// # include <fstream>
-// # include <filesystem>
 # include "../requests/Request.hpp"
 # include "../configuration/Config.hpp"
 # include "../utilities/Utils.hpp"
@@ -24,8 +22,6 @@ public:
     void setStatus(int code);
 	int getStatusCode();
     void addHeader(const std::string& key, const std::string& value);
-    // void setBody(const std::string& body);
-	// void setBody(const char* body);
 
     std::string _headersToString() const;
 	void generateResponse(const std::string& filename);
@@ -67,7 +63,7 @@ private:
     // std::string _readFile(const std::string& filename);
     std::string _getMimeType(const std::string& filename);
     std::string _toString(size_t num) const;
-	std::vector<std::string> _chunkFile(const std::string& filename);
+	// std::vector<std::string> _chunkFile(const std::string& filename);
 
     void _handleGetRequest(const Request& req);
     void _handlePostRequest(const Request& req);
