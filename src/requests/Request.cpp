@@ -217,7 +217,7 @@ void Request::_readBodyFile(char *buffer, ssize_t bytesRead)
 			}
 			/* Check if this chunk contains EOF */
 			else if (boundary_end_pos) {
-				len -= bytesRead - (boundary_end_pos - buffer) + 2;
+				len -= bytesRead - (boundary_end_pos - buffer) + 6;
 				write(file_fd, start_pos, len);
 			}
 			/* read the rest */
@@ -244,7 +244,7 @@ void Request::_readBodyFile(char *buffer, ssize_t bytesRead)
 					}
 					/* Check if this chunk contains EOF */
 					else if (boundary_end_pos) {
-						bytesRead -= bytesRead - (boundary_end_pos - buffer) + 2;
+						bytesRead = (boundary_end_pos - _buffer) - 6;
 						write(file_fd, _buffer, bytesRead);
 						break ;
 					}
