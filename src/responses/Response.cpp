@@ -285,7 +285,7 @@ void Response::generateResponse(const std::string& filename) {
 		moved_body[i] = body[i];
 	}
 	_content = _buffer;
-	_content_length = moved_body - _buffer + bytesRead;
+	_content_length = headers.size() + bytesRead;
 }
 
 void Response::generateDirectoryListing(const std::string& directoryPath) {
