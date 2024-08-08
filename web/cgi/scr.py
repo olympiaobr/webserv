@@ -3,7 +3,7 @@ import cgi
 import cgitb; cgitb.enable()
 import sys
 
-print("Content-Type: text/html\r\n\r\n")
+print("\r\n\r\n")
 
 form = cgi.FieldStorage()
 

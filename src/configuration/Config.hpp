@@ -5,6 +5,7 @@
 # include <string>
 # include <vector>
 # include <iomanip>
+# include <cmath>
 
 
 typedef std::vector<std::string> HostList;
