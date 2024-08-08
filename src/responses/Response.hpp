@@ -28,7 +28,7 @@ public:
 	void generateDirectoryListing(const std::string& directoryPath);
 	void generateCGIResponse(const std::string &cgi_response);
 	const char *getContent();
-	int			getConetentLength();
+	int			getContentLength();
 	// const char* toCString();
 
 	/* Exceptions */

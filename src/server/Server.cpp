@@ -212,7 +212,7 @@ void Server::pollLoop() {
 				/* Debug print */
 				std::cout << CYAN << "Response sent:" << std::endl << res.getContent() << RESET << std::endl;
 
-				send(client_socket, res.getContent(), res.getConetentLength(), MSG_DONTWAIT);
+				send(client_socket, res.getContent(), res.getContentLength(), MSG_DONTWAIT);
 
 
 				int response_code = res.getStatusCode();
