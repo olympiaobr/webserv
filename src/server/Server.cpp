@@ -194,7 +194,7 @@ void Server::pollLoop() {
 					continue ;
 				} catch (Request::ParsingErrorException& e) {
 					if (e.type == Request::BAD_REQUEST)
-						res = Response(_config, 405, _res_buffer, _res_buffer_size);
+						res = Response(_config, 400, _res_buffer, _res_buffer_size);
 					else if (e.type == Request::CONTENT_LENGTH)
 						res = Response(_config, 413, _res_buffer, _res_buffer_size);
 					else if (e.type == Request::FILE_SYSTEM)
