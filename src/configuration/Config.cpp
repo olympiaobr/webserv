@@ -20,6 +20,21 @@ Config& Config::operator=(const Config& other) {
     return *this;
 }
 
+std::string formatSize(int bytes) {
+    static const char* sizes[] = {"Bytes", "KB", "MB", "GB"};
+    int order = 0;
+    double formattedSize = bytes;
+
+    while (formattedSize >= 1024 && order < 3) {
+        order++;
+        formattedSize /= 1024;
+    }
+    std::ostringstream os;
+    os << std::fixed << std::setprecision(4);
+    os << formattedSize << " " << sizes[order];
+    return os.str();
+}
+
 void Config::_parseServerConfig(ServerConfig& config, const std::string& line)
 {
     std::istringstream iss(line);
@@ -45,8 +60,24 @@ void Config::_parseServerConfig(ServerConfig& config, const std::string& line)
         config.root = value;
     }
     else if (key == "client_max_body_size") {
-		/* Temp assume M */
-        config.body_limit = atoi(value.c_str()) * 1024 * 1024;
+		size_t pos = value.find_first_not_of("0123456789");
+        int factor = 1;
+        if (pos != std::string::npos) {
+            std::string numPart = value.substr(0, pos);
+            std::string unit = value.substr(pos);
+            if (unit == "K")
+             factor = 1024;
+            else if (unit == "M")
+                factor = 1024 * 1024;
+            else if (unit == "G")
+                factor = 1024 * 1024 * 1024;
+            config.body_limit = atoi(numPart.c_str()) * factor;
+            config.formatted_body_limit = formatSize(config.body_limit);
+        }
+        else {
+            config.body_limit = atoi(value.c_str());
+            config.formatted_body_limit = formatSize(config.body_limit);
+        }
     }
     else if (key.find("error_page") == 0) {
         std::istringstream errorPageIss(value);
@@ -134,7 +165,8 @@ void Config::loadConfig() {
             if (inLocationBlock) {
                 inLocationBlock = false;
                 currentServerConfig.routes[currentLocationPath] = currentRouteConfig;
-            } else if (inServerBlock) {
+            }
+            else if (inServerBlock) {
                 inServerBlock = false;
                 if (currentPort == 0)
                     throw std::invalid_argument("server block missing 'listen' directive");
@@ -145,10 +177,12 @@ void Config::loadConfig() {
         if (inServerBlock && !inLocationBlock) {
             if (key == "listen") {
                 iss >> currentPort;
-            } else {
+            }
+            else {
                 _parseServerConfig(currentServerConfig, line);
             }
-        } else if (inLocationBlock) {
+        }
+        else if (inLocationBlock) {
             _parseRouteConfig(currentRouteConfig, line);
         }
     }
@@ -191,24 +225,22 @@ std::ostream& operator<<(std::ostream& os, const RouteConfig& config) {
 // Streaming operator for ServerConfig
 std::ostream& operator<<(std::ostream& os, const ServerConfig& config) {
     os << "  Hostnames: ";
-
     for (size_t i = 0; i < config.hostnames.size(); ++i) {
         if (i > 0) os << ", ";
         os << config.hostnames[i];
     }
-    os << "\n"
-       << "  Root: " << config.root << "\n"
-       << "  Body Limit (MB): " << config.body_limit << "\n"
+    os << "\n  Root: " << config.root << "\n"
+       << "  Body Limit: " << config.formatted_body_limit << "\n"
        << "  Error Pages:\n";
 
-    std::map<int, std::string>::const_iterator it;
-    for (it = config.error_pages.begin(); it != config.error_pages.end(); ++it) {
+    for (std::map<int, std::string>::const_iterator it = config.error_pages.begin();
+         it != config.error_pages.end(); ++it) {
         os << "    " << it->first << ": " << it->second << "\n";
     }
 
     os << "  Routes:\n";
-    std::map<std::string, RouteConfig>::const_iterator route_it;
-    for (route_it = config.routes.begin(); route_it != config.routes.end(); ++route_it) {
+    for (std::map<std::string, RouteConfig>::const_iterator route_it = config.routes.begin();
+         route_it != config.routes.end(); ++route_it) {
         os << "    " << route_it->first << ":\n" << route_it->second;
     }
 
@@ -229,3 +261,4 @@ std::ostream& operator<<(std::ostream& os, const Config& config) {
 
     return os;
 }
+
