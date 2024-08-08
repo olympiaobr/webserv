@@ -264,10 +264,10 @@ void Response::generateResponse(const std::string& filename) {
 	body = _buffer + headers.size() + 50; //can be implemented as fixed value
 	std::memset(_buffer, 0, _buffer_size);
 	memcpy(_buffer, headers.c_str(), headers.size());
-	size_t bytesRead = read(fd, body, _buffer_size - (headers.size() + 24));
+	ssize_t bytesRead = read(fd, body, _buffer_size - (headers.size() + 24));
 	if (bytesRead < 0)
 		throw FileSystemErrorException("could not read the file");
-	if (bytesRead < _buffer_size - (headers.size() + 50)) {
+	if (bytesRead < static_cast<ssize_t>(_buffer_size - (headers.size() + 50))) {
 		_content_length = headers.size() + bytesRead;
 	} else {
 		throw ContentLengthException("body is too long");
@@ -280,7 +280,7 @@ void Response::generateResponse(const std::string& filename) {
 	if (moved_body - body > 50)
 		throw "fatal error (^_^') ";
 	memcpy(_buffer, headers.c_str(), headers.size());
-	for (size_t i = 0; i < bytesRead; i++)
+	for (size_t i = 0; i < static_cast<size_t>(bytesRead); i++)
 	{
 		moved_body[i] = body[i];
 	}
@@ -356,6 +356,7 @@ std::string Response::_toString(size_t num) const {
 Response::FileSystemErrorException::FileSystemErrorException(const char *error_msg) {
     std::memset(_error, 0, 256);
     strncpy(_error, "Response file system error: ", 28);
+    _error[27] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
@@ -366,6 +367,7 @@ const char *Response::FileSystemErrorException::what() const throw() {
 Response::ContentLengthException::ContentLengthException(const char *error_msg) {
     std::memset(_error, 0, 256);
     strncpy(_error, "Content length is too long: ", 28);
+    _error[27] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
 
