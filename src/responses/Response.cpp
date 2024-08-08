@@ -335,7 +335,7 @@ const char *Response::getContent()
 	return _content;
 }
 
-int Response::getConetentLength()
+int Response::getContentLength()
 {
 	return _content_length;
 }
