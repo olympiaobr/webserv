@@ -14,8 +14,9 @@
 # include <sys/stat.h>
 # include <ctime>
 
-# include "../server/Server.hpp"
-# include "../configuration/Config.hpp"
+# include "../requests/Request.hpp"
+
+# define TEMP_FILES_DIRECTORY "tmp/"
 
 namespace utils {
 	std::string	&toLowerCase(std::string &string);

@@ -1,11 +1,5 @@
 #include "Request.hpp"
-#include <sstream>
-#include <cstring>
-#include <unistd.h>
-#include <cstdlib>
-#include <sys/socket.h>
-#include <fcntl.h>
-#include <errno.h>
+#include "../server/Server.hpp"
 
 Request::Request(int clientSocket, ServerConfig &config, char *buffer, int buffer_len)
 	: _clientSocket(clientSocket), _config(config), _buffer(buffer), _buffer_size(buffer_len) {}
@@ -101,6 +95,12 @@ int Request::parseBody(int bytesRead) {
 		_readBody(body_buffer, bytesRead);
 	}
 	return bytesRead;
+}
+
+int Request::parseStream(Stream &stream)
+{
+
+	return 0;
 }
 
 void Request::_parseRequestLine(const std::string& line) {
@@ -399,4 +399,9 @@ std::string Request::getScriptPath() const {
     std::cout << "Constructed CGI script path: " << fullPath << std::endl;
 
     return RemoveQueryString(fullPath);
+}
+
+const char *Request::StreamingData::what() const throw()
+{
+    return "Part of data recieved";
 }

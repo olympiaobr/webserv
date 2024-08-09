@@ -1,12 +1,16 @@
 #ifndef CGI_HPP
-#define CGI_HPP
+# define CGI_HPP
 
-#include <string>
-#include <map>
-#include "../requests/Request.hpp"
-#include "../configuration/Config.hpp"
-#include "../utilities/Utils.hpp"
-#include "../server/Server.hpp"
+# include <string>
+# include <map>
+
+
+# include "../requests/Request.hpp"
+# include "../responses/Response.hpp"
+# include "../configuration/Config.hpp"
+# include "../utilities/Utils.hpp"
+// # include "../server/Server.hpp"
+
 
 class Request;
 
