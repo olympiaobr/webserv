@@ -41,7 +41,6 @@ struct Stream {
 class Server {
 	public:
 		Server();
-		Server(const HostList &hosts, short port);
 		~Server();
 
 		/*Exceptions*/
