@@ -1,79 +1,29 @@
 #include "Server.hpp"
 
 Server::Server(): _buffer(0), _res_buffer(0) {
-	/*ddavlety*/
-	/* Clean up temp files before server start up */
-	/* If there is already running server behaviour is undefined */
-	/* look issue #46 */
-	DIR* dir = opendir(TEMP_FILES_DIRECTORY);
-	if (dir == NULL) {
-		std::string error_msg;
-		error_msg += strerror(errno);
-		error_msg += ": failed to open directory";
-		throw InitialisationException(error_msg.c_str());
-	}
-	struct dirent* entry;
-	while ((entry = readdir(dir)) != NULL) {
-		if (entry->d_type == DT_REG) {
-			std::string filePath = std::string(TEMP_FILES_DIRECTORY) + entry->d_name;
-			std::remove(filePath.c_str());
-		}
-	}
-	closedir(dir);
-}
-
-Server::Server(const HostList &hosts, short port): _port(port), _hosts(hosts), _buffer(0) {
-	_main_socketfd = socket(PF_INET, SOCK_STREAM, 0);
-	if (_main_socketfd < 0) {
-		throw InitialisationException("server socket endpoint is not created");
-	}
-	_address.sin_family = AF_INET;
-	_address.sin_addr.s_addr = INADDR_ANY;
-	_address.sin_port = htons(port);
-	_address_len = sizeof(_address);
-	addPollfd(_main_socketfd, POLLIN);
-	_setSocketOpt();
-	_setSocketNonblock();
-	_bindSocketName();
 }
 
 Server::~Server() {
 	for (size_t i = 0; i < getSocketsSize(); ++i) {
 		close(_fds[i].fd);
 	}
-	/* If there is running server behaviour is undefined */
-	/* look issue #46 */
 	if (_buffer) {
         delete[] _buffer;
     }
     if (_res_buffer) {
         delete[] _res_buffer;
     }
-    DIR* dir = opendir(TEMP_FILES_DIRECTORY);
-    if (dir) {
-        dirent* entry;
-        while ((entry = readdir(dir)) != NULL) {
-            if (entry->d_type == DT_REG) {
-                std::string filePath = std::string(TEMP_FILES_DIRECTORY) + entry->d_name;
-                std::remove(filePath.c_str());
-            }
-        }
-        closedir(dir);
-    }
 }
 
 void Server::_addNewClient(int client_socket)
 {
 	int new_client_socket = accept(_main_socketfd, (struct sockaddr *)&_address, (socklen_t*)&_address_len);
-	if (new_client_socket < 0) {
-			throw PollingErrorException(strerror(errno));
-		}
-	// Set socket to non-blocking mode
+	if (new_client_socket < 0)
+		return ;
 	fcntl(client_socket, F_SETFL, O_NONBLOCK);
 	addPollfd(new_client_socket, POLLIN);
 	_setRequestTime(new_client_socket);
-	std::cout << "New connection established on fd: " << client_socket << std::endl;
-
+	std::cout << GREEN << "New connection established on fd: " << new_client_socket << RESET << std::endl;
 }
 
 void Server::_requestHandling(Request &req, Response &res)
@@ -83,22 +33,17 @@ void Server::_requestHandling(Request &req, Response &res)
 	/*************************/
 	if (req.isTargetingCGI()) {
 		std::string scriptPath = req.getScriptPath();
-		std::cout << "Attempting to execute CGI script at path: " << scriptPath << std::endl;
-
 		if (!utils::fileExists(scriptPath)) {
-			std::cerr << "CGI script not found at path: " << scriptPath << std::endl;
 			res = Response(_config, 404, _res_buffer, _res_buffer_size);
 		} else {
 			CGIHandler cgiHandler(scriptPath, req, _config);
 			std::string cgiOutput = cgiHandler.execute();
 			if (cgiOutput.empty()) {
-				std::cerr << "CGI script execution failed or exited with error status" << std::endl;
 				res = Response(_config, 500, _res_buffer, _res_buffer_size);
 			} else {
 				res.setStatus(200);
 				res.addHeader("Content-Type", "text/html");
 				res.generateCGIResponse(cgiOutput);
-				std::cout << "CGI response generated successfully." << std::endl;
 			}
 		}
 	} else {
@@ -106,9 +51,8 @@ void Server::_requestHandling(Request &req, Response &res)
 		res = Response(req, _config, _res_buffer, _res_buffer_size);
 		/*********************/
 		/* Parse request body */
-		if (res.getStatusCode() < 300 && req.getMethod() == "POST") {
+		if (res.getStatusCode() < 300 && req.getMethod() == "POST")
 			req.parseBody(bytesRead, *this);
-		}
 		/*********************/
 	}
 
@@ -151,7 +95,7 @@ void Server::_serveExistingClient(int client_socket, size_t i)
 	}
 }
 
-int Server::_processStream(Stream stream)
+void Server::_processStream(Stream stream)
 {
 	int file_fd = stream.file_fd;
 	int client_socket = stream.req.getSocket();
@@ -162,9 +106,9 @@ int Server::_processStream(Stream stream)
 		/* Here also check if no of attempts > max ??
 		Or it can depend on timeout */
 		if (true)
-			return -1;
+			return ;
 		else
-			return 0;
+			return ;
 	}
 	if (bytesRead == 0) {
 		throw Request::SocketCloseException("connection closed by client");
@@ -188,9 +132,7 @@ int Server::_processStream(Stream stream)
 		deleteStream(client_socket);
 	} else {
 		write(file_fd, buffer, bytesRead);
-		return 1;
 	}
-	return 0;
 }
 
 
@@ -374,8 +316,8 @@ void Server::RUN(std::vector<Server> servers) {
 			servers[i].setResBuffer(buffer, buffer_size);
 		}
 		servers[i].listenPort(BACKLOG);
-		std::cout << "Server 1 is listening on port "
-			<< servers[i].getPort() << std::endl;
+		std::cout << BLUE << "Server 1 is listening on port "
+			<< servers[i].getPort() << RESET << std::endl;
 	}
 	while (true)
 	{
