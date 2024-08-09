@@ -1,6 +1,6 @@
 #include "Server.hpp"
 
-Server::Server(): _buffer(0) {
+Server::Server(): _buffer(0), _res_buffer(0) {
 	/*ddavlety*/
 	/* Clean up temp files before server start up */
 	/* If there is already running server behaviour is undefined */
@@ -43,18 +43,23 @@ Server::~Server() {
 	}
 	/* If there is running server behaviour is undefined */
 	/* look issue #46 */
-	DIR* dir = opendir(TEMP_FILES_DIRECTORY);
-	if (dir != NULL) {
-		struct dirent* entry;
-		while ((entry = readdir(dir)) != NULL) {
-			if (entry->d_type == DT_REG) {
-				std::string filePath = std::string(TEMP_FILES_DIRECTORY) + entry->d_name;
-				std::remove(filePath.c_str());
-			}
-		}
-	}
-	delete _buffer;
-	delete _res_buffer;
+	if (_buffer) {
+        delete[] _buffer;
+    }
+    if (_res_buffer) {
+        delete[] _res_buffer;
+    }
+    DIR* dir = opendir(TEMP_FILES_DIRECTORY);
+    if (dir) {
+        dirent* entry;
+        while ((entry = readdir(dir)) != NULL) {
+            if (entry->d_type == DT_REG) {
+                std::string filePath = std::string(TEMP_FILES_DIRECTORY) + entry->d_name;
+                std::remove(filePath.c_str());
+            }
+        }
+        closedir(dir);
+    }
 }
 
 void Server::addPollfd(int socket_fd, short events) {
