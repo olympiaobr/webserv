@@ -107,7 +107,7 @@ void Server::_requestHandling(Request &req, Response &res)
 		/*********************/
 		/* Parse request body */
 		if (res.getStatusCode() < 300 && req.getMethod() == "POST") {
-			req.parseBody(bytesRead);
+			req.parseBody(bytesRead, *this);
 		}
 		/*********************/
 	}
@@ -124,6 +124,7 @@ void Server::_serveExistingClient(int client_socket, size_t i)
 	} catch (Request::SocketCloseException &e) {
 		std::cout << e.what() << std::endl;
 		_cleanChunkFiles(client_socket);
+		close(client_socket);
 		_fds.erase(_fds.begin() + i);
 		return ;
 	} catch (Request::ParsingErrorException& e) {
@@ -150,6 +151,49 @@ void Server::_serveExistingClient(int client_socket, size_t i)
 	}
 }
 
+int Server::_processStream(Stream stream)
+{
+	int file_fd = stream.file_fd;
+	int client_socket = stream.req.getSocket();
+	char* buffer = _buffer;
+	size_t buffer_size = _buffer_size;
+	int bytesRead = recv(client_socket, buffer, buffer_size, 0);
+	if (bytesRead < 0) {
+		/* Here also check if no of attempts > max ??
+		Or it can depend on timeout */
+		if (true)
+			return -1;
+		else
+			return 0;
+	}
+	if (bytesRead == 0) {
+		throw Request::SocketCloseException("connection closed by client");
+	}
+	std::string& boundary = stream.boundary;
+	std::string boundary_end = boundary + "--";
+	char *boundary_pos = utils::strstr(buffer, boundary.c_str(), bytesRead);
+	char *boundary_end_pos = utils::strstr(buffer, boundary_end.c_str(), bytesRead);
+	if (boundary_pos && boundary_pos != boundary_end_pos) {
+		write(file_fd, buffer, (boundary_pos - buffer));
+		close(file_fd);
+		deleteStream(client_socket);
+		int readBodyResult = stream.req.readBodyFile(boundary_pos, bytesRead - (boundary_pos - buffer), *this);
+		if (readBodyResult != -1) {
+			addStream(client_socket, readBodyResult, stream.req, boundary);
+		}
+	} else if (boundary_end_pos) {
+		bytesRead = (boundary_end_pos - buffer) - 6;
+		write(file_fd, buffer, bytesRead);
+		close(file_fd);
+		deleteStream(client_socket);
+	} else {
+		write(file_fd, buffer, bytesRead);
+		return 1;
+	}
+	return 0;
+}
+
+
 void Server::addPollfd(int socket_fd, short events)
 {
     pollfd fd;
@@ -173,6 +217,17 @@ void Server::setResBuffer(char *buffer, int buffer_size)
 {
 	_res_buffer = buffer;
 	_res_buffer_size = buffer_size;
+}
+
+void Server::addStream(int client_socket, int file_fd, Request &req, std::string& boundary)
+{
+	Stream stream(req, boundary, file_fd);
+	_streams[client_socket] = stream;
+}
+
+void Server::deleteStream(int client_socket)
+{
+	_streams.erase(client_socket);
 }
 
 void Server::initEndpoint(const HostList &hosts, short port, const ServerConfig &config) {
@@ -234,6 +289,8 @@ void Server::pollLoop() {
 				_setRequestTime(client_socket);
 			if (client_socket == _main_socketfd) {
 				_addNewClient(client_socket);
+			} else if (_streams.find(client_socket) != _streams.end()) {
+				_processStream(_streams.find(client_socket)->second);
 			} else {
 				_serveExistingClient(client_socket, i);
 			}

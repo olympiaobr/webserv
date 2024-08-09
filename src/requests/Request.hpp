@@ -19,15 +19,17 @@
 
 
 struct Stream;
+class Server;
 
 class Request {
 public:
 	Request(int clientSocket, ServerConfig &config, char *buffer, int buffer_len);
+	Request();
 	~Request();
 
 	int parseHeaders();
-	int parseBody(int bytesRead);
-	int parseStream(Stream &stream);
+	int parseBody(int bytesRead, Server& server);
+	int readBodyFile(char *init_buffer, ssize_t bytesRead, Server& server);
 
 	std::string getMethod() const;
 	std::string getUri() const;
@@ -86,7 +88,6 @@ public:
 		void _parseHeader(const std::string& line);
 		void _readBody(const char *init_buffer, ssize_t bytesRead);
 		void _readBodyChunked(const char *init_buffer, ssize_t bytesRead);
-		void _readBodyFile(char *init_buffer, ssize_t bytesRead);
 
 };
 

@@ -124,6 +124,8 @@ class Server {
 		void _addNewClient(int client_socket);
 		void _requestHandling(Request &req, Response &res);
 		void _serveExistingClient(int client_socket, size_t i);
+
+		int _processStream(Stream stream);
 };
 
 std::ostream &operator<<(std::ostream &os, const Server &server);
