@@ -21,16 +21,15 @@ public:
     Response(const Request& req, const ServerConfig& config, char *buffer, int buffer_size);
 	Response& operator=(const Response& other);
 
-    void initializeHttpErrors();
-    void setStatus(int code);
-	int getStatusCode();
-    void addHeader(const std::string& key, const std::string& value);
+    void		initializeHttpErrors();
+    void		setStatus(int code);
+	int			getStatusCode();
+    void		addHeader(const std::string& key, const std::string& value);
 
-    std::string _headersToString() const;
-	void generateResponse(const std::string& filename);
-	void generateDirectoryListing(const std::string& directoryPath);
-	void generateCGIResponse(const std::string &cgi_response);
-	const char *getContent();
+	void		generateResponse(const std::string& filename);
+	void		generateDirectoryListing(const std::string& directoryPath);
+	void		generateCGIResponse(const std::string &cgi_response);
+	const char*	getContent();
 	int			getContentLength();
 	// const char* toCString();
 
@@ -64,16 +63,17 @@ private:
 	int									_content_length;
 
     // std::string _readFile(const std::string& filename);
-    std::string _getMimeType(const std::string& filename);
-    std::string _toString(size_t num) const;
+    std::string		_getMimeType(const std::string& filename);
+    std::string		_toString(size_t num) const;
 	// std::vector<std::string> _chunkFile(const std::string& filename);
 
-    void _handleGetRequest(const Request& req);
-    void _handlePostRequest(const Request& req);
-    void _handleDeleteRequest(const Request& req);
-	void _setError(int code);
-    const RouteConfig* _findMostSpecificRouteConfig(const std::string& uri) const;
-    void _dispatchMethodHandler(const Request& req);
+    void				_handleGetRequest(const Request& req);
+    void				_handlePostRequest(const Request& req);
+    void				_handleDeleteRequest(const Request& req);
+	void				_setError(int code);
+    const RouteConfig*	_findMostSpecificRouteConfig(const std::string& uri) const;
+    void				_dispatchMethodHandler(const Request& req);
+    std::string			_headersToString() const;
 
 };
 
