@@ -151,7 +151,7 @@ void Server::_serveExistingClient(int client_socket, size_t i)
 	}
 }
 
-int Server::_processStream(Stream stream)
+void Server::_processStream(Stream stream)
 {
 	int file_fd = stream.file_fd;
 	int client_socket = stream.req.getSocket();
@@ -162,9 +162,9 @@ int Server::_processStream(Stream stream)
 		/* Here also check if no of attempts > max ??
 		Or it can depend on timeout */
 		if (true)
-			return -1;
+			return ;
 		else
-			return 0;
+			return ;
 	}
 	if (bytesRead == 0) {
 		throw Request::SocketCloseException("connection closed by client");
@@ -188,9 +188,7 @@ int Server::_processStream(Stream stream)
 		deleteStream(client_socket);
 	} else {
 		write(file_fd, buffer, bytesRead);
-		return 1;
 	}
-	return 0;
 }
 
 
