@@ -316,8 +316,8 @@ void Server::RUN(std::vector<Server> servers) {
 			servers[i].setResBuffer(buffer, buffer_size);
 		}
 		servers[i].listenPort(BACKLOG);
-		std::cout << "Server 1 is listening on port "
-			<< servers[i].getPort() << std::endl;
+		std::cout << BLUE << "Server 1 is listening on port "
+			<< servers[i].getPort() << RESET << std::endl;
 	}
 	while (true)
 	{
