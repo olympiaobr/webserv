@@ -5,6 +5,8 @@
 #include <cstdlib>
 #include <algorithm>
 #include <stdexcept>
+#include <limits.h>
+
 
 Config::Config(const std::string& filename) : _filename(filename) {}
 
@@ -37,7 +39,6 @@ void Config::_parseServerConfig(ServerConfig& config, const std::string& line)
     if (end != std::string::npos) {
         value.erase(end + 1, value.length() - end);
     }
-
     if (key == "host" || key == "server_name") {
         config.hostnames.push_back(value);
     }
@@ -45,8 +46,41 @@ void Config::_parseServerConfig(ServerConfig& config, const std::string& line)
         config.root = value;
     }
     else if (key == "client_max_body_size") {
-		/* Temp assume M */
-        config.body_limit = atoi(value.c_str()) * 1024 * 1024;
+        size_t pos = value.find_first_not_of("0123456789");
+        long long int sizeValue = 0;
+        int factor = 1;
+        if (pos != std::string::npos) {
+            std::string numPart = value.substr(0, pos);
+            std::string unit = value.substr(pos);
+            try {
+                sizeValue = atoll(numPart.c_str());
+                if (sizeValue == 0 && (unit == "K" || unit == "M" || unit == "G")) {
+                    throw std::invalid_argument("Invalid configuration: size value cannot be zero for units like K, M, or G.");
+                }
+                if (unit == "K")
+                    factor = 1024;
+                else if (unit == "M")
+                    factor = 1024 * 1024;
+                else if (unit == "G")
+                    factor = 1024 * 1024 * 1024;
+                else if (!unit.empty()) {
+                    throw std::invalid_argument("Invalid configuration: unrecognized unit '" + unit + "' in size specification.");
+                }
+                if (sizeValue > LLONG_MAX / factor) {
+                    throw std::overflow_error("Size value is too large and will cause overflow.");
+                }
+                config.body_limit = sizeValue * factor;
+                if (config.body_limit < 0 || config.body_limit > INT_MAX) {
+                    throw std::out_of_range("Computed size exceeds valid limit.");
+                }
+                config.formatted_body_limit = formatSize(config.body_limit);
+            } catch (const std::exception& e) {
+                throw;
+            }
+        } else {
+            config.body_limit = atoi(value.c_str());
+            config.formatted_body_limit = formatSize(config.body_limit);
+        }
     }
     else if (key.find("error_page") == 0) {
         std::istringstream errorPageIss(value);
@@ -134,7 +168,8 @@ void Config::loadConfig() {
             if (inLocationBlock) {
                 inLocationBlock = false;
                 currentServerConfig.routes[currentLocationPath] = currentRouteConfig;
-            } else if (inServerBlock) {
+            }
+            else if (inServerBlock) {
                 inServerBlock = false;
                 if (currentPort == 0)
                     throw std::invalid_argument("server block missing 'listen' directive");
@@ -145,10 +180,12 @@ void Config::loadConfig() {
         if (inServerBlock && !inLocationBlock) {
             if (key == "listen") {
                 iss >> currentPort;
-            } else {
+            }
+            else {
                 _parseServerConfig(currentServerConfig, line);
             }
-        } else if (inLocationBlock) {
+        }
+        else if (inLocationBlock) {
             _parseRouteConfig(currentRouteConfig, line);
         }
     }
@@ -191,24 +228,22 @@ std::ostream& operator<<(std::ostream& os, const RouteConfig& config) {
 // Streaming operator for ServerConfig
 std::ostream& operator<<(std::ostream& os, const ServerConfig& config) {
     os << "  Hostnames: ";
-
     for (size_t i = 0; i < config.hostnames.size(); ++i) {
         if (i > 0) os << ", ";
         os << config.hostnames[i];
     }
-    os << "\n"
-       << "  Root: " << config.root << "\n"
-       << "  Body Limit (MB): " << config.body_limit << "\n"
+    os << "\n  Root: " << config.root << "\n"
+       << "  Body Limit: " << config.formatted_body_limit << "\n"
        << "  Error Pages:\n";
 
-    std::map<int, std::string>::const_iterator it;
-    for (it = config.error_pages.begin(); it != config.error_pages.end(); ++it) {
+    for (std::map<int, std::string>::const_iterator it = config.error_pages.begin();
+         it != config.error_pages.end(); ++it) {
         os << "    " << it->first << ": " << it->second << "\n";
     }
 
     os << "  Routes:\n";
-    std::map<std::string, RouteConfig>::const_iterator route_it;
-    for (route_it = config.routes.begin(); route_it != config.routes.end(); ++route_it) {
+    for (std::map<std::string, RouteConfig>::const_iterator route_it = config.routes.begin();
+         route_it != config.routes.end(); ++route_it) {
         os << "    " << route_it->first << ":\n" << route_it->second;
     }
 
@@ -228,4 +263,25 @@ std::ostream& operator<<(std::ostream& os, const Config& config) {
     }
 
     return os;
+}
+
+std::string Config::formatSize(int bytes) {
+    static const char* sizes[] = {"Bytes", "KB", "MB", "GB"};
+    int order = 0;
+    double formattedSize = bytes;
+
+    while (formattedSize >= 1024 && order < 3) {
+        order++;
+        formattedSize /= 1024;
+    }
+    std::stringstream ss;
+    ss.precision(2);
+    ss.setf(std::ios::fixed);
+    if (order == 0){
+        ss << static_cast<int>(formattedSize) << " " << sizes[order];
+    }
+    else {
+        ss << formattedSize << " " << sizes[order];
+    }
+    return ss.str();
 }
