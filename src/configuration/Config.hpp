@@ -4,6 +4,8 @@
 # include <map>
 # include <string>
 # include <vector>
+# include <iomanip>
+# include <cmath>
 
 
 typedef std::vector<std::string> HostList;
@@ -27,6 +29,7 @@ struct			ServerConfig
 	int			body_limit;
 	std::map<std::string, RouteConfig> routes;
 	int port;
+	std::string formatted_body_limit;
 };
 
 class Config
@@ -42,6 +45,8 @@ class Config
 	const std::map<short, ServerConfig> &getAllServerConfigs() const;
 
 	void addServerConfig(short port, const ServerConfig &serverConfig);
+
+	static std::string formatSize(int bytes);
 
 	friend std::ostream& operator<<(std::ostream& os, const RouteConfig& config);
 	friend std::ostream& operator<<(std::ostream& os, const ServerConfig& config);
