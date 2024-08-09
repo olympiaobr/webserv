@@ -15,7 +15,7 @@ CGIHandler::CGIHandler(const std::string& path, const Request& req, const Server
 CGIHandler::~CGIHandler() {
     if (envp) {
         for (int i = 0; envp[i] != NULL; i++) {
-            free(envp[i]);
+            delete(envp[i]);
         }
         delete[] envp;
     }
@@ -104,7 +104,7 @@ std::string CGIHandler::execute() {
         close(pipe_fds[0]);
 
         int status;
-        waitpid(pid, &status, 0); // Consider checking for errors in waitpid as well
+        waitpid(pid, &status, 0);
 
         if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
             std::cerr << "CGI script execution failed or exited with error status" << std::endl;
