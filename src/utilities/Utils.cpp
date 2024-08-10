@@ -1,5 +1,5 @@
 #include "Utils.hpp"
-#include <stdio.h>
+#include <cstdio>
 
 std::string &utils::toLowerCase(std::string &string) {
 	for (size_t i = 0; i < string.size(); ++i) {
