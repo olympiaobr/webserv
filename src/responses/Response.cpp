@@ -349,6 +349,21 @@ std::string Response::_getMimeType(const std::string& filename) {
     if (filename.find(".js") != std::string::npos) return "application/javascript";
     if (filename.find(".ico") != std::string::npos) return "image/x-icon";
 	if (filename.find(".pdf") != std::string::npos) return "application/pdf";
+	if (filename.find(".png") != std::string::npos) return "image/png";
+	if (filename.find(".jpeg") != std::string::npos) return "image/jpeg";
+	if (filename.find(".jpg") != std::string::npos) return "image/jpg";
+	if (filename.find(".gif") != std::string::npos) return "image/gif";
+	if (filename.find(".webp") != std::string::npos) return "image/webp";
+	if (filename.find(".svg") != std::string::npos) return "image/svg+xml";
+	if (filename.find(".mpeg") != std::string::npos) return "audio/mpeg";
+	if (filename.find(".wav") != std::string::npos) return "audio/wav";
+	if (filename.find(".mp4") != std::string::npos) return "video/mp4";
+	if (filename.find(".webm") != std::string::npos) return "video/webm";
+	if (filename.find(".mov") != std::string::npos) return "video/mov";
+	if (filename.find(".json") != std::string::npos) return "application/json";
+	if (filename.find(".xml") != std::string::npos) return "application/xml";
+	if (filename.find(".zip") != std::string::npos) return "application/zip";
+	if (filename.find(".file") != std::string::npos) return "application/octet-stream";
     return "text/plain";
 }
 
