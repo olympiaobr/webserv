@@ -29,6 +29,7 @@ typedef std::vector<std::string> HostList;
 // # define TEMP_FILES_DIRECTORY "tmp/"
 # define REQUEST_TIMEOUT 10
 # define RESPONSE_MAX_BODY_SIZE 80000000
+# define MAX_NUBMER_ATTEMPTS 3
 
 struct Stream {
 	int			counter;
