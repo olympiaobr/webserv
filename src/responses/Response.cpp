@@ -123,7 +123,7 @@ void Response::_handleGetRequest(const Request& req) {
 				} catch (Response::FileSystemErrorException &e) {
                     _setError(404);
 				} catch (Response::ContentLengthException &e) {
-					throw e; //temp
+					_setError(413); //temp
 				}
             } else {
                 const RouteConfig* routeConfig = _findMostSpecificRouteConfig(req.getUri());
@@ -134,6 +134,8 @@ void Response::_handleGetRequest(const Request& req) {
 						generateDirectoryListing(path);
 					} catch (Response::FileSystemErrorException &e) {
 						_setError(404);
+					} catch (Response::ContentLengthException &e) {
+						_setError(413);
 					}
                 } else {
                     _setError(404); // No index.html and autoindex is not enabled
@@ -151,7 +153,7 @@ void Response::_handleGetRequest(const Request& req) {
 		} catch (Response::FileSystemErrorException &e) {
 			_setError(404);
 		} catch (Response::ContentLengthException &e) {
-			throw e; //temp
+			_setError(413);
 		}
     } else {
         _setError(404); // File or directory not found
@@ -194,7 +196,7 @@ void Response::_handleDeleteRequest(const Request& req)
 	} catch (Response::FileSystemErrorException &e) {
         _setError(500);
 	} catch (Response::ContentLengthException &e) {
-		throw e; //temp
+		_setError(413); //temp
 	}
 }
 
@@ -234,7 +236,7 @@ void Response::_setError(int code) {
 	} catch (Response::FileSystemErrorException &e) {
 		_setError(404);
 	} catch (Response::ContentLengthException &e) {
-		throw e; //temp
+		_setError(413); //temp
 	}
 }
 
@@ -273,7 +275,6 @@ void Response::generateResponse(const std::string& filename) {
 		throw ContentLengthException("body is too long");
 	}
 
-
 	addHeader("Content-Length", _toString(bytesRead));
 	headers = _headersToString();
 	moved_body = _buffer + headers.size();
@@ -308,6 +309,8 @@ void Response::generateDirectoryListing(const std::string& directoryPath) {
 	std::string list = listing.str();
 	addHeader("Content-Length", utils::to_string(list.size()));
 	std::string headers = _headersToString();
+	if (list.size() + headers.size() > _buffer_size)
+		throw ContentLengthException("body is too long");
 	std::memcpy(_buffer, headers.c_str(), headers.size());
 	char *body = _buffer + headers.size();
 	std::memcpy(body, list.c_str(), list.size());
@@ -357,7 +360,7 @@ std::string Response::_toString(size_t num) const {
 
 Response::FileSystemErrorException::FileSystemErrorException(const char *error_msg) {
     std::memset(_error, 0, 256);
-    strncpy(_error, "Response file system error: ", 28);
+    strncpy(_error, "Response file system error: ", 29);
     _error[27] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
@@ -368,7 +371,7 @@ const char *Response::FileSystemErrorException::what() const throw() {
 
 Response::ContentLengthException::ContentLengthException(const char *error_msg) {
     std::memset(_error, 0, 256);
-    strncpy(_error, "Content length is too long: ", 28);
+    strncpy(_error, "Content length is too long: ", 29);
     _error[27] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
