@@ -121,12 +121,25 @@ void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
     else if (key == "autoindex") {
         config.autoindex = (value == "on");
     }
-    else if (key == "root") {
-        config.root = value;
-    }
      else if (key == "cgi") {
         config.is_cgi = (value == "on");
     }
+}
+
+void Config::validateServerConfig(const ServerConfig& config) const {
+    if (config.hostnames.empty())
+        throw MissingSettingError("hostname in server block");
+    if (config.root.empty())
+        throw MissingSettingError("root directory in server block");
+    if (config.body_limit == 0)
+        throw InvalidValueError("0", "body limit in server block");
+    if (config.error_pages.size() < 10)
+        throw MissingSettingError("some required error pages in server block");
+}
+
+void Config::validateRouteConfig(const RouteConfig& route) const {
+    if (route.allowed_methods.empty())
+        throw MissingSettingError("allowed methods in route block");
 }
 
 void Config::loadConfig() {
@@ -148,8 +161,11 @@ void Config::loadConfig() {
         iss >> key;
 
         if (key == "server") {
-            if (inServerBlock)
+            if (inServerBlock) {
+                validateServerConfig(currentServerConfig);
+                _servers[currentPort] = currentServerConfig;
                 throw std::invalid_argument("found forbidden nested server block");
+            }
             inServerBlock = true;
             currentServerConfig = ServerConfig();
             continue;
@@ -166,14 +182,16 @@ void Config::loadConfig() {
         }
         if (key == "}") {
             if (inLocationBlock) {
-                inLocationBlock = false;
+                validateRouteConfig(currentRouteConfig);
                 currentServerConfig.routes[currentLocationPath] = currentRouteConfig;
+                inLocationBlock = false;
             }
             else if (inServerBlock) {
-                inServerBlock = false;
                 if (currentPort == 0)
                     throw std::invalid_argument("server block missing 'listen' directive");
+                validateServerConfig(currentServerConfig);
                 _servers[currentPort] = currentServerConfig;
+                inServerBlock = false;
             }
             continue;
         }
@@ -190,6 +208,8 @@ void Config::loadConfig() {
         }
     }
     file.close();
+    if (inServerBlock || inLocationBlock)
+        throw std::invalid_argument("Unclosed block in configuration.");
 }
 
 const ServerConfig& Config::getServerConfig(short port) const {
