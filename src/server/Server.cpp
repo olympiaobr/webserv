@@ -241,6 +241,7 @@ void Server::pollfds() {
 
 	if (poll_count == -1) {
 		close(_main_socketfd);
+		_fds.erase(_fds.begin());
 		throw PollingErrorException(strerror(errno));
 	}
 }
@@ -252,8 +253,10 @@ size_t Server::getSocketsSize() const {
 void Server::pollLoop() {
 	for (size_t i = 0; i < getSocketsSize(); ++i) {
 		if (_fds[i].revents & POLLERR) {
-			close(_main_socketfd);
-			throw PollingErrorException("error from poll() function");
+			close(_fds[i].fd);
+			_fds.erase(_fds.begin() + i);
+			if (_fds[i].fd == _main_socketfd)
+				throw PollingErrorException("error from poll() function");
 		}
 		if (_res_streams.find(_fds[i].fd) != _res_streams.end()) {
 			_processResponseStream(_fds[i].fd);
@@ -355,8 +358,15 @@ void Server::RUN(std::vector<Server> servers) {
 	while (true)
 	{
 		for (size_t i = 0; i < servers.size(); ++i) {
-			servers[i].pollfds();
-			servers[i].pollLoop();
+			try {
+				servers[i].pollfds();
+				servers[i].pollLoop();
+			} catch (PollingErrorException& e) {
+				std::cout << RED << e.what() << RESET << std::endl;
+				std::cout << RED << "Server " << i + 1 << " on port "
+					<< servers[i].getPort() << " stoped" << RESET << std::endl;
+				servers.erase(servers.begin() + i);
+			}
 		}
 	}
 }
