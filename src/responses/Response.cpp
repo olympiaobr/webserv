@@ -162,19 +162,41 @@ void Response::_handleGetRequest(const Request& req) {
 
 /* send page ? */
 void Response::_handlePostRequest(const Request& req) {
-	char* ptr;
     setStatus(200);
-    addHeader("Content-Type", "text/plain");
-	addHeader("Content-Length", _toString(31 + req.getUri().size()));
-	std::string headers = _headersToString();
-	std::memset(_buffer, 0, _buffer_size);
-	std::memcpy(_buffer, headers.c_str(), headers.size());
-	ptr = _buffer + headers.size();
-	std::memcpy(ptr, "POST request received for URI: ", 31);
-	ptr += 31;
-	std::memcpy(ptr, req.getUri().c_str(), req.getUri().size());
-    _content = _buffer;
-	_content_length = (ptr - _buffer) + req.getUri().size();
+    addHeader("Content-Type", "text/html");
+	std::string directoryPath = _config.root + req.getUri();
+	{
+		std::ostringstream listing;
+		DIR* dir = opendir(directoryPath.c_str());
+		if (dir == NULL) {
+			throw FileSystemErrorException("cannot open directory");
+		}
+
+		struct dirent* entry;
+		std::ifstream styles(_config.root + "/css/styles.css");
+		if (!styles)
+			throw FileSystemErrorException("cannot open directory");
+		listing << "<html><head><title> File uploaded! " << directoryPath
+				<< "</title>" << styles.rdbuf() << "</head><body><h1>File uploaded!</h2><h2>Index of " << directoryPath
+				<< "</h2><ul>";
+		styles.close();
+		while ((entry = readdir(dir)) != NULL) {
+			listing << "<li><a href=\"" << entry->d_name << "\">" << entry->d_name << "</a></li>";
+		}
+		closedir(dir);
+		listing << "</ul></body></html>";
+		std::memset(_buffer, 0, _buffer_size);
+		std::string list = listing.str();
+		addHeader("Content-Length", utils::to_string(list.size()));
+		std::string headers = _headersToString();
+		if (list.size() + headers.size() > _buffer_size)
+			throw ContentLengthException("body is too long");
+		std::memcpy(_buffer, headers.c_str(), headers.size());
+		char *body = _buffer + headers.size();
+		std::memcpy(body, list.c_str(), list.size());
+		_content = _buffer;
+		_content_length = headers.size() + list.size();
+	}
 }
 
 void Response::_handleDeleteRequest(const Request& req)
@@ -297,9 +319,13 @@ void Response::generateDirectoryListing(const std::string& directoryPath) {
 	}
 
 	struct dirent* entry;
-	listing << "<html><head><title>Index of " << directoryPath
-			<< "</title></head><body><h1>Index of " << directoryPath
-			<< "</h1><ul>";
+	std::ifstream styles(_config.root + "/css/styles.css");
+	if (!styles)
+		throw FileSystemErrorException("cannot open directory");
+	listing << "<html><head><title> Directory navigation " << directoryPath
+			<< "</title>" << styles.rdbuf() << "</head><body><h2>Index of " << directoryPath
+			<< "</h2><ul>";
+	styles.close();
 	while ((entry = readdir(dir)) != NULL) {
 		listing << "<li><a href=\"" << entry->d_name << "\">" << entry->d_name << "</a></li>";
 	}
