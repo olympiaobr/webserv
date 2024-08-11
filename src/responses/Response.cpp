@@ -177,7 +177,8 @@ void Response::_handlePostRequest(const Request& req) {
 		if (!styles)
 			throw FileSystemErrorException("cannot open directory");
 		listing << "<html><head><title> File uploaded! " << directoryPath
-				<< "</title>" << styles.rdbuf() << "</head><body><h1>File uploaded!</h2><h2>Index of " << directoryPath
+				<< "</title> <link rel=\"stylesheet\" href=\"" << styles.rdbuf()
+				<< "\">" << "</head><body><h1>File uploaded!</h2><h2>Index of " << directoryPath
 				<< "</h2><ul>";
 		styles.close();
 		while ((entry = readdir(dir)) != NULL) {
@@ -323,7 +324,8 @@ void Response::generateDirectoryListing(const std::string& directoryPath) {
 	if (!styles)
 		throw FileSystemErrorException("cannot open directory");
 	listing << "<html><head><title> Directory navigation " << directoryPath
-			<< "</title>" << styles.rdbuf() << "</head><body><h2>Index of " << directoryPath
+			<< "</title> <link rel=\"stylesheet\" href=\"" << styles.rdbuf()
+			<< "\">" << "</head><body><h2>Index of " << directoryPath
 			<< "</h2><ul>";
 	styles.close();
 	while ((entry = readdir(dir)) != NULL) {
