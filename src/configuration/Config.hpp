@@ -46,8 +46,8 @@ class Config
 	const ServerConfig &getServerConfig(short port) const;
 	const std::map<short, ServerConfig> &getAllServerConfigs() const;
 	void addServerConfig(short port, const ServerConfig &serverConfig);
-	void validateServerConfig(const ServerConfig& config) const;
-	void validateRouteConfig(const RouteConfig& route) const;
+	void validateConfigurations() const;
+	void validateServerConfig(const ServerConfig& server) const;
 
 	static std::string formatSize(int bytes);
 
@@ -63,22 +63,5 @@ class Config
 	void _parseServerConfig(ServerConfig &config, const std::string &line);
 };
 
-class ConfigError : public std::logic_error {
-public:
-    explicit ConfigError(const std::string& message)
-        : std::logic_error(message) {}
-};
-
-class MissingSettingError : public ConfigError {
-public:
-    explicit MissingSettingError(const std::string& setting)
-        : ConfigError("Missing configuration setting: " + setting) {}
-};
-
-class InvalidValueError : public ConfigError {
-public:
-    explicit InvalidValueError(const std::string& value, const std::string& setting)
-        : ConfigError("Invalid value '" + value + "' for setting '" + setting + "'") {}
-};
 
 #endif
