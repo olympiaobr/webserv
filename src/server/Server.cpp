@@ -85,8 +85,9 @@ void Server::_serveExistingClient(int client_socket, size_t i)
 		res = Response(_config, 500, _res_buffer, _res_buffer_size);
 	/* Send response to client */
 	ssize_t bytes_sent = send(client_socket, res.getContent(), res.getContentLength(), MSG_DONTWAIT);
-	if (bytes_sent < 0)
+	if (bytes_sent < 0) {
 		;
+	}
 	if (res.getContentLength() > bytes_sent) {
 		char* buffer_to_save = (char *)res.getContent() + bytes_sent;
 		Outstream outsteam(res.getContentLength() - bytes_sent, buffer_to_save);
