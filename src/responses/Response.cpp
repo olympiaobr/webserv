@@ -168,11 +168,11 @@ void Response::_handlePostRequest(const Request& req) {
 	addHeader("Content-Length", _toString(31 + req.getUri().size()));
 	std::string headers = _headersToString();
 	std::memset(_buffer, 0, _buffer_size);
-	std::memcpy(_buffer, headers.c_str(), headers.size());
+	std::memmove(_buffer, headers.c_str(), headers.size());
 	ptr = _buffer + headers.size();
-	std::memcpy(ptr, "POST request received for URI: ", 31);
+	std::memmove(ptr, "POST request received for URI: ", 31);
 	ptr += 31;
-	std::memcpy(ptr, req.getUri().c_str(), req.getUri().size());
+	std::memmove(ptr, req.getUri().c_str(), req.getUri().size());
     _content = _buffer;
 	_content_length = (ptr - _buffer) + req.getUri().size();
 }
@@ -268,13 +268,17 @@ void Response::generateResponse(const std::string& filename) {
         close(fd);
         throw ContentLengthException("Headers are too large for buffer");
     }
-    std::memcpy(_buffer, headers.c_str(), headerSize);
+    std::memmove(_buffer, headers.c_str(), headerSize);
     char* body = _buffer + headerSize;
-    size_t maxBodySize = _buffer_size - headerSize - 1;
+    ssize_t maxBodySize = _buffer_size - headerSize - 50;
     ssize_t bytesRead = read(fd, body, maxBodySize);
     if (bytesRead < 0) {
         close(fd);
         throw FileSystemErrorException("could not read the file");
+    }
+    if (bytesRead == maxBodySize) {
+        close(fd);
+        throw ContentLengthException("Headers are too large for buffer");
     }
     _content_length = headerSize + bytesRead;
     addHeader("Content-Length", _toString(bytesRead));
@@ -285,7 +289,7 @@ void Response::generateResponse(const std::string& filename) {
         std::memmove(newBodyStart, body, bytesRead);
         _content_length = newHeaderSize + bytesRead;
     }
-    std::memcpy(_buffer, headers.c_str(), newHeaderSize);
+    std::memmove(_buffer, headers.c_str(), newHeaderSize);
     _content = _buffer;
     _content_length = newHeaderSize + bytesRead;
     close(fd);
@@ -315,9 +319,9 @@ void Response::generateDirectoryListing(const std::string& directoryPath) {
 	std::string headers = _headersToString();
 	if (list.size() + headers.size() > _buffer_size)
 		throw ContentLengthException("body is too long");
-	std::memcpy(_buffer, headers.c_str(), headers.size());
+	std::memmove(_buffer, headers.c_str(), headers.size());
 	char *body = _buffer + headers.size();
-	std::memcpy(body, list.c_str(), list.size());
+	std::memmove(body, list.c_str(), list.size());
 	_content = _buffer;
 	_content_length = headers.size() + list.size();
 }
@@ -330,9 +334,9 @@ void Response::generateCGIResponse(const std::string &cgi_response)
 	std::string headers = _headersToString();
 	char* body;
 	memset(_buffer, 0, _buffer_size);
-	memcpy(_buffer, headers.c_str(), headers.size());
+	memmove(_buffer, headers.c_str(), headers.size());
 	body = _buffer + headers.size() - 4;
-	memcpy(body, cgi_response.c_str(), cgi_response.size());
+	memmove(body, cgi_response.c_str(), cgi_response.size());
 	_content_length = headers.size() - 4 + cgi_response.size();
 	_content = _buffer;
 }
