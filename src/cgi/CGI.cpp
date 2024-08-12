@@ -22,14 +22,14 @@ CGIHandler::~CGIHandler() {
 }
 
 void CGIHandler::setupEnvironment() {
-    std::string contentLength = utils::to_string(request.getBody().length());
+    std::string contentLength = utils::toString(request.getBody().length());
 
     environment["REQUEST_METHOD"] = request.getMethod();
     environment["SCRIPT_NAME"] = scriptPath;
     environment["QUERY_STRING"] = request.getQueryString();
     environment["CONTENT_LENGTH"] = contentLength;
     environment["CONTENT_TYPE"] = request.getHeader("Content-Type");
-	environment["SERVER_PORT"] = utils::to_string(serverConfig.port);
+	environment["SERVER_PORT"] = utils::toString(serverConfig.port);
 	environment["SERVER_PROTOCOL"] = request.getHttpVersion();
     environment["SERVER_PROTOCOL"] = "HTTP/1.1";
     environment["PATH_INFO"] = request.getUri();

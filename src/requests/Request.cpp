@@ -8,7 +8,7 @@ Request::Request() {}
 
 Request::~Request() {}
 
-int Request::parseHeaders() {
+int Request::parseHeaders(std::vector<Session>& sessions) {
     std::string request;
     ssize_t bytesRead;
     bool headersComplete = false;
@@ -48,6 +48,13 @@ int Request::parseHeaders() {
         while (std::getline(requestStream, line) && line != "\r") {
             _parseHeader(line);
         }
+		std::string id = getHeader("Cookie");
+		session_it = Session::findSession(sessions, id);
+		if (session_it == sessions.end()) {
+			Session ses(_clientSocket);
+			sessions.push_back(ses);
+			session_it = Session::findSession(sessions, id);
+		}
     } else {
 		throw ParsingErrorException(BAD_REQUEST, "malformed request");
 	}

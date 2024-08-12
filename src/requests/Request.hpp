@@ -16,10 +16,12 @@
 # include "../configuration/Config.hpp"
 # include "../cgi/CGI.hpp"
 # include "../utilities/Utils.hpp"
+# include "../server/Session.hpp"
 
 
 struct Stream;
 class Server;
+class Session;
 
 class Request {
 public:
@@ -27,7 +29,7 @@ public:
 	Request();
 	~Request();
 
-	int parseHeaders();
+	int parseHeaders(std::vector<Session>& sessions);
 	int parseBody(int bytesRead, Server& server);
 	int readBodyFile(char *init_buffer, ssize_t bytesRead, Server& server);
 
@@ -70,6 +72,8 @@ public:
 		public:
 			const char* what() const throw();
 	};
+
+	std::vector<Session>::const_iterator		session_it;
 
 	private:
 		int 									_clientSocket;

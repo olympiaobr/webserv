@@ -2,16 +2,17 @@
 # define SESSION_HPP
 
 # include <iostream>
+# include "../utilities/Utils.hpp"
 
 class Session
 {
 	private:
-		const char	*_sessionId;
-		std::string	_data;
-		int			_timestamp;
+		char		_sessionId[256];
+		std::string	_first_socket;
 	public:
-		Session();
-		~Session();
+		Session(int socket_id);
+		const char*	getSessionId();
+		static std::vector<Session>::const_iterator findSession(std::vector<Session>& sessions, std::string& id);
 };
 
 

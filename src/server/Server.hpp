@@ -122,9 +122,11 @@ class Server {
 		size_t						_buffer_size;
 		char*						_res_buffer;
 		size_t						_res_buffer_size;
+
 		std::map<int, Stream>		_streams;
 		std::map<int, Outstream>	_res_streams;
 
+		std::vector<Session>		_sessions;
 		/*Functions*/
 		void _push(pollfd client_pollfd); //called when setPollfd is called
 		void _setSocketOpt();

@@ -29,7 +29,7 @@ void Server::_addNewClient(int client_socket)
 void Server::_requestHandling(Request &req, Response &res)
 {
 	/* Parse request headers */
-	int bytesRead = req.parseHeaders();
+	int bytesRead = req.parseHeaders(_sessions);
 	/*************************/
 	if (req.isTargetingCGI()) {
 		std::string scriptPath = req.getScriptPath();
