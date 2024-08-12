@@ -119,6 +119,7 @@ void Response::_handleGetRequest(const Request& req) {
 				try {
 					setStatus(200);
 					addHeader("Content-Type", _getMimeType(indexPath));
+                    addHeader("Set-Cookie", req.getSession());
 					generateResponse(indexPath);
 				} catch (Response::FileSystemErrorException &e) {
                     _setError(404);
@@ -131,6 +132,7 @@ void Response::_handleGetRequest(const Request& req) {
 					try {
 						setStatus(200);
 						addHeader("Content-Type", "text/html");
+                        addHeader("Set-Cookie", req.getSession());
 						generateDirectoryListing(path);
 					} catch (Response::FileSystemErrorException &e) {
 						_setError(404);
@@ -149,6 +151,7 @@ void Response::_handleGetRequest(const Request& req) {
             setStatus(200);
             addHeader("Content-Type", _getMimeType(path));
 			addHeader("Content-Disposition", "inline");
+            addHeader("Set-Cookie", req.getSession());
 			generateResponse(path);
 		} catch (Response::FileSystemErrorException &e) {
 			_setError(404);
@@ -214,6 +217,7 @@ void Response::_handleDeleteRequest(const Request& req)
 	{
         setStatus(200);
 		addHeader("Content-Type", _getMimeType(filePath));
+        addHeader("Set-Cookie", req.getSession());
 		generateResponse(filePath);
 	} catch (Response::FileSystemErrorException &e) {
         _setError(500);

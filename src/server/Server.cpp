@@ -43,6 +43,7 @@ void Server::_requestHandling(Request &req, Response &res)
 			} else {
 				res.setStatus(200);
 				res.addHeader("Content-Type", "text/html");
+				res.addHeader("Set-Cookie", req.getSession());
 				res.generateCGIResponse(cgiOutput);
 			}
 		}

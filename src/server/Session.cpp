@@ -10,7 +10,7 @@ Session::Session(int socket_id)
     std::memmove(_sessionId, id.c_str(), id.size());
 }
 
-const char* Session::getSessionId()
+const char* Session::getSessionId() const
 {
     return _sessionId;
 }

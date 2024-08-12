@@ -49,11 +49,14 @@ int Request::parseHeaders(std::vector<Session>& sessions) {
             _parseHeader(line);
         }
 		std::string id = getHeader("Cookie");
+		std::vector<Session>::const_iterator session_it;
 		session_it = Session::findSession(sessions, id);
 		if (session_it == sessions.end()) {
 			Session ses(_clientSocket);
 			sessions.push_back(ses);
+			id = ses.getSessionId();
 			session_it = Session::findSession(sessions, id);
+			_session_id = session_it->getSessionId();
 		}
     } else {
 		throw ParsingErrorException(BAD_REQUEST, "malformed request");
@@ -380,6 +383,11 @@ std::string Request::getScriptPath() const {
     std::cout << "Constructed CGI script path: " << fullPath << std::endl;
 
     return RemoveQueryString(fullPath);
+}
+
+std::string Request::getSession() const
+{
+    return _session_id;
 }
 
 const char *Request::StreamingData::what() const throw()

@@ -43,6 +43,7 @@ public:
 	int			getSocket() const;
 	std::string getQueryString() const;
 	std::string getScriptPath() const;
+	std::string getSession() const;
 
 	std::string RemoveQueryString(std::string uri) const;
 	bool isTargetingCGI() const;
@@ -73,9 +74,9 @@ public:
 			const char* what() const throw();
 	};
 
-	std::vector<Session>::const_iterator		session_it;
 
 	private:
+		std::string								_session_id;
 		int 									_clientSocket;
 		std::string								_method;
 		std::string								_uri;
