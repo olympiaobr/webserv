@@ -123,7 +123,7 @@ void Response::_handleGetRequest(const Request& req) {
 				} catch (Response::FileSystemErrorException &e) {
                     _setError(404);
 				} catch (Response::ContentLengthException &e) {
-					_setError(413); //temp
+					_setError(413);
 				}
             } else {
                 const RouteConfig* routeConfig = _findMostSpecificRouteConfig(req.getUri());
@@ -168,11 +168,11 @@ void Response::_handlePostRequest(const Request& req) {
 	addHeader("Content-Length", _toString(31 + req.getUri().size()));
 	std::string headers = _headersToString();
 	std::memset(_buffer, 0, _buffer_size);
-	std::memcpy(_buffer, headers.c_str(), headers.size());
+	std::memmove(_buffer, headers.c_str(), headers.size());
 	ptr = _buffer + headers.size();
-	std::memcpy(ptr, "POST request received for URI: ", 31);
+	std::memmove(ptr, "POST request received for URI: ", 31);
 	ptr += 31;
-	std::memcpy(ptr, req.getUri().c_str(), req.getUri().size());
+	std::memmove(ptr, req.getUri().c_str(), req.getUri().size());
     _content = _buffer;
 	_content_length = (ptr - _buffer) + req.getUri().size();
 }
@@ -196,7 +196,7 @@ void Response::_handleDeleteRequest(const Request& req)
 	} catch (Response::FileSystemErrorException &e) {
         _setError(500);
 	} catch (Response::ContentLengthException &e) {
-		_setError(413); //temp
+		_setError(413);
 	}
 }
 
@@ -236,7 +236,7 @@ void Response::_setError(int code) {
 	} catch (Response::FileSystemErrorException &e) {
 		_setError(404);
 	} catch (Response::ContentLengthException &e) {
-		_setError(413); //temp
+		_setError(413);
 	}
 }
 
@@ -257,37 +257,45 @@ std::string Response::_headersToString() const {
 }
 
 void Response::generateResponse(const std::string& filename) {
-	char*	body;
-	char*	moved_body;
-	int fd = open(filename.c_str(), O_RDONLY);
-	if (fd < 0)
-		throw FileSystemErrorException("could not open the file"); //catch it
-	std::string headers = _headersToString();
-	body = _buffer + headers.size() + 50; //can be implemented as fixed value
-	std::memset(_buffer, 0, _buffer_size);
-	memcpy(_buffer, headers.c_str(), headers.size());
-	ssize_t bytesRead = read(fd, body, _buffer_size - (headers.size() + 24));
-	if (bytesRead < 0)
-		throw FileSystemErrorException("could not read the file");
-	if (bytesRead < static_cast<ssize_t>(_buffer_size - (headers.size() + 50))) {
-		_content_length = headers.size() + bytesRead;
-	} else {
-		throw ContentLengthException("body is too long");
-	}
-
-	addHeader("Content-Length", _toString(bytesRead));
-	headers = _headersToString();
-	moved_body = _buffer + headers.size();
-	if (moved_body - body > 50)
-		throw "fatal error (^_^') ";
-	memcpy(_buffer, headers.c_str(), headers.size());
-	for (size_t i = 0; i < static_cast<size_t>(bytesRead); i++)
-	{
-		moved_body[i] = body[i];
-	}
-	_content = _buffer;
-	_content_length = headers.size() + bytesRead;
+    std::memset(_buffer, 0, _buffer_size);
+    int fd = open(filename.c_str(), O_RDONLY);
+    if (fd < 0) {
+        throw FileSystemErrorException("could not open the file");
+    }
+    std::string headers = _headersToString();
+    size_t headerSize = headers.size();
+    if (headerSize + 50 > _buffer_size) {
+        close(fd);
+        throw ContentLengthException("Headers are too large for buffer");
+    }
+    std::memmove(_buffer, headers.c_str(), headerSize);
+    char* body = _buffer + headerSize;
+    ssize_t maxBodySize = _buffer_size - headerSize - 50;
+    ssize_t bytesRead = read(fd, body, maxBodySize);
+    if (bytesRead < 0) {
+        close(fd);
+        throw FileSystemErrorException("could not read the file");
+    }
+    if (bytesRead == maxBodySize) {
+        close(fd);
+        throw ContentLengthException("Headers are too large for buffer");
+    }
+    _content_length = headerSize + bytesRead;
+    addHeader("Content-Length", _toString(bytesRead));
+    headers = _headersToString();
+    size_t newHeaderSize = headers.size();
+    if (newHeaderSize > headerSize) {
+        char* newBodyStart = _buffer + newHeaderSize;
+        std::memmove(newBodyStart, body, bytesRead);
+        _content_length = newHeaderSize + bytesRead;
+    }
+    std::memmove(_buffer, headers.c_str(), newHeaderSize);
+    _content = _buffer;
+    _content_length = newHeaderSize + bytesRead;
+    close(fd);
 }
+
+
 
 void Response::generateDirectoryListing(const std::string& directoryPath) {
 	std::ostringstream listing;
@@ -311,9 +319,9 @@ void Response::generateDirectoryListing(const std::string& directoryPath) {
 	std::string headers = _headersToString();
 	if (list.size() + headers.size() > _buffer_size)
 		throw ContentLengthException("body is too long");
-	std::memcpy(_buffer, headers.c_str(), headers.size());
+	std::memmove(_buffer, headers.c_str(), headers.size());
 	char *body = _buffer + headers.size();
-	std::memcpy(body, list.c_str(), list.size());
+	std::memmove(body, list.c_str(), list.size());
 	_content = _buffer;
 	_content_length = headers.size() + list.size();
 }
@@ -326,9 +334,9 @@ void Response::generateCGIResponse(const std::string &cgi_response)
 	std::string headers = _headersToString();
 	char* body;
 	memset(_buffer, 0, _buffer_size);
-	memcpy(_buffer, headers.c_str(), headers.size());
+	memmove(_buffer, headers.c_str(), headers.size());
 	body = _buffer + headers.size() - 4;
-	memcpy(body, cgi_response.c_str(), cgi_response.size());
+	memmove(body, cgi_response.c_str(), cgi_response.size());
 	_content_length = headers.size() - 4 + cgi_response.size();
 	_content = _buffer;
 }
