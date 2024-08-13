@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <limits.h>
+#include <cctype>
 
 
 Config::Config(const std::string& filename) : _filename(filename) {}
@@ -40,7 +41,11 @@ void Config::_parseServerConfig(ServerConfig& config, const std::string& line)
         value.erase(end + 1, value.length() - end);
     }
     if (key == "host" || key == "server_name") {
-        config.hostnames.push_back(value);
+        std::istringstream hostStream(value);
+        std::string hostname;
+        while (hostStream >> hostname) {
+            config.hostnames.push_back(hostname);
+        }
     }
     else if (key == "root") {
         config.root = value;
@@ -189,6 +194,7 @@ void Config::loadConfig() {
             else if (inServerBlock) {
                 if (currentPort == 0)
                     throw std::invalid_argument("server block missing 'listen' directive");
+
                 validateServerConfig(currentServerConfig);
                 _servers[currentPort] = currentServerConfig;
                 inServerBlock = false;
