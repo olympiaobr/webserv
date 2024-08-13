@@ -1,14 +1,10 @@
 #include "Request.hpp"
-#include <sstream>
-#include <cstring>
-#include <unistd.h>
-#include <cstdlib>
-#include <sys/socket.h>
-#include <fcntl.h>
-#include <errno.h>
+#include "../server/Server.hpp"
 
 Request::Request(int clientSocket, ServerConfig &config, char *buffer, int buffer_len)
 	: _clientSocket(clientSocket), _config(config), _buffer(buffer), _buffer_size(buffer_len) {}
+
+Request::Request() {}
 
 Request::~Request() {}
 
@@ -66,7 +62,7 @@ int Request::parseHeaders() {
 	return bytesRead;
 }
 
-int Request::parseBody(int bytesRead) {
+int Request::parseBody(int bytesRead, Server& server) {
 	std::string content_length = getHeader("Content-Length");
     int contentLength = atoi(content_length.c_str());
     std::string content_type = getHeader("Content-Type");
@@ -94,13 +90,13 @@ int Request::parseBody(int bytesRead) {
 		body_buffer = _buffer;
 	}
 	if (content_type.find("multipart/form-data") != content_type.npos) {
-		_readBodyFile(body_buffer, bytesRead);
+		readBodyFile(body_buffer, bytesRead, server);
 	} else if (getHeader("Transfer-Encoding") == "chunked"){
 		_readBodyChunked(body_buffer, bytesRead);
 	} else {
 		_readBody(body_buffer, bytesRead);
 	}
-	return bytesRead;
+	return -1;
 }
 
 void Request::_parseRequestLine(const std::string& line) {
@@ -157,8 +153,7 @@ void Request::_readBodyChunked(const char *buffer, ssize_t bytesRead) {
 	close(file_fd);
 }
 
-void Request::_readBodyFile(char *buffer, ssize_t bytesRead)
-{
+int Request::readBodyFile(char *buffer, ssize_t bytesRead, Server& server) {
 	char *start_pos;
 	std::string stream;
 
@@ -213,7 +208,7 @@ void Request::_readBodyFile(char *buffer, ssize_t bytesRead)
 			/* Check if this chunk contains another data */
 			if (boundary_pos && boundary_pos != boundary_end_pos) {
 				write(file_fd, start_pos, len - (bytesRead - (boundary_pos - buffer)));
-				_readBodyFile(boundary_pos, bytesRead - (boundary_pos - buffer));
+				readBodyFile(boundary_pos, bytesRead - (boundary_pos - buffer), server);
 			}
 			/* Check if this chunk contains EOF */
 			else if (boundary_end_pos) {
@@ -223,37 +218,13 @@ void Request::_readBodyFile(char *buffer, ssize_t bytesRead)
 			/* read the rest */
 			else {
 				write(file_fd, start_pos, len);
-				while (bytesRead > 0) {
-					bytesRead = recv(_clientSocket, _buffer, _buffer_size - 1, 0);
-					if (bytesRead == 0)
-						throw SocketCloseException("connection closed by client");
-					if (bytesRead < 0) {
-						if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                			continue;
-						} else {
-							throw ParsingErrorException(BAD_REQUEST, "malformed request");
-						}
-					}
-					char *boundary_pos = utils::strstr(_buffer, boundary.c_str(), bytesRead);
-					char *boundary_end_pos = utils::strstr(_buffer, boundary_end.c_str(), bytesRead);
-					/* Check if this chunk contains another data */
-					if (boundary_pos && boundary_pos != boundary_end_pos) {
-						write(file_fd, _buffer, (boundary_pos - _buffer));
-						_readBodyFile(boundary_pos, bytesRead - (boundary_pos - _buffer));
-						break ;
-					}
-					/* Check if this chunk contains EOF */
-					else if (boundary_end_pos) {
-						bytesRead = (boundary_end_pos - _buffer) - 6;
-						write(file_fd, _buffer, bytesRead);
-						break ;
-					}
-					write(file_fd, _buffer, bytesRead);
-				}
+				server.addStream(_clientSocket, file_fd, *this, boundary);
+				return file_fd;
 			}
 		}
 		close (file_fd);
 	}
+	return -1;
 }
 
 void Request::addHeader(const std::string& key, const std::string& value) {
@@ -399,4 +370,9 @@ std::string Request::getScriptPath() const {
     std::cout << "Constructed CGI script path: " << fullPath << std::endl;
 
     return RemoveQueryString(fullPath);
+}
+
+const char *Request::StreamingData::what() const throw()
+{
+    return "Part of data recieved";
 }

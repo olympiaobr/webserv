@@ -7,7 +7,9 @@
 
 # include "../requests/Request.hpp"
 # include "../configuration/Config.hpp"
+# include "../cgi/CGI.hpp"
 # include "../utilities/Utils.hpp"
+// # include "../server/Server.hpp"
 
 class Request;
 
