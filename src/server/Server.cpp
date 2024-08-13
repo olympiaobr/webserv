@@ -110,11 +110,9 @@ void Server::_processStream(Stream stream)
 	size_t buffer_size = _buffer_size;
 	int bytesRead = recv(client_socket, buffer, buffer_size, 0);
 	if (bytesRead < 0) {
-		/* Here also check if no of attempts > max ??
-		Or it can depend on timeout */
-		if (stream.counter > 3) {
+		if (stream.counter > MAX_NUBMER_ATTEMPTS) {
 			deleteStream(client_socket);
-			throw 42;
+			return ;
 		}
 		else
 			stream.counter++;
@@ -150,9 +148,10 @@ void Server::_processResponseStream(int client_socket)
 	ssize_t bytes_sent = send(client_socket, resp.buffer, resp.bytes_to_send, MSG_DONTWAIT);
 	if (bytes_sent < 0)
 	{
-		if (resp.counter > 3) {
+		if (resp.counter > MAX_NUBMER_ATTEMPTS) {
 			_res_streams.erase(client_socket);
-			throw 42;
+			std::cout << "Maximum number of send attempts excided" << std::endl;
+			return;
 		} else {
 			resp.counter++;
 		}
@@ -228,12 +227,11 @@ void Server::pollfds() {
 	for (size_t i = 0; i < _fds.size(); ++i)
 	{
 		if (_fds[i].fd != _main_socketfd && _checkRequestTimeout(_fds[i].fd)) {
-			// Response res(_config, 408);
-			// const char* response = res.toCString();
+			// Response res(_config, 408, _res_buffer, _res_buffer_size);
 			/* Debug print */
 			// std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
 
-			// send(_fds[i].fd, response, strlen(response), MSG_DONTWAIT);
+			// send(_fds[i].fd, res.getContent(), res.getContentLength(), MSG_DONTWAIT);
 			// close(_fds[i].fd);
 			// _fds.erase(_fds.begin() + i);
 			// _cleanChunkFiles(_fds[i].fd);
@@ -242,6 +240,7 @@ void Server::pollfds() {
 
 	if (poll_count == -1) {
 		close(_main_socketfd);
+		_fds.erase(_fds.begin());
 		throw PollingErrorException(strerror(errno));
 	}
 }
@@ -253,8 +252,10 @@ size_t Server::getSocketsSize() const {
 void Server::pollLoop() {
 	for (size_t i = 0; i < getSocketsSize(); ++i) {
 		if (_fds[i].revents & POLLERR) {
-			close(_main_socketfd);
-			throw PollingErrorException("error from poll() function");
+			close(_fds[i].fd);
+			_fds.erase(_fds.begin() + i);
+			if (_fds[i].fd == _main_socketfd)
+				throw PollingErrorException("error from poll() function");
 		}
 		if (_res_streams.find(_fds[i].fd) != _res_streams.end()) {
 			_processResponseStream(_fds[i].fd);
@@ -356,8 +357,15 @@ void Server::RUN(std::vector<Server> servers) {
 	while (true)
 	{
 		for (size_t i = 0; i < servers.size(); ++i) {
-			servers[i].pollfds();
-			servers[i].pollLoop();
+			try {
+				servers[i].pollfds();
+				servers[i].pollLoop();
+			} catch (PollingErrorException& e) {
+				std::cout << RED << e.what() << RESET << std::endl;
+				std::cout << RED << "Server " << i + 1 << " on port "
+					<< servers[i].getPort() << " stoped" << RESET << std::endl;
+				servers.erase(servers.begin() + i);
+			}
 		}
 	}
 }
