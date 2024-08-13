@@ -123,7 +123,7 @@ void Response::_handleGetRequest(const Request& req) {
 				} catch (Response::FileSystemErrorException &e) {
                     _setError(404);
 				} catch (Response::ContentLengthException &e) {
-					throw e; //temp
+					_setError(413);
 				}
             } else {
                 const RouteConfig* routeConfig = _findMostSpecificRouteConfig(req.getUri());
@@ -134,6 +134,8 @@ void Response::_handleGetRequest(const Request& req) {
 						generateDirectoryListing(path);
 					} catch (Response::FileSystemErrorException &e) {
 						_setError(404);
+					} catch (Response::ContentLengthException &e) {
+						_setError(413);
 					}
                 } else {
                     _setError(404); // No index.html and autoindex is not enabled
@@ -151,7 +153,7 @@ void Response::_handleGetRequest(const Request& req) {
 		} catch (Response::FileSystemErrorException &e) {
 			_setError(404);
 		} catch (Response::ContentLengthException &e) {
-			throw e; //temp
+			_setError(413);
 		}
     } else {
         _setError(404); // File or directory not found
@@ -160,19 +162,41 @@ void Response::_handleGetRequest(const Request& req) {
 
 /* send page ? */
 void Response::_handlePostRequest(const Request& req) {
-	char* ptr;
     setStatus(200);
-    addHeader("Content-Type", "text/plain");
-	addHeader("Content-Length", _toString(31 + req.getUri().size()));
-	std::string headers = _headersToString();
-	std::memset(_buffer, 0, _buffer_size);
-	std::memcpy(_buffer, headers.c_str(), headers.size());
-	ptr = _buffer + headers.size();
-	std::memcpy(ptr, "POST request received for URI: ", 31);
-	ptr += 31;
-	std::memcpy(ptr, req.getUri().c_str(), req.getUri().size());
-    _content = _buffer;
-	_content_length = (ptr - _buffer) + req.getUri().size();
+    addHeader("Content-Type", "text/html");
+    std::string directoryPath = _config.root + req.getUri();
+    {
+        std::ostringstream listing;
+        DIR* dir = opendir(directoryPath.c_str());
+        if (dir == NULL) {
+            throw FileSystemErrorException("cannot open directory");
+        }
+        struct dirent* entry;
+        std::string stylesPath = _config.root + "/css/styles.css";
+        std::ifstream styles(stylesPath.c_str());
+        if (!styles)
+            throw FileSystemErrorException("cannot open styles.css");
+        listing << "<html><head><title> File uploaded! " << directoryPath
+                << "</title>" << styles.rdbuf() << "</head><body><h1>File uploaded!</h2><h2>Index of " << directoryPath
+                << "</h2><ul>";
+        styles.close();
+        while ((entry = readdir(dir)) != NULL) {
+            listing << "<li><a href=\"" << entry->d_name << "\">" << entry->d_name << "</a></li>";
+        }
+        closedir(dir);
+        listing << "</ul></body></html>";
+        std::memset(_buffer, 0, _buffer_size);
+        std::string list = listing.str();
+        addHeader("Content-Length", utils::to_string(list.size()));
+        std::string headers = _headersToString();
+        if (list.size() + headers.size() > _buffer_size)
+            throw ContentLengthException("body is too long");
+        std::memcpy(_buffer, headers.c_str(), headers.size());
+        char *body = _buffer + headers.size();
+        std::memcpy(body, list.c_str(), list.size());
+        _content = _buffer;
+        _content_length = headers.size() + list.size();
+    }
 }
 
 void Response::_handleDeleteRequest(const Request& req)
@@ -194,7 +218,7 @@ void Response::_handleDeleteRequest(const Request& req)
 	} catch (Response::FileSystemErrorException &e) {
         _setError(500);
 	} catch (Response::ContentLengthException &e) {
-		throw e; //temp
+		_setError(413);
 	}
 }
 
@@ -234,7 +258,7 @@ void Response::_setError(int code) {
 	} catch (Response::FileSystemErrorException &e) {
 		_setError(404);
 	} catch (Response::ContentLengthException &e) {
-		throw e; //temp
+		_setError(413);
 	}
 }
 
@@ -255,65 +279,84 @@ std::string Response::_headersToString() const {
 }
 
 void Response::generateResponse(const std::string& filename) {
-	char*	body;
-	char*	moved_body;
-	int fd = open(filename.c_str(), O_RDONLY);
-	if (fd < 0)
-		throw FileSystemErrorException("could not open the file"); //catch it
-	std::string headers = _headersToString();
-	body = _buffer + headers.size() + 50; //can be implemented as fixed value
-	std::memset(_buffer, 0, _buffer_size);
-	memcpy(_buffer, headers.c_str(), headers.size());
-	ssize_t bytesRead = read(fd, body, _buffer_size - (headers.size() + 24));
-	if (bytesRead < 0)
-		throw FileSystemErrorException("could not read the file");
-	if (bytesRead < static_cast<ssize_t>(_buffer_size - (headers.size() + 50))) {
-		_content_length = headers.size() + bytesRead;
-	} else {
-		throw ContentLengthException("body is too long");
-	}
-
-
-	addHeader("Content-Length", _toString(bytesRead));
-	headers = _headersToString();
-	moved_body = _buffer + headers.size();
-	if (moved_body - body > 50)
-		throw "fatal error (^_^') ";
-	memcpy(_buffer, headers.c_str(), headers.size());
-	for (size_t i = 0; i < static_cast<size_t>(bytesRead); i++)
-	{
-		moved_body[i] = body[i];
-	}
-	_content = _buffer;
-	_content_length = headers.size() + bytesRead;
+    std::memset(_buffer, 0, _buffer_size);
+    int fd = open(filename.c_str(), O_RDONLY);
+    if (fd < 0) {
+        throw FileSystemErrorException("could not open the file");
+    }
+    std::string headers = _headersToString();
+    size_t headerSize = headers.size();
+    if (headerSize + 50 > _buffer_size) {
+        close(fd);
+        throw ContentLengthException("Headers are too large for buffer");
+    }
+    std::memmove(_buffer, headers.c_str(), headerSize);
+    char* body = _buffer + headerSize;
+    ssize_t maxBodySize = _buffer_size - headerSize - 50;
+    ssize_t bytesRead = read(fd, body, maxBodySize);
+    if (bytesRead < 0) {
+        close(fd);
+        throw FileSystemErrorException("could not read the file");
+    }
+    if (bytesRead == maxBodySize) {
+        close(fd);
+        throw ContentLengthException("Headers are too large for buffer");
+    }
+    _content_length = headerSize + bytesRead;
+    addHeader("Content-Length", _toString(bytesRead));
+    headers = _headersToString();
+    size_t newHeaderSize = headers.size();
+    if (newHeaderSize > headerSize) {
+        char* newBodyStart = _buffer + newHeaderSize;
+        std::memmove(newBodyStart, body, bytesRead);
+        _content_length = newHeaderSize + bytesRead;
+    }
+    std::memmove(_buffer, headers.c_str(), newHeaderSize);
+    _content = _buffer;
+    _content_length = newHeaderSize + bytesRead;
+    close(fd);
 }
+
 
 void Response::generateDirectoryListing(const std::string& directoryPath) {
-	std::ostringstream listing;
-	DIR* dir = opendir(directoryPath.c_str());
-	if (dir == NULL) {
-		throw FileSystemErrorException("cannot open directory");
-	}
+    std::ostringstream listing;
+    DIR* dir = opendir(directoryPath.c_str());
+    if (dir == NULL) {
+        throw FileSystemErrorException("cannot open directory");
+    }
 
-	struct dirent* entry;
-	listing << "<html><head><title>Index of " << directoryPath
-			<< "</title></head><body><h1>Index of " << directoryPath
-			<< "</h1><ul>";
-	while ((entry = readdir(dir)) != NULL) {
-		listing << "<li><a href=\"" << entry->d_name << "\">" << entry->d_name << "</a></li>";
-	}
-	closedir(dir);
-	listing << "</ul></body></html>";
-	std::memset(_buffer, 0, _buffer_size);
-	std::string list = listing.str();
-	addHeader("Content-Length", utils::to_string(list.size()));
-	std::string headers = _headersToString();
-	std::memcpy(_buffer, headers.c_str(), headers.size());
-	char *body = _buffer + headers.size();
-	std::memcpy(body, list.c_str(), list.size());
-	_content = _buffer;
-	_content_length = headers.size() + list.size();
+    struct dirent* entry;
+    std::string stylesPath = _config.root + "/css/styles.css";
+    std::ifstream styles(stylesPath.c_str());
+    if (!styles) {
+        throw FileSystemErrorException("cannot open styles.css");
+    }
+
+    listing << "<html><head><title> Directory navigation " << directoryPath
+            << "</title>" << styles.rdbuf() << "</head><body><h2>Index of " << directoryPath
+            << "</h2><ul>";
+    styles.close();
+
+    while ((entry = readdir(dir)) != NULL) {
+        listing << "<li><a href=\"" << entry->d_name << "\">" << entry->d_name << "</a></li>";
+    }
+    closedir(dir);
+    listing << "</ul></body></html>";
+
+    std::memset(_buffer, 0, _buffer_size);
+    std::string list = listing.str();
+    addHeader("Content-Length", utils::to_string(list.size()));
+    std::string headers = _headersToString();
+    if (list.size() + headers.size() > _buffer_size) {
+        throw ContentLengthException("body is too long");
+    }
+    std::memcpy(_buffer, headers.c_str(), headers.size());
+    char *body = _buffer + headers.size();
+    std::memcpy(body, list.c_str(), list.size());
+    _content = _buffer;
+    _content_length = headers.size() + list.size();
 }
+
 
 void Response::generateCGIResponse(const std::string &cgi_response)
 {
@@ -323,9 +366,9 @@ void Response::generateCGIResponse(const std::string &cgi_response)
 	std::string headers = _headersToString();
 	char* body;
 	memset(_buffer, 0, _buffer_size);
-	memcpy(_buffer, headers.c_str(), headers.size());
+	memmove(_buffer, headers.c_str(), headers.size());
 	body = _buffer + headers.size() - 4;
-	memcpy(body, cgi_response.c_str(), cgi_response.size());
+	memmove(body, cgi_response.c_str(), cgi_response.size());
 	_content_length = headers.size() - 4 + cgi_response.size();
 	_content = _buffer;
 }
@@ -346,6 +389,21 @@ std::string Response::_getMimeType(const std::string& filename) {
     if (filename.find(".js") != std::string::npos) return "application/javascript";
     if (filename.find(".ico") != std::string::npos) return "image/x-icon";
 	if (filename.find(".pdf") != std::string::npos) return "application/pdf";
+	if (filename.find(".png") != std::string::npos) return "image/png";
+	if (filename.find(".jpeg") != std::string::npos) return "image/jpeg";
+	if (filename.find(".jpg") != std::string::npos) return "image/jpg";
+	if (filename.find(".gif") != std::string::npos) return "image/gif";
+	if (filename.find(".webp") != std::string::npos) return "image/webp";
+	if (filename.find(".svg") != std::string::npos) return "image/svg+xml";
+	if (filename.find(".mpeg") != std::string::npos) return "audio/mpeg";
+	if (filename.find(".wav") != std::string::npos) return "audio/wav";
+	if (filename.find(".mp4") != std::string::npos) return "video/mp4";
+	if (filename.find(".webm") != std::string::npos) return "video/webm";
+	if (filename.find(".mov") != std::string::npos) return "video/mov";
+	if (filename.find(".json") != std::string::npos) return "application/json";
+	if (filename.find(".xml") != std::string::npos) return "application/xml";
+	if (filename.find(".zip") != std::string::npos) return "application/zip";
+	if (filename.find(".file") != std::string::npos) return "application/octet-stream";
     return "text/plain";
 }
 
@@ -357,7 +415,7 @@ std::string Response::_toString(size_t num) const {
 
 Response::FileSystemErrorException::FileSystemErrorException(const char *error_msg) {
     std::memset(_error, 0, 256);
-    strncpy(_error, "Response file system error: ", 28);
+    strncpy(_error, "Response file system error: ", 29);
     _error[27] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }
@@ -368,7 +426,7 @@ const char *Response::FileSystemErrorException::what() const throw() {
 
 Response::ContentLengthException::ContentLengthException(const char *error_msg) {
     std::memset(_error, 0, 256);
-    strncpy(_error, "Content length is too long: ", 28);
+    strncpy(_error, "Content length is too long: ", 29);
     _error[27] = '\0';
 	strncat(_error, error_msg, 256 - strlen(_error) - 1);;
 }

@@ -1,5 +1,5 @@
 #include "Utils.hpp"
-#include <stdio.h>
+#include <cstdio>
 
 std::string &utils::toLowerCase(std::string &string) {
 	for (size_t i = 0; i < string.size(); ++i) {
@@ -64,9 +64,7 @@ std::string utils::saveFile(const std::string &file_name, const ServerConfig &co
 	std::string new_file_name;
 	new_file_name += config.root;
 	new_file_name += uri;
-	new_file_name += oss.str();
-	new_file_name += "-";
-	oss.clear();
+	oss << "-";
 	oss << rand() % 1000;
 	new_file_name += oss.str();
 	new_file_name += ".file";

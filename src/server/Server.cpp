@@ -1,79 +1,29 @@
 #include "Server.hpp"
 
 Server::Server(): _buffer(0), _res_buffer(0) {
-	/*ddavlety*/
-	/* Clean up temp files before server start up */
-	/* If there is already running server behaviour is undefined */
-	/* look issue #46 */
-	DIR* dir = opendir(TEMP_FILES_DIRECTORY);
-	if (dir == NULL) {
-		std::string error_msg;
-		error_msg += strerror(errno);
-		error_msg += ": failed to open directory";
-		throw InitialisationException(error_msg.c_str());
-	}
-	struct dirent* entry;
-	while ((entry = readdir(dir)) != NULL) {
-		if (entry->d_type == DT_REG) {
-			std::string filePath = std::string(TEMP_FILES_DIRECTORY) + entry->d_name;
-			std::remove(filePath.c_str());
-		}
-	}
-	closedir(dir);
-}
-
-Server::Server(const HostList &hosts, short port): _port(port), _hosts(hosts), _buffer(0) {
-	_main_socketfd = socket(PF_INET, SOCK_STREAM, 0);
-	if (_main_socketfd < 0) {
-		throw InitialisationException("server socket endpoint is not created");
-	}
-	_address.sin_family = AF_INET;
-	_address.sin_addr.s_addr = INADDR_ANY;
-	_address.sin_port = htons(port);
-	_address_len = sizeof(_address);
-	addPollfd(_main_socketfd, POLLIN);
-	_setSocketOpt();
-	_setSocketNonblock();
-	_bindSocketName();
 }
 
 Server::~Server() {
 	for (size_t i = 0; i < getSocketsSize(); ++i) {
 		close(_fds[i].fd);
 	}
-	/* If there is running server behaviour is undefined */
-	/* look issue #46 */
 	if (_buffer) {
         delete[] _buffer;
     }
     if (_res_buffer) {
         delete[] _res_buffer;
     }
-    DIR* dir = opendir(TEMP_FILES_DIRECTORY);
-    if (dir) {
-        dirent* entry;
-        while ((entry = readdir(dir)) != NULL) {
-            if (entry->d_type == DT_REG) {
-                std::string filePath = std::string(TEMP_FILES_DIRECTORY) + entry->d_name;
-                std::remove(filePath.c_str());
-            }
-        }
-        closedir(dir);
-    }
 }
 
 void Server::_addNewClient(int client_socket)
 {
 	int new_client_socket = accept(_main_socketfd, (struct sockaddr *)&_address, (socklen_t*)&_address_len);
-	if (new_client_socket < 0) {
-			throw PollingErrorException(strerror(errno));
-		}
-	// Set socket to non-blocking mode
+	if (new_client_socket < 0)
+		return ;
 	fcntl(client_socket, F_SETFL, O_NONBLOCK);
 	addPollfd(new_client_socket, POLLIN);
 	_setRequestTime(new_client_socket);
-	std::cout << "New connection established on fd: " << client_socket << std::endl;
-
+	std::cout << GREEN << "New connection established on fd: " << new_client_socket << RESET << std::endl;
 }
 
 void Server::_requestHandling(Request &req, Response &res)
@@ -83,22 +33,17 @@ void Server::_requestHandling(Request &req, Response &res)
 	/*************************/
 	if (req.isTargetingCGI()) {
 		std::string scriptPath = req.getScriptPath();
-		std::cout << "Attempting to execute CGI script at path: " << scriptPath << std::endl;
-
 		if (!utils::fileExists(scriptPath)) {
-			std::cerr << "CGI script not found at path: " << scriptPath << std::endl;
 			res = Response(_config, 404, _res_buffer, _res_buffer_size);
 		} else {
 			CGIHandler cgiHandler(scriptPath, req, _config);
 			std::string cgiOutput = cgiHandler.execute();
 			if (cgiOutput.empty()) {
-				std::cerr << "CGI script execution failed or exited with error status" << std::endl;
 				res = Response(_config, 500, _res_buffer, _res_buffer_size);
 			} else {
 				res.setStatus(200);
 				res.addHeader("Content-Type", "text/html");
 				res.generateCGIResponse(cgiOutput);
-				std::cout << "CGI response generated successfully." << std::endl;
 			}
 		}
 	} else {
@@ -106,9 +51,8 @@ void Server::_requestHandling(Request &req, Response &res)
 		res = Response(req, _config, _res_buffer, _res_buffer_size);
 		/*********************/
 		/* Parse request body */
-		if (res.getStatusCode() < 300 && req.getMethod() == "POST") {
-			req.parseBody(bytesRead);
-		}
+		if (res.getStatusCode() < 300 && req.getMethod() == "POST")
+			req.parseBody(bytesRead, *this);
 		/*********************/
 	}
 
@@ -124,6 +68,7 @@ void Server::_serveExistingClient(int client_socket, size_t i)
 	} catch (Request::SocketCloseException &e) {
 		std::cout << e.what() << std::endl;
 		_cleanChunkFiles(client_socket);
+		close(client_socket);
 		_fds.erase(_fds.begin() + i);
 		return ;
 	} catch (Request::ParsingErrorException& e) {
@@ -139,14 +84,85 @@ void Server::_serveExistingClient(int client_socket, size_t i)
 	if (res.getStatusCode() == -1)
 		res = Response(_config, 500, _res_buffer, _res_buffer_size);
 	/* Send response to client */
-	ssize_t sent = send(client_socket, res.getContent(), res.getContentLength(), MSG_DONTWAIT);
-	std::cout << res.getContentLength() - sent << std::endl;
+	ssize_t bytes_sent = send(client_socket, res.getContent(), res.getContentLength(), MSG_DONTWAIT);
+	if (bytes_sent < 0) {
+		;
+	}
+	if (res.getContentLength() > bytes_sent) {
+		char* buffer_to_save = (char *)res.getContent() + bytes_sent;
+		Outstream outsteam(res.getContentLength() - bytes_sent, buffer_to_save);
+		_res_streams[client_socket] = outsteam;
+	}
 	/**************************/
 	int response_code = res.getStatusCode();
 	if (response_code >= 500 || response_code >= 400) {
 		_cleanChunkFiles(client_socket);
 		close(req.getSocket());
 		_fds.erase(_fds.begin() + i);
+	}
+}
+
+void Server::_processStream(Stream stream)
+{
+	int file_fd = stream.file_fd;
+	int client_socket = stream.req.getSocket();
+	char* buffer = _buffer;
+	size_t buffer_size = _buffer_size;
+	int bytesRead = recv(client_socket, buffer, buffer_size, 0);
+	if (bytesRead < 0) {
+		if (stream.counter > MAX_NUBMER_ATTEMPTS) {
+			deleteStream(client_socket);
+			return ;
+		}
+		else
+			stream.counter++;
+	}
+	if (bytesRead == 0) {
+		throw Request::SocketCloseException("connection closed by client");
+	}
+	std::string& boundary = stream.boundary;
+	std::string boundary_end = boundary + "--";
+	char *boundary_pos = utils::strstr(buffer, boundary.c_str(), bytesRead);
+	char *boundary_end_pos = utils::strstr(buffer, boundary_end.c_str(), bytesRead);
+	if (boundary_pos && boundary_pos != boundary_end_pos) {
+		write(file_fd, buffer, (boundary_pos - buffer));
+		close(file_fd);
+		deleteStream(client_socket);
+		int readBodyResult = stream.req.readBodyFile(boundary_pos, bytesRead - (boundary_pos - buffer), *this);
+		if (readBodyResult != -1) {
+			addStream(client_socket, readBodyResult, stream.req, boundary);
+		}
+	} else if (boundary_end_pos) {
+		bytesRead = (boundary_end_pos - buffer) - 6;
+		write(file_fd, buffer, bytesRead);
+		close(file_fd);
+		deleteStream(client_socket);
+	} else {
+		write(file_fd, buffer, bytesRead);
+	}
+}
+
+void Server::_processResponseStream(int client_socket)
+{
+	Outstream resp = _res_streams.find(client_socket)->second;
+	ssize_t bytes_sent = send(client_socket, resp.buffer, resp.bytes_to_send, MSG_DONTWAIT);
+	if (bytes_sent < 0)
+	{
+		if (resp.counter > MAX_NUBMER_ATTEMPTS) {
+			_res_streams.erase(client_socket);
+			std::cout << "Maximum number of send attempts excided" << std::endl;
+			return;
+		} else {
+			resp.counter++;
+		}
+	}
+	if (resp.bytes_to_send > bytes_sent) {
+		char* buffer_to_save = resp.buffer + bytes_sent;
+		Outstream outsteam(resp.bytes_to_send - bytes_sent, buffer_to_save);
+		_res_streams.erase(client_socket);
+		_res_streams[client_socket] = outsteam;
+	} else if (resp.bytes_to_send == bytes_sent) {
+		_res_streams.erase(client_socket);
 	}
 }
 
@@ -175,6 +191,17 @@ void Server::setResBuffer(char *buffer, int buffer_size)
 	_res_buffer_size = buffer_size;
 }
 
+void Server::addStream(int client_socket, int file_fd, Request &req, std::string& boundary)
+{
+	Stream stream(req, boundary, file_fd);
+	_streams[client_socket] = stream;
+}
+
+void Server::deleteStream(int client_socket)
+{
+	_streams.erase(client_socket);
+}
+
 void Server::initEndpoint(const HostList &hosts, short port, const ServerConfig &config) {
 	_port = port;
 	_hosts = hosts;
@@ -200,12 +227,11 @@ void Server::pollfds() {
 	for (size_t i = 0; i < _fds.size(); ++i)
 	{
 		if (_fds[i].fd != _main_socketfd && _checkRequestTimeout(_fds[i].fd)) {
-			// Response res(_config, 408);
-			// const char* response = res.toCString();
+			// Response res(_config, 408, _res_buffer, _res_buffer_size);
 			/* Debug print */
 			// std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
 
-			// send(_fds[i].fd, response, strlen(response), MSG_DONTWAIT);
+			// send(_fds[i].fd, res.getContent(), res.getContentLength(), MSG_DONTWAIT);
 			// close(_fds[i].fd);
 			// _fds.erase(_fds.begin() + i);
 			// _cleanChunkFiles(_fds[i].fd);
@@ -214,6 +240,7 @@ void Server::pollfds() {
 
 	if (poll_count == -1) {
 		close(_main_socketfd);
+		_fds.erase(_fds.begin());
 		throw PollingErrorException(strerror(errno));
 	}
 }
@@ -225,8 +252,13 @@ size_t Server::getSocketsSize() const {
 void Server::pollLoop() {
 	for (size_t i = 0; i < getSocketsSize(); ++i) {
 		if (_fds[i].revents & POLLERR) {
-			close(_main_socketfd);
-			throw PollingErrorException("error from poll() function");
+			close(_fds[i].fd);
+			_fds.erase(_fds.begin() + i);
+			if (_fds[i].fd == _main_socketfd)
+				throw PollingErrorException("error from poll() function");
+		}
+		if (_res_streams.find(_fds[i].fd) != _res_streams.end()) {
+			_processResponseStream(_fds[i].fd);
 		}
 		if (_fds[i].revents & POLLIN) {
 			int client_socket = _fds[i].fd;
@@ -234,6 +266,8 @@ void Server::pollLoop() {
 				_setRequestTime(client_socket);
 			if (client_socket == _main_socketfd) {
 				_addNewClient(client_socket);
+			} else if (_streams.find(client_socket) != _streams.end()) {
+				_processStream(_streams.find(client_socket)->second);
 			} else {
 				_serveExistingClient(client_socket, i);
 			}
@@ -317,14 +351,21 @@ void Server::RUN(std::vector<Server> servers) {
 			servers[i].setResBuffer(buffer, buffer_size);
 		}
 		servers[i].listenPort(BACKLOG);
-		std::cout << "Server 1 is listening on port "
-			<< servers[i].getPort() << std::endl;
+		std::cout << BLUE << "Server " << i + 1 << " is listening on port "
+			<< servers[i].getPort() << RESET << std::endl;
 	}
 	while (true)
 	{
 		for (size_t i = 0; i < servers.size(); ++i) {
-			servers[i].pollfds();
-			servers[i].pollLoop();
+			try {
+				servers[i].pollfds();
+				servers[i].pollLoop();
+			} catch (PollingErrorException& e) {
+				std::cout << RED << e.what() << RESET << std::endl;
+				std::cout << RED << "Server " << i + 1 << " on port "
+					<< servers[i].getPort() << " stoped" << RESET << std::endl;
+				servers.erase(servers.begin() + i);
+			}
 		}
 	}
 }
@@ -391,4 +432,21 @@ std::ostream &operator<<(std::ostream &os, const Server &server) {
 	os << "end of server data" << std::endl;
 	os << "------------------------------" << std::endl;
 	return os;
+}
+
+Outstream::Outstream(ssize_t bytes, char *buffer) {
+	bytes_to_send = bytes;
+	this->buffer = new char[bytes_to_send];
+	memmove(this->buffer, buffer, bytes);
+}
+
+Outstream &Outstream::operator=(const Outstream &src)
+{
+	if (this != &src) {
+		delete[] buffer;
+		buffer = new char[src.bytes_to_send];
+		std::memmove(buffer, src.buffer, src.bytes_to_send);
+		bytes_to_send = src.bytes_to_send;
+	}
+	return *this;
 }

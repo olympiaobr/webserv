@@ -14,6 +14,24 @@
 #define MAX_CONNECTIONS 100
 #define BACKLOG 3
 
+void	clnTmpDir() {
+	DIR* dir = opendir(TEMP_FILES_DIRECTORY);
+	if (dir == NULL) {
+		std::string error_msg;
+		error_msg += strerror(errno);
+		error_msg += ": failed to open directory";
+		throw Server::InitialisationException(error_msg.c_str());
+	}
+	struct dirent* entry;
+	while ((entry = readdir(dir)) != NULL) {
+		if (entry->d_type == DT_REG) {
+			std::string filePath = std::string(TEMP_FILES_DIRECTORY) + entry->d_name;
+			std::remove(filePath.c_str());
+		}
+	}
+	closedir(dir);
+}
+
 int	main(int argc, char *argv[])
 {
 	if (argc != 2)
@@ -26,24 +44,40 @@ int	main(int argc, char *argv[])
 	Config config(configFile);
 	try {
 		config.loadConfig();
-	} catch (std::exception& e) {
+	} catch (std::invalid_argument& e) {
 		std::cerr << "Error: configuration error: " << e.what() << std::endl;
-		return (EXIT_FAILURE);
+		return 1;
+	} catch (std::out_of_range& e) {
+		std::cerr << "Error: configuration error: " << e.what() << std::endl;
+		return 3;
+	} catch (std::overflow_error& e) {
+		std::cerr << "Error: configuration error: " << e.what() << std::endl;
+		return 4;
 	}
-
-	std::cout << config << std::endl;
 
 	typedef std::map<short, ServerConfig> ConfType;
 
 	const ConfType &allConfigs = config.getAllServerConfigs();
+	try {
+		clnTmpDir();
+	} catch (Server::InitialisationException& e) {
+		std::cerr << e.what() << std::endl;
+		return 1;
+	}
 	std::vector<Server> servers(allConfigs.size());
 	size_t i = 0;
-	for (ConfType::const_iterator it = allConfigs.begin(); it != allConfigs.end(); ++it)
-	{
-		std::cout << "Loaded configuration for port: " << it->first << std::endl;
-		servers[i++].initEndpoint(it->second.hostnames, it->first, it->second);
+	try {
+		for (ConfType::const_iterator it = allConfigs.begin(); it != allConfigs.end(); ++it) {
+			servers[i++].initEndpoint(it->second.hostnames, it->first, it->second);
+		}
+		Server::RUN(servers);
+		clnTmpDir();
+	} catch (Server::InitialisationException& e) {
+		std::cerr << RED << e.what() << " (on exit)" << RESET << std::endl;
+		return 1;
+	} catch (Server::PollingErrorException& e) {
+		std::cerr << RED << e.what() << RESET << std::endl;
+		return 2;
 	}
-	Server::RUN(servers);
-
 	return (0);
 }

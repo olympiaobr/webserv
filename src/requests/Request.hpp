@@ -5,19 +5,31 @@
 # include <map>
 # include <iostream>
 # include <cstring>
+# include <sstream>
+# include <unistd.h>
+# include <cstdlib>
+# include <sys/socket.h>
+# include <fcntl.h>
+# include <errno.h>
 
-# include "../server/Server.hpp"
-# include "../include/debug.hpp"
-# include "../utilities/Utils.hpp"
+# include "../responses/Response.hpp"
 # include "../configuration/Config.hpp"
+# include "../cgi/CGI.hpp"
+# include "../utilities/Utils.hpp"
+
+
+struct Stream;
+class Server;
 
 class Request {
 public:
 	Request(int clientSocket, ServerConfig &config, char *buffer, int buffer_len);
+	Request();
 	~Request();
 
 	int parseHeaders();
-	int parseBody(int bytesRead);
+	int parseBody(int bytesRead, Server& server);
+	int readBodyFile(char *init_buffer, ssize_t bytesRead, Server& server);
 
 	std::string getMethod() const;
 	std::string getUri() const;
@@ -28,9 +40,10 @@ public:
 	std::string getBody() const;
 	int			getSocket() const;
 	std::string getQueryString() const;
+	std::string getScriptPath() const;
+
 	std::string RemoveQueryString(std::string uri) const;
 	bool isTargetingCGI() const;
-	std::string getScriptPath() const;
 
 	void addHeader(const std::string& key, const std::string& value);
 
@@ -53,6 +66,10 @@ public:
 		private:
 			char _error[256];
 	};
+	class StreamingData: public std::exception {
+		public:
+			const char* what() const throw();
+	};
 
 	private:
 		int 									_clientSocket;
@@ -64,14 +81,13 @@ public:
 		ServerConfig							_config;
 
 		char*									_buffer;
-		int										_buffer_size;
+		size_t									_buffer_size;
 
 
 		void _parseRequestLine(const std::string& line);
 		void _parseHeader(const std::string& line);
 		void _readBody(const char *init_buffer, ssize_t bytesRead);
 		void _readBodyChunked(const char *init_buffer, ssize_t bytesRead);
-		void _readBodyFile(char *init_buffer, ssize_t bytesRead);
 
 };
 
