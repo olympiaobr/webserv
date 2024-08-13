@@ -172,6 +172,9 @@ int Request::readBodyFile(char *buffer, ssize_t bytesRead, Server& server) {
 		{
 			const char *header_pos = start_pos;
 			start_pos = utils::strstr(start_pos, (const char *)"\r\n\r\n", bytesRead - (start_pos - buffer)) + 4;
+			if (start_pos == "\r\n" + boundary + "--\r\n") {
+				return -1;
+			}
 			std::string headers = header_pos;
 			headers = headers.substr(0, start_pos - header_pos);
 

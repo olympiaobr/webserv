@@ -84,8 +84,15 @@ void Server::_serveExistingClient(int client_socket, size_t i)
 	if (res.getStatusCode() == -1)
 		res = Response(_config, 500, _res_buffer, _res_buffer_size);
 	/* Send response to client */
-	ssize_t sent = send(client_socket, res.getContent(), res.getContentLength(), MSG_DONTWAIT);
-	std::cout << res.getContentLength() - sent << std::endl;
+	ssize_t bytes_sent = send(client_socket, res.getContent(), res.getContentLength(), MSG_DONTWAIT);
+	if (bytes_sent < 0) {
+		;
+	}
+	if (res.getContentLength() > bytes_sent) {
+		char* buffer_to_save = (char *)res.getContent() + bytes_sent;
+		Outstream outsteam(res.getContentLength() - bytes_sent, buffer_to_save);
+		_res_streams[client_socket] = outsteam;
+	}
 	/**************************/
 	int response_code = res.getStatusCode();
 	if (response_code >= 500 || response_code >= 400) {
@@ -105,10 +112,12 @@ void Server::_processStream(Stream stream)
 	if (bytesRead < 0) {
 		/* Here also check if no of attempts > max ??
 		Or it can depend on timeout */
-		if (true)
-			return ;
+		if (stream.counter > 3) {
+			deleteStream(client_socket);
+			throw 42;
+		}
 		else
-			return ;
+			stream.counter++;
 	}
 	if (bytesRead == 0) {
 		throw Request::SocketCloseException("connection closed by client");
@@ -135,6 +144,28 @@ void Server::_processStream(Stream stream)
 	}
 }
 
+void Server::_processResponseStream(int client_socket)
+{
+	Outstream resp = _res_streams.find(client_socket)->second;
+	ssize_t bytes_sent = send(client_socket, resp.buffer, resp.bytes_to_send, MSG_DONTWAIT);
+	if (bytes_sent < 0)
+	{
+		if (resp.counter > 3) {
+			_res_streams.erase(client_socket);
+			throw 42;
+		} else {
+			resp.counter++;
+		}
+	}
+	if (resp.bytes_to_send > bytes_sent) {
+		char* buffer_to_save = resp.buffer + bytes_sent;
+		Outstream outsteam(resp.bytes_to_send - bytes_sent, buffer_to_save);
+		_res_streams.erase(client_socket);
+		_res_streams[client_socket] = outsteam;
+	} else if (resp.bytes_to_send == bytes_sent) {
+		_res_streams.erase(client_socket);
+	}
+}
 
 void Server::addPollfd(int socket_fd, short events)
 {
@@ -224,6 +255,9 @@ void Server::pollLoop() {
 		if (_fds[i].revents & POLLERR) {
 			close(_main_socketfd);
 			throw PollingErrorException("error from poll() function");
+		}
+		if (_res_streams.find(_fds[i].fd) != _res_streams.end()) {
+			_processResponseStream(_fds[i].fd);
 		}
 		if (_fds[i].revents & POLLIN) {
 			int client_socket = _fds[i].fd;
@@ -316,7 +350,7 @@ void Server::RUN(std::vector<Server> servers) {
 			servers[i].setResBuffer(buffer, buffer_size);
 		}
 		servers[i].listenPort(BACKLOG);
-		std::cout << BLUE << "Server 1 is listening on port "
+		std::cout << BLUE << "Server " << i + 1 << " is listening on port "
 			<< servers[i].getPort() << RESET << std::endl;
 	}
 	while (true)
@@ -390,4 +424,21 @@ std::ostream &operator<<(std::ostream &os, const Server &server) {
 	os << "end of server data" << std::endl;
 	os << "------------------------------" << std::endl;
 	return os;
+}
+
+Outstream::Outstream(ssize_t bytes, char *buffer) {
+	bytes_to_send = bytes;
+	this->buffer = new char[bytes_to_send];
+	memmove(this->buffer, buffer, bytes);
+}
+
+Outstream &Outstream::operator=(const Outstream &src)
+{
+	if (this != &src) {
+		delete[] buffer;
+		buffer = new char[src.bytes_to_send];
+		std::memmove(buffer, src.buffer, src.bytes_to_send);
+		bytes_to_send = src.bytes_to_send;
+	}
+	return *this;
 }

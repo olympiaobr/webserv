@@ -28,14 +28,25 @@ typedef std::vector<std::string> HostList;
 # define BACKLOG 3
 // # define TEMP_FILES_DIRECTORY "tmp/"
 # define REQUEST_TIMEOUT 10
-# define RESPONSE_MAX_BODY_SIZE 8000000
+# define RESPONSE_MAX_BODY_SIZE 80000000
 
 struct Stream {
+	int			counter;
 	int			file_fd;
 	Request		req;
 	std::string	boundary;
 	Stream(Request& req, std::string boundary, int file_fd): file_fd(file_fd), req(req), boundary(boundary) {};
 	Stream(): req(Request()) {};
+};
+
+struct Outstream {
+	int			counter;
+	char*		buffer;
+	ssize_t		bytes_to_send;
+	Outstream(ssize_t bytes_to_send, char *buffer);
+	Outstream(): buffer(0), bytes_to_send(-1) {};
+	// ~Outstream() {if (buffer) delete[] buffer;};
+	Outstream& operator=(const Outstream& src);
 };
 
 class Server {
@@ -107,10 +118,11 @@ class Server {
 		std::map<int, std::time_t>	_request_time;
 
 		char*						_buffer;
-		int							_buffer_size;
+		size_t						_buffer_size;
 		char*						_res_buffer;
-		int							_res_buffer_size;
+		size_t						_res_buffer_size;
 		std::map<int, Stream>		_streams;
+		std::map<int, Outstream>	_res_streams;
 
 		/*Functions*/
 		void _push(pollfd client_pollfd); //called when setPollfd is called
@@ -125,6 +137,7 @@ class Server {
 		void _serveExistingClient(int client_socket, size_t i);
 
 		void _processStream(Stream stream);
+		void _processResponseStream(int client_socket);
 };
 
 std::ostream &operator<<(std::ostream &os, const Server &server);

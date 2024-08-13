@@ -81,7 +81,7 @@ public:
 		ServerConfig							_config;
 
 		char*									_buffer;
-		int										_buffer_size;
+		size_t									_buffer_size;
 
 
 		void _parseRequestLine(const std::string& line);
