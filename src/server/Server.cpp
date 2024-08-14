@@ -21,7 +21,7 @@ void Server::_addNewClient(int client_socket)
 	if (new_client_socket < 0)
 		return ;
 	fcntl(client_socket, F_SETFL, O_NONBLOCK);
-	addPollfd(new_client_socket, POLLIN);
+	addPollfd(new_client_socket, POLLIN | POLLOUT);
 	_setRequestTime(new_client_socket);
 	std::cout << GREEN << "New connection established on fd: " << new_client_socket << RESET << std::endl;
 }
