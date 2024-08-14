@@ -437,14 +437,15 @@ std::ostream &operator<<(std::ostream &os, const Server &server) {
 Outstream::Outstream(ssize_t bytes, char *buffer) {
 	bytes_to_send = bytes;
 	this->buffer = new char[bytes_to_send];
-	memcpy(this->buffer, buffer, bytes);
+	memmove(this->buffer, buffer, bytes);
 }
 
 Outstream &Outstream::operator=(const Outstream &src)
 {
 	if (this != &src) {
+		delete[] buffer;
 		buffer = new char[src.bytes_to_send];
-		std::memcpy(buffer, src.buffer, src.bytes_to_send);
+		std::memmove(buffer, src.buffer, src.bytes_to_send);
 		bytes_to_send = src.bytes_to_send;
 	}
 	return *this;
