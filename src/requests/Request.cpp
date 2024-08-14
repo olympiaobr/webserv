@@ -2,43 +2,27 @@
 #include "../server/Server.hpp"
 
 Request::Request(int clientSocket, ServerConfig &config, char *buffer, int buffer_len)
-	: _clientSocket(clientSocket), _config(config), _buffer(buffer), _buffer_size(buffer_len) {}
+	: _clientSocket(clientSocket), _config(config), _buffer(buffer), _buffer_length(buffer_len) {}
 
 Request::Request() {}
 
 Request::~Request() {}
 
-int Request::parseHeaders() {
+void Request::parseHeaders() {
     std::string request;
-    ssize_t bytesRead;
     bool headersComplete = false;
     size_t headerEnd;
 
-	while (true) {
-		bytesRead = recv(_clientSocket, _buffer, _buffer_size - 1, 0);
-		if (bytesRead > 0) {
-			_buffer[bytesRead] = '\0';
-			request += _buffer;
-			headerEnd = request.find("\r\n\r\n");
-			if (headerEnd != std::string::npos) {
-				headersComplete = true;
-				break ;
-			} else {
-				throw ParsingErrorException(BAD_REQUEST, "malformed request");
-			}
-		} else if (bytesRead == 0) {
-			throw SocketCloseException("connection closed by client");
-		} else {
-			if (errno == EAGAIN || errno == EWOULDBLOCK) {
-				continue ;
-			} else {
-				throw ParsingErrorException(BAD_REQUEST, "malformed request");
-			}
-		}
+	_buffer[_buffer_length] = 0;
+	request += _buffer;
+	headerEnd = request.find("\r\n\r\n");
+	if (headerEnd != std::string::npos) {
+		headersComplete = true;
+	} else {
+		throw ParsingErrorException(BAD_REQUEST, "malformed request");
 	}
-    /*ddavlety*/
-    /* Parse headers only if it is complete
-    * What we do if it is not ? */
+
+
     if (headersComplete) {
         std::istringstream requestStream(request.substr(0, headerEnd));
         std::string line;
@@ -51,18 +35,16 @@ int Request::parseHeaders() {
     } else {
 		throw ParsingErrorException(BAD_REQUEST, "malformed request");
 	}
-
-	/* Check if method allowed to certain URI */
-
-
-/***********************************/
-	// if (this->getUri() == "/exit")
-	// 	exit (0);
-/***********************************/
-	return bytesRead;
+	size_t left_len = _buffer_length - headerEnd - 4;
+	char* body_part = _buffer + headerEnd + 4;
+	if (*body_part) {
+		std::memmove(_buffer, body_part, left_len);
+	} else {
+		std::memset(_buffer, 0, _buffer_length);
+	}
 }
 
-int Request::parseBody(int bytesRead, Server& server) {
+int Request::parseBody(Server& server) {
 	std::string content_length = getHeader("Content-Length");
     int contentLength = atoi(content_length.c_str());
     std::string content_type = getHeader("Content-Type");
@@ -70,31 +52,12 @@ int Request::parseBody(int bytesRead, Server& server) {
     if (contentLength > _config.body_limit) {
         throw ParsingErrorException(CONTENT_LENGTH, "content length is above limit");
 	}
-	char *body_buffer = utils::strstr(_buffer, "\r\n\r\n", bytesRead);
-	if (body_buffer) {
-		body_buffer += 4;
-		bytesRead -= body_buffer - _buffer;
-	}
-	if (body_buffer && *body_buffer == 0) {
-		read:
-		bytesRead = recv(_clientSocket, _buffer, _buffer_size - 1, 0);
-		if (bytesRead == 0)
-			throw SocketCloseException("connection closed by client");
-		if (bytesRead < 0) {
-			if (errno == EAGAIN || errno == EWOULDBLOCK) {
-				goto read;
-			} else {
-				throw ParsingErrorException(BAD_REQUEST, "malformed request");
-			}
-		}
-		body_buffer = _buffer;
-	}
 	if (content_type.find("multipart/form-data") != content_type.npos) {
-		readBodyFile(body_buffer, bytesRead, server);
+		readBodyFile(_buffer, _buffer_length, server);
 	} else if (getHeader("Transfer-Encoding") == "chunked"){
-		_readBodyChunked(body_buffer, bytesRead);
+		_readBodyChunked(_buffer, _buffer_length);
 	} else {
-		_readBody(body_buffer, bytesRead);
+		_readBody(_buffer, _buffer_length);
 	}
 	return -1;
 }
@@ -161,6 +124,7 @@ int Request::readBodyFile(char *buffer, ssize_t bytesRead, Server& server) {
 	int pos = boundary.find("boundary=");
 	boundary = boundary.substr(pos + 9);
 	boundary = "--" + boundary;
+	std::string boundary_end = boundary + "--";
 
 	start_pos = utils::strstr(buffer, (char *)boundary.c_str(), bytesRead);
 	if (start_pos) {
@@ -172,7 +136,8 @@ int Request::readBodyFile(char *buffer, ssize_t bytesRead, Server& server) {
 		{
 			const char *header_pos = start_pos;
 			start_pos = utils::strstr(start_pos, (const char *)"\r\n\r\n", bytesRead - (start_pos - buffer)) + 4;
-			if (start_pos == "\r\n" + boundary + "--\r\n") {
+			char *boundary_end_pos = utils::strstr(start_pos, boundary_end.c_str(), bytesRead - (start_pos - buffer)) - 2;
+			if (start_pos == boundary_end_pos) {
 				return -1;
 			}
 			std::string headers = header_pos;
@@ -205,7 +170,6 @@ int Request::readBodyFile(char *buffer, ssize_t bytesRead, Server& server) {
 		/* Checking boundaries */
 		{
 			size_t len = bytesRead - (start_pos - buffer);
-			std::string boundary_end = boundary + "--";
 			char *boundary_pos = utils::strstr(start_pos, boundary.c_str(), len);
 			char *boundary_end_pos = utils::strstr(start_pos, boundary_end.c_str(), len);
 			/* Check if this chunk contains another data */
@@ -373,6 +337,12 @@ std::string Request::getScriptPath() const {
     std::cout << "Constructed CGI script path: " << fullPath << std::endl;
 
     return RemoveQueryString(fullPath);
+}
+
+void Request::setBufferLen(size_t len)
+{
+	_buffer[_buffer_length] = 0;
+	_buffer_length = len;
 }
 
 const char *Request::StreamingData::what() const throw()
