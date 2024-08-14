@@ -124,7 +124,7 @@ void Response::_handleGetRequest(const Request& req) {
 				} catch (Response::FileSystemErrorException &e) {
                     _setError(404);
 				} catch (Response::ContentLengthException &e) {
-					_setError(413); //temp
+					_setError(413);
 				}
             } else {
                 const RouteConfig* routeConfig = _findMostSpecificRouteConfig(req.getUri());
@@ -222,7 +222,7 @@ void Response::_handleDeleteRequest(const Request& req)
 	} catch (Response::FileSystemErrorException &e) {
         _setError(500);
 	} catch (Response::ContentLengthException &e) {
-		_setError(413); //temp
+		_setError(413);
 	}
 }
 
@@ -262,7 +262,7 @@ void Response::_setError(int code) {
 	} catch (Response::FileSystemErrorException &e) {
 		_setError(404);
 	} catch (Response::ContentLengthException &e) {
-		_setError(413); //temp
+		_setError(413);
 	}
 }
 
@@ -294,13 +294,17 @@ void Response::generateResponse(const std::string& filename) {
         close(fd);
         throw ContentLengthException("Headers are too large for buffer");
     }
-    std::memcpy(_buffer, headers.c_str(), headerSize);
+    std::memmove(_buffer, headers.c_str(), headerSize);
     char* body = _buffer + headerSize;
-    size_t maxBodySize = _buffer_size - headerSize - 1;
+    ssize_t maxBodySize = _buffer_size - headerSize - 50;
     ssize_t bytesRead = read(fd, body, maxBodySize);
     if (bytesRead < 0) {
         close(fd);
         throw FileSystemErrorException("could not read the file");
+    }
+    if (bytesRead == maxBodySize) {
+        close(fd);
+        throw ContentLengthException("Headers are too large for buffer");
     }
     _content_length = headerSize + bytesRead;
     addHeader("Content-Length", _toString(bytesRead));
@@ -311,7 +315,7 @@ void Response::generateResponse(const std::string& filename) {
         std::memmove(newBodyStart, body, bytesRead);
         _content_length = newHeaderSize + bytesRead;
     }
-    std::memcpy(_buffer, headers.c_str(), newHeaderSize);
+    std::memmove(_buffer, headers.c_str(), newHeaderSize);
     _content = _buffer;
     _content_length = newHeaderSize + bytesRead;
     close(fd);
@@ -366,9 +370,9 @@ void Response::generateCGIResponse(const std::string &cgi_response)
 	std::string headers = _headersToString();
 	char* body;
 	memset(_buffer, 0, _buffer_size);
-	memcpy(_buffer, headers.c_str(), headers.size());
+	memmove(_buffer, headers.c_str(), headers.size());
 	body = _buffer + headers.size() - 4;
-	memcpy(body, cgi_response.c_str(), cgi_response.size());
+	memmove(body, cgi_response.c_str(), cgi_response.size());
 	_content_length = headers.size() - 4 + cgi_response.size();
 	_content = _buffer;
 }
