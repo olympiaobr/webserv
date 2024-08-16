@@ -179,7 +179,7 @@ int Request::readBodyFile(char *buffer, ssize_t bytesRead, Server& server) {
 			}
 			/* Check if this chunk contains EOF */
 			else if (boundary_end_pos) {
-				len -= bytesRead - (boundary_end_pos - buffer) + 6;
+				len -= bytesRead - (boundary_end_pos - buffer) - 4;
 				write(file_fd, start_pos, len);
 			}
 			/* read the rest */

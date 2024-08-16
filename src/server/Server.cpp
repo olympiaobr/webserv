@@ -38,6 +38,7 @@ void Server::_requestHandling(Request &req, Response &res)
 	req.setBufferLen(bytes_read);
 	if (_streams.find(req.getSocket()) != _streams.end()) {
 		_processStream(_streams.find(req.getSocket())->second);
+		res.setStatus(200);
 		return ;
 	}
 	req.parseHeaders();
@@ -96,7 +97,10 @@ void Server::_serveExistingClient(int client_socket, size_t i)
 		res = Response(_config, 500, _res_buffer, _res_buffer_size);
 
 	Outstream outsteam(res.getContentLength(), res.getContent());
-	_res_streams[client_socket] = outsteam;
+	if (_res_streams.find(client_socket) == _res_streams.end()
+		|| res.getStatusCode() != 200) {
+		_res_streams[client_socket] = outsteam;
+	}
 	int response_code = res.getStatusCode();
 	if (response_code >= 500 || response_code >= 400) {
 		_cleanChunkFiles(client_socket);
@@ -124,7 +128,7 @@ void Server::_processStream(Stream stream)
 			addStream(client_socket, readBodyResult, stream.req, boundary);
 		}
 	} else if (boundary_end_pos) {
-		_buffer_size = (boundary_end_pos - buffer) - 6;
+		_buffer_size = (boundary_end_pos - buffer) - 4;
 		write(file_fd, buffer, _buffer_size);
 		close(file_fd);
 		deleteStream(client_socket);
