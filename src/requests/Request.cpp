@@ -158,6 +158,8 @@ int Request::readBodyFile(char *buffer, ssize_t bytesRead, Server& server) {
 
 			/* Does it alway have filename in header? */
 			std::string new_file_name = headers.substr(headers.find("filename=") + 9);
+			if (headers.substr(8) == new_file_name)
+				new_file_name = headers.substr(headers.find("name=") + 5);
 			new_file_name = new_file_name.substr(0, new_file_name.find('\r'));
 			new_file_name.erase(new_file_name.begin());
 			new_file_name.erase(new_file_name.end() - 1);
@@ -170,7 +172,10 @@ int Request::readBodyFile(char *buffer, ssize_t bytesRead, Server& server) {
 				std::string value;
 				ss >> value;
 				std::string extension = utils::getFileExtension(unique_filename);
-				unique_filename = new_file_name.substr(0, new_file_name.find(extension) - 1) + " (" + value + ")." + extension;
+				if (extension == unique_filename.substr(1))
+					unique_filename = new_file_name.substr(0) + " (" + value + ")";
+				else
+					unique_filename = new_file_name.substr(0, new_file_name.find(extension) - 1) + " (" + value + ")." + extension;
 				i++;
 			}
 		}
@@ -187,12 +192,12 @@ int Request::readBodyFile(char *buffer, ssize_t bytesRead, Server& server) {
 			char *boundary_end_pos = utils::strstr(start_pos, boundary_end.c_str(), len);
 			/* Check if this chunk contains another data */
 			if (boundary_pos && boundary_pos != boundary_end_pos) {
-				write(file_fd, start_pos, len - (bytesRead - (boundary_pos - buffer)));
+				write(file_fd, start_pos, len - (bytesRead - (boundary_pos - buffer)) - 2);
 				readBodyFile(boundary_pos, bytesRead - (boundary_pos - buffer), server);
 			}
 			/* Check if this chunk contains EOF */
 			else if (boundary_end_pos) {
-				len -= bytesRead - (boundary_end_pos - buffer) - 2;
+				len -= bytesRead - (boundary_end_pos - buffer) + 2;
 				write(file_fd, start_pos, len);
 			}
 			/* read the rest */

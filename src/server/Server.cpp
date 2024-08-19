@@ -121,7 +121,7 @@ void Server::_processStream(Stream stream)
 	char *boundary_pos = utils::strstr(buffer, boundary.c_str(), _buffer_size);
 	char *boundary_end_pos = utils::strstr(buffer, boundary_end.c_str(), _buffer_size);
 	if (boundary_pos && boundary_pos != boundary_end_pos) {
-		write(file_fd, buffer, (boundary_pos - buffer));
+		write(file_fd, buffer, (boundary_pos - buffer) - 2);
 		close(file_fd);
 		deleteStream(client_socket);
 		int readBodyResult = stream.req.readBodyFile(boundary_pos, _buffer_size - (boundary_pos - buffer), *this);
@@ -129,7 +129,7 @@ void Server::_processStream(Stream stream)
 			addStream(client_socket, readBodyResult, stream.req, boundary);
 		}
 	} else if (boundary_end_pos) {
-		_buffer_size = (boundary_end_pos - buffer) - 2;
+		_buffer_size = (boundary_end_pos - buffer) + 2;
 		write(file_fd, buffer, _buffer_size);
 		close(file_fd);
 		deleteStream(client_socket);
