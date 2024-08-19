@@ -64,14 +64,20 @@ const RouteConfig* Response::_findMostSpecificRouteConfig(const std::string& uri
 }
 
 void Response::_dispatchMethodHandler(const Request& req) {
-    if (req.getMethod() == "GET")
-        _handleGetRequest(req);
-    else if (req.getMethod() == "POST")
-        _handlePostRequest(req);
-    else if (req.getMethod() == "DELETE")
-        _handleDeleteRequest(req);
-    else
-        _setError(405);
+	try {
+		if (req.getMethod() == "GET")
+			_handleGetRequest(req);
+		else if (req.getMethod() == "POST")
+			_handlePostRequest(req);
+		else if (req.getMethod() == "DELETE")
+			_handleDeleteRequest(req);
+		else
+			_setError(405);
+	} catch (Response::FileSystemErrorException &e) {
+		_setError(404);
+	} catch (Response::ContentLengthException &e) {
+		_setError(413);
+	}
 }
 
 Response& Response::operator=(const Response& other) {
@@ -115,30 +121,18 @@ void Response::_handleGetRequest(const Request& req) {
         if (S_ISDIR(fileStat.st_mode)) {  // Check if it's a directory
             std::string indexPath = path + "/index.html";
             if (stat(indexPath.c_str(), &fileStat) == 0 && !S_ISDIR(fileStat.st_mode)) {
-                // std::string content = _readFile(indexPath);
-				try {
-					setStatus(200);
-					addHeader("Content-Type", _getMimeType(indexPath));
-                    addHeader("Set-Cookie", req.getSession());
-					generateResponse(indexPath);
-				} catch (Response::FileSystemErrorException &e) {
-                    _setError(404);
-				} catch (Response::ContentLengthException &e) {
-					_setError(413);
-				}
+				setStatus(200);
+				addHeader("Content-Type", _getMimeType(indexPath));
+				addHeader("Set-Cookie", req.getSession());
+				generateResponse(indexPath);
             } else {
                 const RouteConfig* routeConfig = _findMostSpecificRouteConfig(req.getUri());
                 if (routeConfig && routeConfig->autoindex) {
-					try {
-						setStatus(200);
-						addHeader("Content-Type", "text/html");
-                        addHeader("Set-Cookie", req.getSession());
-						generateDirectoryListing(path);
-					} catch (Response::FileSystemErrorException &e) {
-						_setError(404);
-					} catch (Response::ContentLengthException &e) {
-						_setError(413);
-					}
+					setStatus(200);
+					addHeader("Content-Type", "text/html");
+					addHeader("Set-Cookie", req.getSession());
+					generateDirectoryListing(path);
+
                 } else {
                     _setError(404); // No index.html and autoindex is not enabled
                 }
@@ -147,17 +141,11 @@ void Response::_handleGetRequest(const Request& req) {
         }
         // It's not a directory, handle as a regular file
         // std::string content = _readFile(path);
-		try {
-            setStatus(200);
-            addHeader("Content-Type", _getMimeType(path));
-			addHeader("Content-Disposition", "inline");
-            addHeader("Set-Cookie", req.getSession());
-			generateResponse(path);
-		} catch (Response::FileSystemErrorException &e) {
-			_setError(404);
-		} catch (Response::ContentLengthException &e) {
-			_setError(413);
-		}
+		setStatus(200);
+		addHeader("Content-Type", _getMimeType(path));
+		addHeader("Content-Disposition", "inline");
+		addHeader("Set-Cookie", req.getSession());
+		generateResponse(path);
     } else {
         _setError(404); // File or directory not found
     }
@@ -213,17 +201,10 @@ void Response::_handleDeleteRequest(const Request& req)
         _setError(404);
         return;
     }
-	try
-	{
-        setStatus(200);
-		addHeader("Content-Type", _getMimeType(filePath));
-        addHeader("Set-Cookie", req.getSession());
-		generateResponse(filePath);
-	} catch (Response::FileSystemErrorException &e) {
-        _setError(500);
-	} catch (Response::ContentLengthException &e) {
-		_setError(413);
-	}
+	setStatus(200);
+	addHeader("Content-Type", _getMimeType(filePath));
+	addHeader("Set-Cookie", req.getSession());
+	generateResponse(filePath);
 }
 
 void Response::setStatus(int code) {
