@@ -11,6 +11,7 @@
 # include <sys/socket.h>
 # include <fcntl.h>
 # include <errno.h>
+// # include <cctype>
 
 # include "../responses/Response.hpp"
 # include "../configuration/Config.hpp"

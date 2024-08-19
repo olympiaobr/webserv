@@ -101,6 +101,8 @@ void Request::_readBodyChunked(const char *buffer, ssize_t bytesRead) {
 	if (file_fd < 0)
 		throw ParsingErrorException(FILE_SYSTEM, "chunk temp file open failed");
 	while (*stream) {
+		if (!std::isdigit(*stream))
+			break ;
 		read_len = atoi(stream);
 		if (read_len == 0) {
 			close(file_fd);
