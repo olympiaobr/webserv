@@ -35,7 +35,7 @@ void Request::parseHeaders(std::vector<Session>& sessions) {
 		std::string id = getHeader("Cookie");
 		std::vector<Session>::const_iterator session_it;
 		session_it = Session::findSession(sessions, id);
-		if (session_it == sessions.end()) {
+		if (session_it == sessions.end() || id == "") {
 			Session ses(_clientSocket);
 			sessions.push_back(ses);
 			id = ses.getSessionId();

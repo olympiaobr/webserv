@@ -6,6 +6,7 @@ Session::Session(int socket_id)
 
     _first_socket = utils::toString(socket_id);
     std::srand(now);
+	std::memset(_sessionId, 0, 100);
     std::string id = utils::toString(rand() % 10000) + "_cookie";
     std::memmove(_sessionId, id.c_str(), id.size());
 }
