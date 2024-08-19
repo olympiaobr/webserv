@@ -128,7 +128,7 @@ void Server::_processStream(Stream stream)
 			addStream(client_socket, readBodyResult, stream.req, boundary);
 		}
 	} else if (boundary_end_pos) {
-		_buffer_size = (boundary_end_pos - buffer) - 4;
+		_buffer_size = (boundary_end_pos - buffer) - 2;
 		write(file_fd, buffer, _buffer_size);
 		close(file_fd);
 		deleteStream(client_socket);

@@ -36,6 +36,7 @@ void Request::parseHeaders() {
 		throw ParsingErrorException(BAD_REQUEST, "malformed request");
 	}
 	size_t left_len = _buffer_length - headerEnd - 4;
+	_buffer_length = left_len;
 	char* body_part = _buffer + headerEnd + 4;
 	if (*body_part) {
 		std::memmove(_buffer, body_part, left_len);
@@ -179,7 +180,7 @@ int Request::readBodyFile(char *buffer, ssize_t bytesRead, Server& server) {
 			}
 			/* Check if this chunk contains EOF */
 			else if (boundary_end_pos) {
-				len -= bytesRead - (boundary_end_pos - buffer) - 4;
+				len -= bytesRead - (boundary_end_pos - buffer) - 2;
 				write(file_fd, start_pos, len);
 			}
 			/* read the rest */
