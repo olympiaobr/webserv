@@ -31,7 +31,7 @@ public:
 	void			generateCGIResponse(const std::string &cgi_response);
 
 	const char*		getContent();
-	int				getContentLength();
+	ssize_t			getContentLength();
 	// const char* toCString();
 
 	/* Exceptions */
