@@ -23,10 +23,14 @@ TMPDIR = tmp
 SRC := $(addprefix $(SRC_DIR), $(SOURCE))
 OBJ := $(addprefix $(OBJ_DIR), $(SOURCE:.cpp=.o))
 
-all: $(TARGET) $(TMPDIR)
+all: $(TARGET) $(TMPDIR) cgi_deps
 
 $(TMPDIR):
 	mkdir -p $(TMPDIR)
+
+cgi_deps:
+	pip3 install virtualenv
+	python3 -m virtualenv web/cgi/.virtualenv
 
 $(TARGET): $(OBJ)
 	$(CC) $(CPPFLAGS) $(OBJ) -o $(TARGET)
