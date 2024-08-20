@@ -36,16 +36,16 @@ Response::Response(const Request& req, const ServerConfig& config, char* buffer,
     }
 
     // Ensure the method is allowed in the requested route
-    const RouteConfig* routeConfig = _findMostSpecificRouteConfig(req.getUri());
-    if (!routeConfig) {
+    const RouteConfig* route_config = _findMostSpecificRouteConfig(req.getUri());
+    if (!route_config) {
         _setError(404);
         return;
     }
-    if (std::find(routeConfig->allowed_methods.begin(), routeConfig->allowed_methods.end(), req.getMethod()) == routeConfig->allowed_methods.end()) {
+    if (std::find(route_config->allowed_methods.begin(), route_config->allowed_methods.end(), req.getMethod()) == route_config->allowed_methods.end()) {
         _setError(405);
         return;
     }
-    _dispatchMethodHandler(req);
+    _dispatchMethodHandler(req, route_config);
 }
 
 
@@ -63,13 +63,13 @@ const RouteConfig* Response::_findMostSpecificRouteConfig(const std::string& uri
     return bestMatch;
 }
 
-void Response::_dispatchMethodHandler(const Request& req) {
+void Response::_dispatchMethodHandler(const Request& req, const RouteConfig* route_config) {
     if (req.getMethod() == "GET")
-        _handleGetRequest(req);
+        _handleGetRequest(req, route_config);
     else if (req.getMethod() == "POST")
-        _handlePostRequest(req);
+        _handlePostRequest(req, route_config);
     else if (req.getMethod() == "DELETE")
-        _handleDeleteRequest(req);
+        _handleDeleteRequest(req, route_config);
     else
         _setError(405);
 }
@@ -107,13 +107,13 @@ void Response::initializeHttpErrors() {
     _httpErrors[505] = "HTTP Version Not Supported";
 }
 
-void Response::_handleGetRequest(const Request& req) {
+void Response::_handleGetRequest(const Request& req, const RouteConfig* route_config) {
     std::string path = _config.root + req.getUri();
 
     struct stat fileStat;
     if (stat(path.c_str(), &fileStat) == 0) {
         if (S_ISDIR(fileStat.st_mode)) {  // Check if it's a directory
-            std::string indexPath = path + "/index.html";
+            std::string indexPath = path + route_config->default_file;
             if (stat(indexPath.c_str(), &fileStat) == 0 && !S_ISDIR(fileStat.st_mode)) {
                 // std::string content = _readFile(indexPath);
 				try {
@@ -164,7 +164,7 @@ void Response::_handleGetRequest(const Request& req) {
 }
 
 /* send page ? */
-void Response::_handlePostRequest(const Request& req) {
+void Response::_handlePostRequest(const Request& req, const RouteConfig* route_config) {
     setStatus(200);
     addHeader("Content-Type", "text/html");
     std::string directoryPath = _config.root + req.getUri();
@@ -200,9 +200,10 @@ void Response::_handlePostRequest(const Request& req) {
         _content = _buffer;
         _content_length = headers.size() + list.size();
     }
+	(void)route_config;
 }
 
-void Response::_handleDeleteRequest(const Request& req)
+void Response::_handleDeleteRequest(const Request& req, const RouteConfig* route_config)
 {
     std::string uri = req.getUri();
     std::string filePath = _config.root + uri;
@@ -224,6 +225,7 @@ void Response::_handleDeleteRequest(const Request& req)
 	} catch (Response::ContentLengthException &e) {
 		_setError(413);
 	}
+	(void)route_config;
 }
 
 void Response::setStatus(int code) {
