@@ -20,17 +20,21 @@ SOURCE :=	main.cpp \
 
 TMPDIR = tmp
 
+CGI_ENV = web/cgi/.venv
+
 SRC := $(addprefix $(SRC_DIR), $(SOURCE))
 OBJ := $(addprefix $(OBJ_DIR), $(SOURCE:.cpp=.o))
 
-all: $(TARGET) $(TMPDIR) cgi_deps
+all: $(TARGET) $(TMPDIR) $(CGI_ENV)
 
 $(TMPDIR):
 	mkdir -p $(TMPDIR)
 
-cgi_deps:
+$(CGI_ENV):
 	pip3 install virtualenv
-	python3 -m virtualenv web/cgi/.virtualenv
+	python3 -m virtualenv web/cgi/.venv
+	web/cgi/.venv/bin/python -m pip install --upgrade pip setuptools wheel
+	web/cgi/.venv/bin/pip install --use-pep517 -r web/cgi/requirements.txt
 
 $(TARGET): $(OBJ)
 	$(CC) $(CPPFLAGS) $(OBJ) -o $(TARGET)
@@ -46,6 +50,7 @@ fclean: clean
 	$(RM) $(TARGET)
 	$(RM) $(TMPDIR)
 	$(RM) $(wildcard *.chunk)
+	$(RM) $(CGI_ENV)
 
 re: fclean all
 
