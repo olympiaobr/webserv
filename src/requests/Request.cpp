@@ -367,7 +367,7 @@ std::string Request::getSession() const
 
 void Request::setBufferLen(size_t len)
 {
-	_buffer[_buffer_length] = 0;
+	_buffer[len] = 0;
 	_buffer_length = len;
 }
 
