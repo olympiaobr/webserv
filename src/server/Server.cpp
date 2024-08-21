@@ -21,7 +21,7 @@ void Server::_addNewClient(int client_socket)
 	if (new_client_socket < 0)
 		return ;
 	fcntl(client_socket, F_SETFL, O_NONBLOCK);
-	addPollfd(new_client_socket, POLLIN);
+	addPollfd(new_client_socket, POLLIN | POLLOUT);
 	_setRequestTime(new_client_socket);
 	std::cout << GREEN << "New connection established on fd: " << new_client_socket << RESET << std::endl;
 }
@@ -29,7 +29,19 @@ void Server::_addNewClient(int client_socket)
 void Server::_requestHandling(Request &req, Response &res)
 {
 	/* Parse request headers */
-	int bytesRead = req.parseHeaders();
+	ssize_t bytes_read = recv(req.getSocket(), _buffer, _buffer_size - 1, 0);
+	if (bytes_read == 0) {
+		throw Request::SocketCloseException("connection closed by client");
+	} else if (bytes_read < 0) {
+		throw Request::ParsingErrorException(Request::BAD_REQUEST, "malformed request");
+	}
+	req.setBufferLen(bytes_read);
+	if (_streams.find(req.getSocket()) != _streams.end()) {
+		_processStream(_streams.find(req.getSocket())->second);
+		res.setStatus(200);
+		return ;
+	}
+	req.parseHeaders(_sessions);
 	/*************************/
 	if (req.isTargetingCGI()) {
 		std::string scriptPath = req.getScriptPath();
@@ -43,6 +55,7 @@ void Server::_requestHandling(Request &req, Response &res)
 			} else {
 				res.setStatus(200);
 				res.addHeader("Content-Type", "text/html");
+				res.addHeader("Set-Cookie", req.getSession());
 				res.generateCGIResponse(cgiOutput);
 			}
 		}
@@ -52,7 +65,7 @@ void Server::_requestHandling(Request &req, Response &res)
 		/*********************/
 		/* Parse request body */
 		if (res.getStatusCode() < 300 && req.getMethod() == "POST")
-			req.parseBody(bytesRead, *this);
+			req.parseBody(*this);
 		/*********************/
 	}
 
@@ -83,22 +96,17 @@ void Server::_serveExistingClient(int client_socket, size_t i)
 	/*******************/
 	if (res.getStatusCode() == -1)
 		res = Response(_config, 500, _res_buffer, _res_buffer_size);
-	/* Send response to client */
-	ssize_t bytes_sent = send(client_socket, res.getContent(), res.getContentLength(), MSG_DONTWAIT);
-	if (bytes_sent < 0) {
-		;
-	}
-	if (res.getContentLength() > bytes_sent) {
-		char* buffer_to_save = (char *)res.getContent() + bytes_sent;
-		Outstream outsteam(res.getContentLength() - bytes_sent, buffer_to_save);
+
+	Outstream outsteam(res.getContentLength(), res.getContent());
+	if (_res_streams.find(client_socket) == _res_streams.end()
+		|| res.getStatusCode() != 200) {
 		_res_streams[client_socket] = outsteam;
 	}
-	/**************************/
 	int response_code = res.getStatusCode();
 	if (response_code >= 500 || response_code >= 400) {
 		_cleanChunkFiles(client_socket);
-		close(req.getSocket());
-		_fds.erase(_fds.begin() + i);
+		// close(req.getSocket());
+		// _fds.erase(_fds.begin() + i);
 	}
 }
 
@@ -107,38 +115,26 @@ void Server::_processStream(Stream stream)
 	int file_fd = stream.file_fd;
 	int client_socket = stream.req.getSocket();
 	char* buffer = _buffer;
-	size_t buffer_size = _buffer_size;
-	int bytesRead = recv(client_socket, buffer, buffer_size, 0);
-	if (bytesRead < 0) {
-		if (stream.counter > MAX_NUBMER_ATTEMPTS) {
-			deleteStream(client_socket);
-			return ;
-		}
-		else
-			stream.counter++;
-	}
-	if (bytesRead == 0) {
-		throw Request::SocketCloseException("connection closed by client");
-	}
+
 	std::string& boundary = stream.boundary;
 	std::string boundary_end = boundary + "--";
-	char *boundary_pos = utils::strstr(buffer, boundary.c_str(), bytesRead);
-	char *boundary_end_pos = utils::strstr(buffer, boundary_end.c_str(), bytesRead);
+	char *boundary_pos = utils::strstr(buffer, boundary.c_str(), _buffer_size);
+	char *boundary_end_pos = utils::strstr(buffer, boundary_end.c_str(), _buffer_size);
 	if (boundary_pos && boundary_pos != boundary_end_pos) {
-		write(file_fd, buffer, (boundary_pos - buffer));
+		write(file_fd, buffer, (boundary_pos - buffer) - 2);
 		close(file_fd);
 		deleteStream(client_socket);
-		int readBodyResult = stream.req.readBodyFile(boundary_pos, bytesRead - (boundary_pos - buffer), *this);
+		int readBodyResult = stream.req.readBodyFile(boundary_pos, _buffer_size - (boundary_pos - buffer), *this);
 		if (readBodyResult != -1) {
 			addStream(client_socket, readBodyResult, stream.req, boundary);
 		}
 	} else if (boundary_end_pos) {
-		bytesRead = (boundary_end_pos - buffer) - 6;
-		write(file_fd, buffer, bytesRead);
+		_buffer_size = (boundary_end_pos - buffer) + 2;
+		write(file_fd, buffer, _buffer_size);
 		close(file_fd);
 		deleteStream(client_socket);
 	} else {
-		write(file_fd, buffer, bytesRead);
+		write(file_fd, buffer, _buffer_size);
 	}
 }
 
@@ -257,19 +253,20 @@ void Server::pollLoop() {
 			if (_fds[i].fd == _main_socketfd)
 				throw PollingErrorException("error from poll() function");
 		}
-		if (_res_streams.find(_fds[i].fd) != _res_streams.end()) {
-			_processResponseStream(_fds[i].fd);
-		}
+		int client_socket = _fds[i].fd;
 		if (_fds[i].revents & POLLIN) {
-			int client_socket = _fds[i].fd;
 			if (client_socket != _main_socketfd)
 				_setRequestTime(client_socket);
 			if (client_socket == _main_socketfd) {
 				_addNewClient(client_socket);
-			} else if (_streams.find(client_socket) != _streams.end()) {
-				_processStream(_streams.find(client_socket)->second);
 			} else {
 				_serveExistingClient(client_socket, i);
+			}
+		} else if (_fds[i].revents & POLLOUT) {
+			if (_res_streams.find(_fds[i].fd) != _res_streams.end()) {
+				_processResponseStream(_fds[i].fd);
+			} else {
+				// _serveSendingResponse(client_socket, i);
 			}
 		}
 	}
@@ -434,19 +431,35 @@ std::ostream &operator<<(std::ostream &os, const Server &server) {
 	return os;
 }
 
-Outstream::Outstream(ssize_t bytes, char *buffer) {
+Outstream::Outstream(ssize_t bytes, const char *buffer) {
+	counter = 0;
 	bytes_to_send = bytes;
 	this->buffer = new char[bytes_to_send];
-	memmove(this->buffer, buffer, bytes);
+	std::memset(this->buffer, 0, bytes_to_send);
+	memmove(this->buffer, buffer, bytes_to_send);
+}
+
+Outstream::Outstream(const Outstream &src)
+{
+	if (src.bytes_to_send > 0) {
+		buffer = new char[src.bytes_to_send];
+		std::memmove(buffer, src.buffer, src.bytes_to_send);
+	}
+	else
+		buffer = 0;
+	bytes_to_send = src.bytes_to_send;
+	counter = src.counter;
 }
 
 Outstream &Outstream::operator=(const Outstream &src)
 {
 	if (this != &src) {
-		delete[] buffer;
+		if (buffer)
+			delete[] buffer;
 		buffer = new char[src.bytes_to_send];
 		std::memmove(buffer, src.buffer, src.bytes_to_send);
 		bytes_to_send = src.bytes_to_send;
+		counter = src.counter;
 	}
 	return *this;
 }

@@ -36,16 +36,16 @@ Response::Response(const Request& req, const ServerConfig& config, char* buffer,
     }
 
     // Ensure the method is allowed in the requested route
-    const RouteConfig* routeConfig = _findMostSpecificRouteConfig(req.getUri());
-    if (!routeConfig) {
+    const RouteConfig* route_config = _findMostSpecificRouteConfig(req.getUri());
+    if (!route_config) {
         _setError(404);
         return;
     }
-    if (std::find(routeConfig->allowed_methods.begin(), routeConfig->allowed_methods.end(), req.getMethod()) == routeConfig->allowed_methods.end()) {
+    if (std::find(route_config->allowed_methods.begin(), route_config->allowed_methods.end(), req.getMethod()) == route_config->allowed_methods.end()) {
         _setError(405);
         return;
     }
-    _dispatchMethodHandler(req);
+    _dispatchMethodHandler(req, route_config);
 }
 
 
@@ -63,15 +63,21 @@ const RouteConfig* Response::_findMostSpecificRouteConfig(const std::string& uri
     return bestMatch;
 }
 
-void Response::_dispatchMethodHandler(const Request& req) {
-    if (req.getMethod() == "GET")
-        _handleGetRequest(req);
-    else if (req.getMethod() == "POST")
-        _handlePostRequest(req);
-    else if (req.getMethod() == "DELETE")
-        _handleDeleteRequest(req);
-    else
-        _setError(405);
+void Response::_dispatchMethodHandler(const Request& req, const RouteConfig* route_config) {
+	try {
+		if (req.getMethod() == "GET")
+			_handleGetRequest(req, route_config);
+		else if (req.getMethod() == "POST")
+			_handlePostRequest(req, route_config);
+		else if (req.getMethod() == "DELETE")
+			_handleDeleteRequest(req, route_config);
+		else
+			_setError(405);
+	} catch (Response::FileSystemErrorException &e) {
+		_setError(404);
+	} catch (Response::ContentLengthException &e) {
+		_setError(413);
+	}
 }
 
 Response& Response::operator=(const Response& other) {
@@ -107,36 +113,26 @@ void Response::initializeHttpErrors() {
     _httpErrors[505] = "HTTP Version Not Supported";
 }
 
-void Response::_handleGetRequest(const Request& req) {
+void Response::_handleGetRequest(const Request& req, const RouteConfig* route_config) {
     std::string path = _config.root + req.getUri();
 
     struct stat fileStat;
     if (stat(path.c_str(), &fileStat) == 0) {
         if (S_ISDIR(fileStat.st_mode)) {  // Check if it's a directory
-            std::string indexPath = path + "/index.html";
+            std::string indexPath = path + route_config->default_file;
             if (stat(indexPath.c_str(), &fileStat) == 0 && !S_ISDIR(fileStat.st_mode)) {
-                // std::string content = _readFile(indexPath);
-				try {
-					setStatus(200);
-					addHeader("Content-Type", _getMimeType(indexPath));
-					generateResponse(indexPath);
-				} catch (Response::FileSystemErrorException &e) {
-                    _setError(404);
-				} catch (Response::ContentLengthException &e) {
-					_setError(413);
-				}
+				setStatus(200);
+				addHeader("Content-Type", _getMimeType(indexPath));
+				addHeader("Set-Cookie", req.getSession());
+				generateResponse(indexPath);
             } else {
                 const RouteConfig* routeConfig = _findMostSpecificRouteConfig(req.getUri());
                 if (routeConfig && routeConfig->autoindex) {
-					try {
-						setStatus(200);
-						addHeader("Content-Type", "text/html");
-						generateDirectoryListing(path);
-					} catch (Response::FileSystemErrorException &e) {
-						_setError(404);
-					} catch (Response::ContentLengthException &e) {
-						_setError(413);
-					}
+					setStatus(200);
+					addHeader("Content-Type", "text/html");
+					addHeader("Set-Cookie", req.getSession());
+					generateDirectoryListing(path);
+
                 } else {
                     _setError(404); // No index.html and autoindex is not enabled
                 }
@@ -145,61 +141,59 @@ void Response::_handleGetRequest(const Request& req) {
         }
         // It's not a directory, handle as a regular file
         // std::string content = _readFile(path);
-		try {
-            setStatus(200);
-            addHeader("Content-Type", _getMimeType(path));
-			addHeader("Content-Disposition", "inline");
-			generateResponse(path);
-		} catch (Response::FileSystemErrorException &e) {
-			_setError(404);
-		} catch (Response::ContentLengthException &e) {
-			_setError(413);
-		}
+		setStatus(200);
+		addHeader("Content-Type", _getMimeType(path));
+		addHeader("Content-Disposition", "inline");
+		addHeader("Set-Cookie", req.getSession());
+		generateResponse(path);
     } else {
         _setError(404); // File or directory not found
     }
 }
 
 /* send page ? */
-void Response::_handlePostRequest(const Request& req) {
+void Response::_handlePostRequest(const Request& req, const RouteConfig* route_config) {
     setStatus(200);
     addHeader("Content-Type", "text/html");
-    std::string directoryPath = _config.root + req.getUri();
-    {
-        std::ostringstream listing;
-        DIR* dir = opendir(directoryPath.c_str());
-        if (dir == NULL) {
-            throw FileSystemErrorException("cannot open directory");
-        }
-        struct dirent* entry;
-        std::string stylesPath = _config.root + "/css/styles.css";
-        std::ifstream styles(stylesPath.c_str());
-        if (!styles)
-            throw FileSystemErrorException("cannot open styles.css");
-        listing << "<html><head><title> File uploaded! " << directoryPath
-                << "</title>" << styles.rdbuf() << "</head><body><h1>File uploaded!</h2><h2>Index of " << directoryPath
-                << "</h2><ul>";
-        styles.close();
-        while ((entry = readdir(dir)) != NULL) {
-            listing << "<li><a href=\"" << entry->d_name << "\">" << entry->d_name << "</a></li>";
-        }
-        closedir(dir);
-        listing << "</ul></body></html>";
-        std::memset(_buffer, 0, _buffer_size);
-        std::string list = listing.str();
-        addHeader("Content-Length", utils::to_string(list.size()));
-        std::string headers = _headersToString();
-        if (list.size() + headers.size() > _buffer_size)
-            throw ContentLengthException("body is too long");
-        std::memcpy(_buffer, headers.c_str(), headers.size());
-        char *body = _buffer + headers.size();
-        std::memcpy(body, list.c_str(), list.size());
-        _content = _buffer;
-        _content_length = headers.size() + list.size();
-    }
+	std::string directoryPath = _config.root + req.getUri();
+	{
+		std::ostringstream listing;
+		DIR* dir = opendir(directoryPath.c_str());
+		if (dir == NULL) {
+			throw FileSystemErrorException("cannot open directory");
+		}
+
+		struct dirent* entry;
+		std::string file = _config.root + "/css/styles.css";
+		std::ifstream styles(file.c_str());
+		if (!styles)
+			throw FileSystemErrorException("cannot open directory");
+		listing << "<html><head><title> File uploaded! " << directoryPath
+				<< "</title> <link rel=\"stylesheet\" href=\"" << styles.rdbuf()
+				<< "\">" << "</head><body><h1>File uploaded!</h2><h2>Index of " << directoryPath
+				<< "</h2><ul>";
+		styles.close();
+		while ((entry = readdir(dir)) != NULL) {
+			listing << "<li><a href=\"" << entry->d_name << "\">" << entry->d_name << "</a></li>";
+		}
+		closedir(dir);
+		listing << "</ul></body></html>";
+		std::memset(_buffer, 0, _buffer_size);
+		std::string list = listing.str();
+		addHeader("Content-Length", utils::toString(list.size()));
+		std::string headers = _headersToString();
+		if (list.size() + headers.size() > _buffer_size)
+			throw ContentLengthException("body is too long");
+		std::memcpy(_buffer, headers.c_str(), headers.size());
+		char *body = _buffer + headers.size();
+		std::memcpy(body, list.c_str(), list.size());
+		_content = _buffer;
+		_content_length = headers.size() + list.size();
+	}
+	(void)route_config;
 }
 
-void Response::_handleDeleteRequest(const Request& req)
+void Response::_handleDeleteRequest(const Request& req, const RouteConfig* route_config)
 {
     std::string uri = req.getUri();
     std::string filePath = _config.root + uri;
@@ -210,16 +204,11 @@ void Response::_handleDeleteRequest(const Request& req)
         _setError(404);
         return;
     }
-	try
-	{
-        setStatus(200);
-		addHeader("Content-Type", _getMimeType(filePath));
-		generateResponse(filePath);
-	} catch (Response::FileSystemErrorException &e) {
-        _setError(500);
-	} catch (Response::ContentLengthException &e) {
-		_setError(413);
-	}
+	setStatus(200);
+	addHeader("Content-Type", _getMimeType(filePath));
+	addHeader("Set-Cookie", req.getSession());
+	generateResponse(filePath);
+	(void)route_config;
 }
 
 void Response::setStatus(int code) {
@@ -325,36 +314,32 @@ void Response::generateDirectoryListing(const std::string& directoryPath) {
         throw FileSystemErrorException("cannot open directory");
     }
 
-    struct dirent* entry;
-    std::string stylesPath = _config.root + "/css/styles.css";
-    std::ifstream styles(stylesPath.c_str());
-    if (!styles) {
-        throw FileSystemErrorException("cannot open styles.css");
-    }
-
-    listing << "<html><head><title> Directory navigation " << directoryPath
-            << "</title>" << styles.rdbuf() << "</head><body><h2>Index of " << directoryPath
-            << "</h2><ul>";
-    styles.close();
-
-    while ((entry = readdir(dir)) != NULL) {
-        listing << "<li><a href=\"" << entry->d_name << "\">" << entry->d_name << "</a></li>";
-    }
-    closedir(dir);
-    listing << "</ul></body></html>";
-
-    std::memset(_buffer, 0, _buffer_size);
-    std::string list = listing.str();
-    addHeader("Content-Length", utils::to_string(list.size()));
-    std::string headers = _headersToString();
-    if (list.size() + headers.size() > _buffer_size) {
-        throw ContentLengthException("body is too long");
-    }
-    std::memcpy(_buffer, headers.c_str(), headers.size());
-    char *body = _buffer + headers.size();
-    std::memcpy(body, list.c_str(), list.size());
-    _content = _buffer;
-    _content_length = headers.size() + list.size();
+	struct dirent* entry;
+	std::string file = _config.root + "/css/styles.css";
+	std::ifstream styles(file.c_str());
+	if (!styles)
+		throw FileSystemErrorException("cannot open directory");
+	listing << "<html><head><title> Directory navigation " << directoryPath
+			<< "</title> <link rel=\"stylesheet\" href=\"" << styles.rdbuf()
+			<< "\">" << "</head><body><h2>Index of " << directoryPath
+			<< "</h2><ul>";
+	styles.close();
+	while ((entry = readdir(dir)) != NULL) {
+		listing << "<li><a href=\"" << entry->d_name << "\">" << entry->d_name << "</a></li>";
+	}
+	closedir(dir);
+	listing << "</ul></body></html>";
+	std::memset(_buffer, 0, _buffer_size);
+	std::string list = listing.str();
+	addHeader("Content-Length", utils::toString(list.size()));
+	std::string headers = _headersToString();
+	if (list.size() + headers.size() > _buffer_size)
+		throw ContentLengthException("body is too long");
+	std::memcpy(_buffer, headers.c_str(), headers.size());
+	char *body = _buffer + headers.size();
+	std::memcpy(body, list.c_str(), list.size());
+	_content = _buffer;
+	_content_length = headers.size() + list.size();
 }
 
 
@@ -378,7 +363,7 @@ const char *Response::getContent()
 	return _content;
 }
 
-int Response::getContentLength()
+ssize_t Response::getContentLength()
 {
 	return _content_length;
 }

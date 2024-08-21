@@ -11,3 +11,4 @@ tests/test_env
 web/upload/*
 web/cgi/.env
 .venv
+.idea

@@ -73,6 +73,7 @@
 		"ratio": "cpp",
 		"variant": "cpp",
 		"chrono": "cpp",
-		"codecvt": "cpp"
+		"codecvt": "cpp",
+		"list": "cpp"
 	}
 }

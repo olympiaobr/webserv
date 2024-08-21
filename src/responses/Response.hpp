@@ -29,8 +29,9 @@ public:
 	void			generateResponse(const std::string& filename);
 	void			generateDirectoryListing(const std::string& directoryPath);
 	void			generateCGIResponse(const std::string &cgi_response);
+
 	const char*		getContent();
-	int				getContentLength();
+	ssize_t			getContentLength();
 	// const char* toCString();
 
 	/* Exceptions */
@@ -67,12 +68,12 @@ private:
     std::string		_toString(size_t num) const;
 	// std::vector<std::string> _chunkFile(const std::string& filename);
 
-    void				_handleGetRequest(const Request& req);
-    void				_handlePostRequest(const Request& req);
-    void				_handleDeleteRequest(const Request& req);
+    void				_handleGetRequest(const Request& req, const RouteConfig* route_config);
+    void				_handlePostRequest(const Request& req, const RouteConfig* route_config);
+    void				_handleDeleteRequest(const Request& req, const RouteConfig* route_config);
 	void				_setError(int code);
     const RouteConfig*	_findMostSpecificRouteConfig(const std::string& uri) const;
-    void				_dispatchMethodHandler(const Request& req);
+    void				_dispatchMethodHandler(const Request& req, const RouteConfig* route_config);
     std::string			_headersToString() const;
 
 };
