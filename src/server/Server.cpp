@@ -23,7 +23,6 @@ void Server::_addNewClient(int client_socket)
 	fcntl(client_socket, F_SETFL, O_NONBLOCK);
 	addPollfd(new_client_socket, POLLIN | POLLOUT);
 	_setRequestTime(new_client_socket);
-	std::cout << GREEN << "New connection established on fd: " << new_client_socket << RESET << std::endl;
 }
 
 void Server::_requestHandling(Request &req, Response &res)
@@ -110,8 +109,6 @@ void Server::_serveExistingClient(int client_socket, size_t i)
 	int response_code = res.getStatusCode();
 	if (response_code >= 500 || response_code >= 400) {
 		_cleanChunkFiles(client_socket);
-		// close(req.getSocket());
-		// _fds.erase(_fds.begin() + i);
 	}
 }
 
