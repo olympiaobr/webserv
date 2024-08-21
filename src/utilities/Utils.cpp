@@ -124,7 +124,7 @@ std::time_t utils::getCurrentTime()
 	return std::time(0);
 }
 
-std::string utils::to_string(int value) {
+std::string utils::toString(int value) {
         std::ostringstream oss;
         oss << value;
         return oss.str();
@@ -135,7 +135,7 @@ std::string utils::decodePercentEncoding(const std::string& encoded) {
     for (size_t i = 0; i < encoded.length(); ++i) {
         if (encoded[i] == '%' && i + 2 < encoded.length()) {
             std::string hexValue = encoded.substr(i + 1, 2);
-            char decodedChar = static_cast<char>(std::stoi(hexValue, nullptr, 16));
+            char decodedChar = static_cast<char>(utils::stoi(hexValue));
             decoded << decodedChar;
             i += 2;
         } else {

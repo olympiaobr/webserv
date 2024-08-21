@@ -29,6 +29,7 @@ public:
 	void			generateResponse(const std::string& filename);
 	void			generateDirectoryListing(const std::string& directoryPath);
 	void			generateCGIResponse(const std::string &cgi_response);
+
 	const char*		getContent();
 	ssize_t			getContentLength();
 	// const char* toCString();

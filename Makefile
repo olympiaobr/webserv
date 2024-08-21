@@ -16,7 +16,8 @@ SOURCE :=	main.cpp \
  			requests/Request.cpp \
  			configuration/Config.cpp \
 			utilities/Utils.cpp \
-			cgi/CGI.cpp
+			cgi/CGI.cpp \
+			server/Session.cpp
 
 TMPDIR = tmp
 

@@ -17,10 +17,12 @@
 # include "../configuration/Config.hpp"
 # include "../cgi/CGI.hpp"
 # include "../utilities/Utils.hpp"
+# include "../server/Session.hpp"
 
 
 struct Stream;
 class Server;
+class Session;
 
 class Request {
 public:
@@ -28,7 +30,7 @@ public:
 	Request();
 	~Request();
 
-	void parseHeaders();
+	void parseHeaders(std::vector<Session>& sessions);
 	int parseBody(Server& server);
 	int readBodyFile(char *init_buffer, ssize_t bytesRead, Server& server);
 
@@ -42,6 +44,7 @@ public:
 	int			getSocket() const;
 	std::string getQueryString() const;
 	std::string getScriptPath() const;
+	std::string getSession() const;
 
 	void		setBufferLen(size_t len);
 
@@ -74,7 +77,9 @@ public:
 			const char* what() const throw();
 	};
 
+
 	private:
+		std::string								_session_id;
 		int 									_clientSocket;
 		std::string								_method;
 		std::string								_uri;

@@ -13,7 +13,7 @@
     <main>
         <p>This is the homepage of our custom web server.</p>
         <div id="json-content"></div>
-        
+
         <!-- New username form -->
         <h2>Enter Your Username</h2>
         <form action="/cgi/scr.py" method="get">
@@ -29,9 +29,9 @@
             <br><br>
             <input type="submit" value="Upload">
         </form>
-        
+
         <h1>Contact Us</h1>
-        <form action="/upload/" method="post" enctype="multipart/form-data">
+        <form action="/upload/" method="post">
             <label for="files">Choose your photo:</label>
             <input type="file" id="files" name="file">
             <label for="name">Name:</label>
