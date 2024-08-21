@@ -167,39 +167,40 @@ void Response::_handleGetRequest(const Request& req) {
 void Response::_handlePostRequest(const Request& req) {
     setStatus(200);
     addHeader("Content-Type", "text/html");
-    std::string directoryPath = _config.root + req.getUri();
-    {
-        std::ostringstream listing;
-        DIR* dir = opendir(directoryPath.c_str());
-        if (dir == NULL) {
-            throw FileSystemErrorException("cannot open directory");
-        }
-        struct dirent* entry;
-        std::string stylesPath = _config.root + "/css/styles.css";
-        std::ifstream styles(stylesPath.c_str());
-        if (!styles)
-            throw FileSystemErrorException("cannot open styles.css");
-        listing << "<html><head><title> File uploaded! " << directoryPath
-                << "</title>" << styles.rdbuf() << "</head><body><h1>File uploaded!</h2><h2>Index of " << directoryPath
-                << "</h2><ul>";
-        styles.close();
-        while ((entry = readdir(dir)) != NULL) {
-            listing << "<li><a href=\"" << entry->d_name << "\">" << entry->d_name << "</a></li>";
-        }
-        closedir(dir);
-        listing << "</ul></body></html>";
-        std::memset(_buffer, 0, _buffer_size);
-        std::string list = listing.str();
-        addHeader("Content-Length", utils::toString(list.size()));
-        std::string headers = _headersToString();
-        if (list.size() + headers.size() > _buffer_size)
-            throw ContentLengthException("body is too long");
-        std::memcpy(_buffer, headers.c_str(), headers.size());
-        char *body = _buffer + headers.size();
-        std::memcpy(body, list.c_str(), list.size());
-        _content = _buffer;
-        _content_length = headers.size() + list.size();
-    }
+	std::string directoryPath = _config.root + req.getUri();
+	{
+		std::ostringstream listing;
+		DIR* dir = opendir(directoryPath.c_str());
+		if (dir == NULL) {
+			throw FileSystemErrorException("cannot open directory");
+		}
+
+		struct dirent* entry;
+		std::ifstream styles(_config.root + "/css/styles.css");
+		if (!styles)
+			throw FileSystemErrorException("cannot open directory");
+		listing << "<html><head><title> File uploaded! " << directoryPath
+				<< "</title> <link rel=\"stylesheet\" href=\"" << styles.rdbuf()
+				<< "\">" << "</head><body><h1>File uploaded!</h2><h2>Index of " << directoryPath
+				<< "</h2><ul>";
+		styles.close();
+		while ((entry = readdir(dir)) != NULL) {
+			listing << "<li><a href=\"" << entry->d_name << "\">" << entry->d_name << "</a></li>";
+		}
+		closedir(dir);
+		listing << "</ul></body></html>";
+		std::memset(_buffer, 0, _buffer_size);
+		std::string list = listing.str();
+		addHeader("Content-Length", utils::to_string(list.size()));
+		std::string headers = _headersToString();
+		if (list.size() + headers.size() > _buffer_size)
+			throw ContentLengthException("body is too long");
+		std::memcpy(_buffer, headers.c_str(), headers.size());
+		char *body = _buffer + headers.size();
+		std::memcpy(body, list.c_str(), list.size());
+		_content = _buffer;
+		_content_length = headers.size() + list.size();
+	}
 }
 
 void Response::_handleDeleteRequest(const Request& req)
@@ -329,36 +330,31 @@ void Response::generateDirectoryListing(const std::string& directoryPath) {
         throw FileSystemErrorException("cannot open directory");
     }
 
-    struct dirent* entry;
-    std::string stylesPath = _config.root + "/css/styles.css";
-    std::ifstream styles(stylesPath.c_str());
-    if (!styles) {
-        throw FileSystemErrorException("cannot open styles.css");
-    }
-
-    listing << "<html><head><title> Directory navigation " << directoryPath
-            << "</title>" << styles.rdbuf() << "</head><body><h2>Index of " << directoryPath
-            << "</h2><ul>";
-    styles.close();
-
-    while ((entry = readdir(dir)) != NULL) {
-        listing << "<li><a href=\"" << entry->d_name << "\">" << entry->d_name << "</a></li>";
-    }
-    closedir(dir);
-    listing << "</ul></body></html>";
-
-    std::memset(_buffer, 0, _buffer_size);
-    std::string list = listing.str();
-    addHeader("Content-Length", utils::toString(list.size()));
-    std::string headers = _headersToString();
-    if (list.size() + headers.size() > _buffer_size) {
-        throw ContentLengthException("body is too long");
-    }
-    std::memcpy(_buffer, headers.c_str(), headers.size());
-    char *body = _buffer + headers.size();
-    std::memcpy(body, list.c_str(), list.size());
-    _content = _buffer;
-    _content_length = headers.size() + list.size();
+	struct dirent* entry;
+	std::ifstream styles(_config.root + "/css/styles.css");
+	if (!styles)
+		throw FileSystemErrorException("cannot open directory");
+	listing << "<html><head><title> Directory navigation " << directoryPath
+			<< "</title> <link rel=\"stylesheet\" href=\"" << styles.rdbuf()
+			<< "\">" << "</head><body><h2>Index of " << directoryPath
+			<< "</h2><ul>";
+	styles.close();
+	while ((entry = readdir(dir)) != NULL) {
+		listing << "<li><a href=\"" << entry->d_name << "\">" << entry->d_name << "</a></li>";
+	}
+	closedir(dir);
+	listing << "</ul></body></html>";
+	std::memset(_buffer, 0, _buffer_size);
+	std::string list = listing.str();
+	addHeader("Content-Length", utils::to_string(list.size()));
+	std::string headers = _headersToString();
+	if (list.size() + headers.size() > _buffer_size)
+		throw ContentLengthException("body is too long");
+	std::memcpy(_buffer, headers.c_str(), headers.size());
+	char *body = _buffer + headers.size();
+	std::memcpy(body, list.c_str(), list.size());
+	_content = _buffer;
+	_content_length = headers.size() + list.size();
 }
 
 

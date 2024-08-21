@@ -129,3 +129,18 @@ std::string utils::toString(int value) {
         oss << value;
         return oss.str();
 }
+
+std::string utils::decodePercentEncoding(const std::string& encoded) {
+    std::ostringstream decoded;
+    for (size_t i = 0; i < encoded.length(); ++i) {
+        if (encoded[i] == '%' && i + 2 < encoded.length()) {
+            std::string hexValue = encoded.substr(i + 1, 2);
+            char decodedChar = static_cast<char>(std::stoi(hexValue, nullptr, 16));
+            decoded << decodedChar;
+            i += 2;
+        } else {
+            decoded << encoded[i];
+        }
+    }
+    return decoded.str();
+}
