@@ -32,6 +32,7 @@ namespace utils {
 	std::time_t getCurrentTime();
 	std::string to_string(int value);
 	bool		fileExists(const std::string& path);
+	std::string decodePercentEncoding(const std::string& encoded);
 }
 
 #endif
