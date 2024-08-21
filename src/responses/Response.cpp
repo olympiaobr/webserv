@@ -176,7 +176,8 @@ void Response::_handlePostRequest(const Request& req) {
 		}
 
 		struct dirent* entry;
-		std::ifstream styles(_config.root + "/css/styles.css");
+		std::string file = _config.root + "/css/styles.css";
+		std::ifstream styles(file.c_str());
 		if (!styles)
 			throw FileSystemErrorException("cannot open directory");
 		listing << "<html><head><title> File uploaded! " << directoryPath
@@ -191,7 +192,7 @@ void Response::_handlePostRequest(const Request& req) {
 		listing << "</ul></body></html>";
 		std::memset(_buffer, 0, _buffer_size);
 		std::string list = listing.str();
-		addHeader("Content-Length", utils::to_string(list.size()));
+		addHeader("Content-Length", utils::toString(list.size()));
 		std::string headers = _headersToString();
 		if (list.size() + headers.size() > _buffer_size)
 			throw ContentLengthException("body is too long");
@@ -331,7 +332,8 @@ void Response::generateDirectoryListing(const std::string& directoryPath) {
     }
 
 	struct dirent* entry;
-	std::ifstream styles(_config.root + "/css/styles.css");
+	std::string file = _config.root + "/css/styles.css";
+	std::ifstream styles(file.c_str());
 	if (!styles)
 		throw FileSystemErrorException("cannot open directory");
 	listing << "<html><head><title> Directory navigation " << directoryPath
@@ -346,7 +348,7 @@ void Response::generateDirectoryListing(const std::string& directoryPath) {
 	listing << "</ul></body></html>";
 	std::memset(_buffer, 0, _buffer_size);
 	std::string list = listing.str();
-	addHeader("Content-Length", utils::to_string(list.size()));
+	addHeader("Content-Length", utils::toString(list.size()));
 	std::string headers = _headersToString();
 	if (list.size() + headers.size() > _buffer_size)
 		throw ContentLengthException("body is too long");
