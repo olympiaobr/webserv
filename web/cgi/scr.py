@@ -10,9 +10,13 @@ form = cgi.FieldStorage()
 if form.getvalue("username"):
     username = form.getvalue("username")
     print(f"""
-    <html>
+    <!DOCTYPE html>
+    <html lang="en">
     <head>
-        <title>Welcome, {username}!</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Error</title>
+        <link rel="stylesheet" href="/css/styles.css">
     </head>
     <body>
         <h1>Welcome, {username}!</h1>
@@ -26,6 +30,7 @@ else:
     <html>
     <head>
         <title>Error</title>
+        <link rel="stylesheet" href="/css/styles.css">
     </head>
     <body>
         <h1>Error</h1>

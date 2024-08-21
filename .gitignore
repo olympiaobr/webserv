@@ -9,4 +9,7 @@ obj
 tests/individual_tests/__pycache__
 tests/test_env
 web/upload/*
+web/cgi/.env
+.venv
 .idea
+.env
