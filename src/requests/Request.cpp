@@ -76,6 +76,7 @@ int Request::parseBody(Server& server) {
 void Request::_parseRequestLine(const std::string& line) {
     std::istringstream iss(line);
     iss >> _method >> _uri >> _httpVersion;
+	_uri = utils::decodePercentEncoding(_uri);
 }
 
 void Request::_parseHeader(const std::string& line) {
@@ -163,6 +164,8 @@ int Request::readBodyFile(char *buffer, ssize_t bytesRead, Server& server) {
 			new_file_name = new_file_name.substr(0, new_file_name.find('\r'));
 			new_file_name.erase(new_file_name.begin());
 			new_file_name.erase(new_file_name.end() - 1);
+			if (new_file_name == "")
+				new_file_name = "file";
 			unique_filename = _config.root + getUri() + new_file_name;
 			new_file_name = unique_filename;
 			int i = 1;
