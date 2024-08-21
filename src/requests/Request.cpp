@@ -355,7 +355,6 @@ std::string Request::getScriptPath() const {
     std::string scriptName = _uri.substr(_uri.rfind('/'));
 
     std::string fullPath = basePath + scriptName;
-    std::cout << "Constructed CGI script path: " << fullPath << std::endl;
 
     return RemoveQueryString(fullPath);
 }
