@@ -44,9 +44,13 @@ struct Outstream {
 	int			counter;
 	char*		buffer;
 	ssize_t		bytes_to_send;
-	Outstream(ssize_t bytes_to_send, char *buffer);
-	Outstream(): buffer(0), bytes_to_send(-1) {};
-	// ~Outstream() {if (buffer) delete[] buffer;};
+	Outstream(ssize_t bytes_to_send, const char *buffer);
+	Outstream(const Outstream& src);
+	Outstream(): counter(0), buffer(0), bytes_to_send(-1) {};
+	~Outstream() {
+		if (buffer)
+			delete[] buffer;
+	};
 	Outstream& operator=(const Outstream& src);
 };
 
@@ -122,6 +126,7 @@ class Server {
 		size_t						_buffer_size;
 		char*						_res_buffer;
 		size_t						_res_buffer_size;
+
 		std::map<int, Stream>		_streams;
 		std::map<int, Outstream>	_res_streams;
 
@@ -136,6 +141,8 @@ class Server {
 		void _addNewClient(int client_socket);
 		void _requestHandling(Request &req, Response &res);
 		void _serveExistingClient(int client_socket, size_t i);
+
+		// void _serveSendingResponse(int client_socket, size_t i);
 
 		void _processStream(Stream stream);
 		void _processResponseStream(int client_socket);

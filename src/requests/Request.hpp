@@ -11,6 +11,7 @@
 # include <sys/socket.h>
 # include <fcntl.h>
 # include <errno.h>
+// # include <cctype>
 
 # include "../responses/Response.hpp"
 # include "../configuration/Config.hpp"
@@ -27,8 +28,8 @@ public:
 	Request();
 	~Request();
 
-	int parseHeaders();
-	int parseBody(int bytesRead, Server& server);
+	void parseHeaders();
+	int parseBody(Server& server);
 	int readBodyFile(char *init_buffer, ssize_t bytesRead, Server& server);
 
 	std::string getMethod() const;
@@ -41,6 +42,8 @@ public:
 	int			getSocket() const;
 	std::string getQueryString() const;
 	std::string getScriptPath() const;
+
+	void		setBufferLen(size_t len);
 
 	std::string RemoveQueryString(std::string uri) const;
 	bool isTargetingCGI() const;
@@ -81,7 +84,7 @@ public:
 		ServerConfig							_config;
 
 		char*									_buffer;
-		size_t									_buffer_size;
+		size_t									_buffer_length;
 
 
 		void _parseRequestLine(const std::string& line);
