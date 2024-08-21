@@ -66,6 +66,7 @@ int Request::parseBody(Server& server) {
 void Request::_parseRequestLine(const std::string& line) {
     std::istringstream iss(line);
     iss >> _method >> _uri >> _httpVersion;
+	_uri = utils::decodePercentEncoding(_uri);
 }
 
 void Request::_parseHeader(const std::string& line) {
