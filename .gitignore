@@ -12,3 +12,4 @@ web/upload/*
 web/cgi/.env
 .venv
 .idea
+.env
