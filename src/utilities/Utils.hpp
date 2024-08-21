@@ -27,7 +27,7 @@ namespace utils {
 	std::string	saveFile(const std::string &file_name, const ServerConfig &config, const std::string uri);
 	std::string	chunkFileName(int socket);
 	char		*strstr(const char *haystack, const char *needle, ssize_t len);
-	int			stoi(const std::string &str);
+	int			stoi(const std::string &str, int sys);
 	// std::string generateDirectoryListing(const std::string& directoryPath);
 	std::time_t getCurrentTime();
 	std::string toString(int value);

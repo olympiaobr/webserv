@@ -104,12 +104,16 @@ char	*utils::strstr(const char *haystack, const char *needle, ssize_t len) {
 	return (NULL);
 }
 
-int utils::stoi(const std::string &str)
+int utils::stoi(const std::string &str, int sys)
 {
 	int out;
 	std::stringstream ss;
 
-	ss << str;
+	if (sys == 16) {
+		ss << std::hex << str;
+	} else {
+		ss << str;
+	}
 	ss >> out;
 	return out;
 }
@@ -135,7 +139,7 @@ std::string utils::decodePercentEncoding(const std::string& encoded) {
     for (size_t i = 0; i < encoded.length(); ++i) {
         if (encoded[i] == '%' && i + 2 < encoded.length()) {
             std::string hexValue = encoded.substr(i + 1, 2);
-            char decodedChar = static_cast<char>(utils::stoi(hexValue));
+            char decodedChar = static_cast<char>(utils::stoi(hexValue, 16));
             decoded << decodedChar;
             i += 2;
         } else {
