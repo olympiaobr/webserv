@@ -107,11 +107,8 @@ std::string CGIHandler::execute() {
         waitpid(pid, &status, 0);
 
         if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-            std::cerr << "CGI script execution failed or exited with error status" << std::endl;
-            return "Status code 500 Internal Server Error\r\n";
+            throw std::runtime_error("Failed to run CGI");
         }
-
-        std::cout << "CGI process completed successfully.\n";
         return output;
     }
 }
