@@ -10,6 +10,7 @@ Webserv is a lightweight HTTP server built in C++, designed to comply with HTTP/
 - [Usage](#usage)
 - [Configuration](#configuration)
 - [Project Structure](#project-structure)
+- [Demo](#demo)
 
 ## Overview
 
@@ -96,3 +97,7 @@ server {
 /includes: Contains header files for the server.
 /config: Contains example configuration files.
 Makefile: Build script for compiling the project.
+
+## Demo
+
+![demo_gif](./gif/webserv.gif)
