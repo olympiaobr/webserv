@@ -44,15 +44,9 @@ int	main(int argc, char *argv[])
 	Config config(configFile);
 	try {
 		config.loadConfig();
-	} catch (std::invalid_argument& e) {
+	} catch (std::exception& e) {
 		std::cerr << "Error: configuration error: " << e.what() << std::endl;
 		return 1;
-	} catch (std::out_of_range& e) {
-		std::cerr << "Error: configuration error: " << e.what() << std::endl;
-		return 3;
-	} catch (std::overflow_error& e) {
-		std::cerr << "Error: configuration error: " << e.what() << std::endl;
-		return 4;
 	}
 
 	typedef std::map<short, ServerConfig> ConfType;
