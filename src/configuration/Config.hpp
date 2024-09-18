@@ -72,13 +72,13 @@ public:
 class MissingSettingError : public ConfigError {
 public:
     explicit MissingSettingError(const std::string& setting)
-        : ConfigError("Missing configuration setting: " + setting) {}
+        : ConfigError("missing configuration setting: " + setting) {}
 };
 
 class InvalidValueError : public ConfigError {
 public:
     explicit InvalidValueError(const std::string& value, const std::string& setting)
-        : ConfigError("Invalid value '" + value + "' for setting '" + setting + "'") {}
+        : ConfigError("invalid value '" + value + "' for setting '" + setting + "'") {}
 };
 
 #endif
