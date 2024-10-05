@@ -18,6 +18,8 @@ struct			RouteConfig
 	std::vector<std::string> allowed_methods;
 	bool is_cgi;
 	bool autoindex;
+	int redirect_status_code;
+	std::string redirect_url;
 
 	RouteConfig() : is_cgi(false), autoindex(false) {}
 };

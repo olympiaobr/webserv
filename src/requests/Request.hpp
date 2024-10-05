@@ -45,6 +45,7 @@ public:
 	std::string getQueryString() const;
 	std::string getScriptPath() const;
 	std::string getSession() const;
+	void _sendRedirectResponse(int statusCode, const std::string& redirectURL);
 
 	void		setBufferLen(size_t len);
 

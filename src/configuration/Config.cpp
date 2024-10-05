@@ -129,6 +129,15 @@ void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
      else if (key == "cgi") {
         config.is_cgi = (value == "on");
     }
+    else if (key == "return") {
+        std::istringstream retStream(value);
+        int statusCode;
+        retStream >> statusCode;
+        std::string redirectURL;
+        retStream >> redirectURL;
+        config.redirect_status_code = statusCode;
+        config.redirect_url = redirectURL;
+    }
 }
 
 void Config::validateServerConfig(const ServerConfig& config) const {
