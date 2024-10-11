@@ -107,7 +107,9 @@ void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
     getline(iss, value);
 
     size_t start = value.find_first_not_of(" \t\"");
+    if (start != std::string::npos) {
     value.erase(0, start);
+    }
     size_t end = value.find_last_not_of(" \t;\"");
     if (end != std::string::npos) {
         value.erase(end + 1);
@@ -129,14 +131,20 @@ void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
      else if (key == "cgi") {
         config.is_cgi = (value == "on");
     }
+     else if (key == "root") {
+        config.root = value;  // Make sure root is set for each location
+    }
     else if (key == "return") {
-        std::istringstream retStream(value);
+        std::istringstream redirectStream(value);
         int statusCode;
-        retStream >> statusCode;
-        std::string redirectURL;
-        retStream >> redirectURL;
-        config.redirect_status_code = statusCode;
-        config.redirect_url = redirectURL;
+        std::string redirectUrl;
+        if (redirectStream >> statusCode >> redirectUrl) {
+            config.redirect_status_code = statusCode;
+            config.redirect_url = redirectUrl;
+        }
+        else {
+            throw std::runtime_error("Invalid return directive in config");
+        }
     }
 }
 
@@ -191,14 +199,21 @@ void Config::loadConfig() {
                 throw std::invalid_argument("found forbidden nested location block");
             inLocationBlock = true;
             currentRouteConfig = RouteConfig();
+
             iss >> currentLocationPath;
+            if (currentLocationPath.empty())
+                throw std::invalid_argument("location block missing a path");
+
             continue;
         }
         if (key == "}") {
             if (inLocationBlock) {
-                validateRouteConfig(currentRouteConfig);
-                currentServerConfig.routes[currentLocationPath] = currentRouteConfig;
-                inLocationBlock = false;
+                if (currentRouteConfig.root.empty()) {
+                currentRouteConfig.root = currentServerConfig.root;
+            }
+            validateRouteConfig(currentRouteConfig);
+            currentServerConfig.routes[currentLocationPath] = currentRouteConfig;
+            inLocationBlock = false;
             }
             else if (inServerBlock) {
                 if (currentPort == 0)

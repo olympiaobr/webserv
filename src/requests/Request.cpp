@@ -32,13 +32,6 @@ void Request::parseHeaders(std::vector<Session>& sessions) {
         while (std::getline(requestStream, line) && line != "\r") {
             _parseHeader(line);
         }
-		if (_config.routes.find(_uri) != _config.routes.end()) {
-            const RouteConfig& routeConfig = _config.routes.at(_uri);
-            if (routeConfig.redirect_status_code != 0 && !routeConfig.redirect_url.empty()) {
-                _sendRedirectResponse(routeConfig.redirect_status_code, routeConfig.redirect_url);
-                return;
-            }
-        }
 		std::string id = getHeader("Cookie");
 		std::vector<Session>::const_iterator session_it;
 		session_it = Session::findSession(sessions, id);
@@ -102,17 +95,6 @@ void Request::_parseHeader(const std::string& line) {
     }
 }
 
-void Request::_sendRedirectResponse(int statusCode, const std::string& redirectURL) {
-    std::ostringstream response;
-
-    response << "HTTP/1.1 " << statusCode << " Temporary Redirect\r\n";
-    response << "Location: " << redirectURL << "\r\n";
-    response << "Content-Length: 0\r\n";
-    response << "Connection: close\r\n\r\n";
-
-    // Send the redirect response to the client
-    send(_clientSocket, response.str().c_str(), response.str().length(), 0);
-}
 
 void Request::_readBody(const char *buffer, ssize_t bytesRead) {
 	_body += buffer;
