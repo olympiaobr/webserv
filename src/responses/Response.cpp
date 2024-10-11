@@ -229,7 +229,12 @@ void Response::_handleDeleteRequest(const Request& req, const RouteConfig* route
 	setStatus(200);
 	addHeader("Content-Type", _getMimeType(filePath));
 	addHeader("Set-Cookie", req.getSession());
-	generateResponse(filePath);
+    if (!utils::fileExists(filePath)) {
+        throw FileSystemErrorException("File does not exist");
+    }
+    else if (!utils::deleteFile(filePath)) {
+        throw FileSystemErrorException("Fobidden");
+    }
 	(void)route_config;
 }
 
