@@ -139,6 +139,9 @@ void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
         int statusCode;
         std::string redirectUrl;
         if (redirectStream >> statusCode >> redirectUrl) {
+            if (statusCode < 300 || statusCode > 399) {
+                throw std::runtime_error("Invalid status code in redirection");
+            }
             config.redirect_status_code = statusCode;
             config.redirect_url = redirectUrl;
         }
