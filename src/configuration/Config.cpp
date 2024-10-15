@@ -261,7 +261,6 @@ void Config::addServerConfig(short port, const ServerConfig& serverConfig) {
     _servers[port] = serverConfig;
 }
 
-// Streaming operator for RouteConfig
 std::ostream& operator<<(std::ostream& os, const RouteConfig& config) {
     os << "      Root: " << config.root << "\n"
 	   << "      Default File: " << config.default_file << "\n"
@@ -278,7 +277,6 @@ std::ostream& operator<<(std::ostream& os, const RouteConfig& config) {
     return os;
 }
 
-// Streaming operator for ServerConfig
 std::ostream& operator<<(std::ostream& os, const ServerConfig& config) {
     os << "  Hostnames: ";
     for (size_t i = 0; i < config.hostnames.size(); ++i) {
@@ -303,7 +301,6 @@ std::ostream& operator<<(std::ostream& os, const ServerConfig& config) {
     return os;
 }
 
-// Streaming operator for Config
 std::ostream& operator<<(std::ostream& os, const Config& config) {
     os << std::endl
 	   << "Config:\n"

@@ -19,7 +19,6 @@ Response::Response(const Request& req, const ServerConfig& config, char* buffer,
     : _httpVersion("HTTP/1.1"), _config(config), _buffer(buffer), _buffer_size(buffer_size), _content_length(0) {
     initializeHttpErrors();
 
-    // Ensure the request is using HTTP/1.1 standard
     if (req.getHttpVersion() != "HTTP/1.1") {
         _setError(505);
         return;
@@ -178,7 +177,7 @@ void Response::_handleGetRequest(const Request& req, const RouteConfig* route_co
 		addHeader("Set-Cookie", req.getSession());
 		generateResponse(path);
     } else {
-        _setError(404); // File or directory not found
+        _setError(404);
     }
 }
 
