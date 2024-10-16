@@ -62,6 +62,7 @@ private:
 	char*								_buffer;
 	size_t								_buffer_size;
 	ssize_t								_content_length;
+    ssize_t                             _headers_length;
 	std::string 						_connection;
 
     // std::string _readFile(const std::string& filename);

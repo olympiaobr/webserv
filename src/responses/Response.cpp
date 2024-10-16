@@ -94,9 +94,9 @@ const RouteConfig* Response::_findMostSpecificRouteConfig(const std::string& uri
 
 void Response::_dispatchMethodHandler(const Request& req, const RouteConfig* route_config) {
 	try {
-		if (req.getMethod() == "GET")
+		if (req.getMethod() == "GET" || req.getMethod() == "HEAD")
 			_handleGetRequest(req, route_config);
-		else if (req.getMethod() == "POST")
+		else if (req.getMethod() == "POST" || req.getMethod() == "PUT")
 			_handlePostRequest(req, route_config);
 		else if (req.getMethod() == "DELETE")
 			_handleDeleteRequest(req, route_config);
@@ -167,6 +167,8 @@ void Response::_handleGetRequest(const Request& req, const RouteConfig* route_co
                     _setError(404); // No index.html and autoindex is not enabled
                 }
             }
+            if (req.getMethod() == "HEAD")
+                _content_length = _headers_length;
             return;
         }
         // It's not a directory, handle as a regular file
@@ -176,8 +178,12 @@ void Response::_handleGetRequest(const Request& req, const RouteConfig* route_co
 		addHeader("Content-Disposition", "inline");
 		addHeader("Set-Cookie", req.getSession());
 		generateResponse(path);
+        if (req.getMethod() == "HEAD")
+            _content_length = _headers_length;
     } else {
         _setError(404);
+        if (req.getMethod() == "HEAD")
+            _content_length = _headers_length;
     }
 }
 
@@ -338,9 +344,9 @@ void Response::generateResponse(const std::string& filename) {
     std::memmove(_buffer, headers.c_str(), newHeaderSize);
     _content = _buffer;
     _content_length = newHeaderSize + bytesRead;
+    _headers_length = newHeaderSize;
     close(fd);
 }
-
 
 void Response::generateDirectoryListing(const std::string& directoryPath) {
     std::ostringstream listing;
@@ -375,6 +381,7 @@ void Response::generateDirectoryListing(const std::string& directoryPath) {
 	std::memcpy(body, list.c_str(), list.size());
 	_content = _buffer;
 	_content_length = headers.size() + list.size();
+    _headers_length = headers.size();
 }
 
 
