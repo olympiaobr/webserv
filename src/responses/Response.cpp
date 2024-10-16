@@ -19,13 +19,10 @@ Response::Response(const Request& req, const ServerConfig& config, char* buffer,
     : _httpVersion("HTTP/1.1"), _config(config), _buffer(buffer), _buffer_size(buffer_size), _content_length(0) {
     initializeHttpErrors();
 
-    // Ensure the request is using HTTP/1.1 standard
     if (req.getHttpVersion() != "HTTP/1.1") {
         _setError(505);
         return;
     }
-
-    // Ensure the hostname is valid
     if (std::find(
             config.hostnames.begin(),
             config.hostnames.end(),
@@ -34,11 +31,12 @@ Response::Response(const Request& req, const ServerConfig& config, char* buffer,
         _setError(400);
         return;
     }
-
-    // Ensure the method is allowed in the requested route
     const RouteConfig* route_config = _findMostSpecificRouteConfig(req.getUri());
     if (!route_config) {
         _setError(404);
+        return;
+    }
+	if (this->_handleRedir(route_config->redirect_status_code, route_config->redirect_url)) {
         return;
     }
     if (std::find(route_config->allowed_methods.begin(), route_config->allowed_methods.end(), req.getMethod()) == route_config->allowed_methods.end()) {
@@ -48,11 +46,36 @@ Response::Response(const Request& req, const ServerConfig& config, char* buffer,
     _dispatchMethodHandler(req, route_config);
 }
 
+bool Response::_handleRedir(int redirect_status_code, const std::string& redirect_url) {
+
+    if (redirect_status_code == 0 || redirect_url.empty()) {
+
+        return false;
+
+    }
+    std::cout << "Redirecting to: " << redirect_url << " with status code: " << redirect_status_code << std::endl;
+
+    setStatus(redirect_status_code);
+    addHeader("Location", redirect_url);
+    addHeader("Content-Length", "0");
+    _connection = "close";
+
+    std::string headers = _headersToString();
+    if (headers.size() > _buffer_size) {
+
+        throw std::runtime_error("Buffer overflow: headers too large for buffer.");
+
+    }
+    std::memset(_buffer, 0, _buffer_size);
+    std::memcpy(_buffer, headers.c_str(), headers.size());
+    _content = _buffer;
+    _content_length = headers.size();
+    return true;
+}
 
 const RouteConfig* Response::_findMostSpecificRouteConfig(const std::string& uri) const {
     const RouteConfig* bestMatch = NULL;
     size_t longestMatchLength = 0;
-
     for (std::map<std::string, RouteConfig>::const_iterator it = _config.routes.begin(); it != _config.routes.end(); ++it) {
         const std::string& basePath = it->first;
         if (uri.find(basePath) == 0 && basePath.length() > longestMatchLength) {
@@ -60,8 +83,14 @@ const RouteConfig* Response::_findMostSpecificRouteConfig(const std::string& uri
             longestMatchLength = basePath.length();
         }
     }
+    if (bestMatch) {
+        std::cout << "Matched route: " << uri << " to " << bestMatch->redirect_url << std::endl;
+    } else {
+        std::cout << "No matching route found for URI: " << uri << std::endl;
+    }
     return bestMatch;
 }
+
 
 void Response::_dispatchMethodHandler(const Request& req, const RouteConfig* route_config) {
 	try {
@@ -99,6 +128,7 @@ void Response::initializeHttpErrors() {
     _httpErrors[200] = "OK";
     _httpErrors[201] = "Created";
     // _httpErrors[300] = "Multiple Choices";
+    _httpErrors[307] = "Temporary Redirect";
     _httpErrors[400] = "Bad Request";
     // _httpErrors[403] = "Forbidden";
     _httpErrors[404] = "Not Found";
@@ -147,7 +177,7 @@ void Response::_handleGetRequest(const Request& req, const RouteConfig* route_co
 		addHeader("Set-Cookie", req.getSession());
 		generateResponse(path);
     } else {
-        _setError(404); // File or directory not found
+        _setError(404);
     }
 }
 

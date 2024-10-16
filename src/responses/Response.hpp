@@ -62,6 +62,7 @@ private:
 	char*								_buffer;
 	size_t								_buffer_size;
 	ssize_t								_content_length;
+	std::string 						_connection;
 
     // std::string _readFile(const std::string& filename);
     std::string		_getMimeType(const std::string& filename);
@@ -75,6 +76,7 @@ private:
     const RouteConfig*	_findMostSpecificRouteConfig(const std::string& uri) const;
     void				_dispatchMethodHandler(const Request& req, const RouteConfig* route_config);
     std::string			_headersToString() const;
+	bool _handleRedir(int redirect_status_code, const std::string& redirect_url);
 
 };
 

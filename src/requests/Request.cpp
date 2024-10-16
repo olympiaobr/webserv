@@ -95,6 +95,7 @@ void Request::_parseHeader(const std::string& line) {
     }
 }
 
+
 void Request::_readBody(const char *buffer, ssize_t bytesRead) {
 	_body += buffer;
 	(void)bytesRead;

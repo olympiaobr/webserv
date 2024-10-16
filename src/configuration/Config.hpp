@@ -18,8 +18,12 @@ struct			RouteConfig
 	std::vector<std::string> allowed_methods;
 	bool is_cgi;
 	bool autoindex;
+	int redirect_status_code;
+	std::string redirect_url;
 
-	RouteConfig() : is_cgi(false), autoindex(false) {}
+	RouteConfig()
+    : root(""), default_file(""), is_cgi(false), autoindex(false), redirect_status_code(0), redirect_url("") {}
+
 };
 
 struct			ServerConfig
@@ -31,6 +35,9 @@ struct			ServerConfig
 	std::map<std::string, RouteConfig> routes;
 	int port;
 	std::string formatted_body_limit;
+
+	ServerConfig()
+        : root(""), body_limit(0), port(0), formatted_body_limit("") {}
 };
 
 class Config
@@ -54,6 +61,8 @@ class Config
 	friend std::ostream& operator<<(std::ostream& os, const RouteConfig& config);
 	friend std::ostream& operator<<(std::ostream& os, const ServerConfig& config);
 	friend std::ostream& operator<<(std::ostream& os, const Config& config);
+
+	std::map<std::string, RouteConfig> routes;
 
   private:
 	std::string _filename;

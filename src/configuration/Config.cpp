@@ -107,7 +107,9 @@ void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
     getline(iss, value);
 
     size_t start = value.find_first_not_of(" \t\"");
+    if (start != std::string::npos) {
     value.erase(0, start);
+    }
     size_t end = value.find_last_not_of(" \t;\"");
     if (end != std::string::npos) {
         value.erase(end + 1);
@@ -128,6 +130,24 @@ void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
     }
      else if (key == "cgi") {
         config.is_cgi = (value == "on");
+    }
+     else if (key == "root") {
+        config.root = value;
+    }
+    else if (key == "return") {
+        std::istringstream redirectStream(value);
+        int statusCode;
+        std::string redirectUrl;
+        if (redirectStream >> statusCode >> redirectUrl) {
+            if (statusCode < 300 || statusCode > 399) {
+                throw std::runtime_error("Invalid status code in redirection");
+            }
+            config.redirect_status_code = statusCode;
+            config.redirect_url = redirectUrl;
+        }
+        else {
+            throw std::runtime_error("Invalid return directive in config");
+        }
     }
 }
 
@@ -182,14 +202,21 @@ void Config::loadConfig() {
                 throw std::invalid_argument("found forbidden nested location block");
             inLocationBlock = true;
             currentRouteConfig = RouteConfig();
+
             iss >> currentLocationPath;
+            if (currentLocationPath.empty())
+                throw std::invalid_argument("location block missing a path");
+
             continue;
         }
         if (key == "}") {
             if (inLocationBlock) {
-                validateRouteConfig(currentRouteConfig);
-                currentServerConfig.routes[currentLocationPath] = currentRouteConfig;
-                inLocationBlock = false;
+                if (currentRouteConfig.root.empty()) {
+                currentRouteConfig.root = currentServerConfig.root;
+            }
+            validateRouteConfig(currentRouteConfig);
+            currentServerConfig.routes[currentLocationPath] = currentRouteConfig;
+            inLocationBlock = false;
             }
             else if (inServerBlock) {
                 if (currentPort == 0)
@@ -234,7 +261,6 @@ void Config::addServerConfig(short port, const ServerConfig& serverConfig) {
     _servers[port] = serverConfig;
 }
 
-// Streaming operator for RouteConfig
 std::ostream& operator<<(std::ostream& os, const RouteConfig& config) {
     os << "      Root: " << config.root << "\n"
 	   << "      Default File: " << config.default_file << "\n"
@@ -251,7 +277,6 @@ std::ostream& operator<<(std::ostream& os, const RouteConfig& config) {
     return os;
 }
 
-// Streaming operator for ServerConfig
 std::ostream& operator<<(std::ostream& os, const ServerConfig& config) {
     os << "  Hostnames: ";
     for (size_t i = 0; i < config.hostnames.size(); ++i) {
@@ -276,7 +301,6 @@ std::ostream& operator<<(std::ostream& os, const ServerConfig& config) {
     return os;
 }
 
-// Streaming operator for Config
 std::ostream& operator<<(std::ostream& os, const Config& config) {
     os << std::endl
 	   << "Config:\n"
