@@ -84,13 +84,13 @@ const RouteConfig* Response::_findMostSpecificRouteConfig(const std::string& uri
         }
     }
     if (bestMatch) {
-        std::cout << "Matched route: " << uri << " to " << bestMatch->redirect_url << std::endl;
+        std::cout << "Matched route: " << uri << " to " << bestMatch->root << std::endl;
     } else {
         std::cout << "No matching route found for URI: " << uri << std::endl;
     }
+
     return bestMatch;
 }
-
 
 void Response::_dispatchMethodHandler(const Request& req, const RouteConfig* route_config) {
 	try {
@@ -144,46 +144,57 @@ void Response::initializeHttpErrors() {
 }
 
 void Response::_handleGetRequest(const Request& req, const RouteConfig* route_config) {
-    std::string path = _config.root + req.getUri();
+    std::string uri = req.getUri();
+    std::string path = route_config->root;
 
+    std::cout << "Original path: " << path << std::endl;
+
+    if (uri != "/directory/" && uri != "/") {
+        path += uri;
+    }
+    std::cout << "Requested path: " << path << std::endl;
     struct stat fileStat;
     if (stat(path.c_str(), &fileStat) == 0) {
-        if (S_ISDIR(fileStat.st_mode)) {  // Check if it's a directory
-            std::string indexPath = path + route_config->default_file;
-            if (stat(indexPath.c_str(), &fileStat) == 0 && !S_ISDIR(fileStat.st_mode)) {
-				setStatus(200);
-				addHeader("Content-Type", _getMimeType(indexPath));
-				addHeader("Set-Cookie", req.getSession());
-				generateResponse(indexPath);
-            } else {
-                const RouteConfig* routeConfig = _findMostSpecificRouteConfig(req.getUri());
-                if (routeConfig && routeConfig->autoindex) {
-					setStatus(200);
-					addHeader("Content-Type", "text/html");
-					addHeader("Set-Cookie", req.getSession());
-					generateDirectoryListing(path);
-
-                } else {
-                    _setError(404); // No index.html and autoindex is not enabled
-                }
+        if (S_ISDIR(fileStat.st_mode)) {
+            if (path[path.length() - 1] != '/') {
+                path += "/";
             }
-            if (req.getMethod() == "HEAD")
-                _content_length = _headers_length;
-            return;
+            std::string indexPath = path + route_config->default_file;
+            std::cout << "Looking for index file: " << indexPath << std::endl;
+            if (stat(indexPath.c_str(), &fileStat) == 0 && !S_ISDIR(fileStat.st_mode)) {
+                std::cout << "Index file found: " << indexPath << std::endl;
+                setStatus(200);
+                addHeader("Content-Type", _getMimeType(indexPath));
+                addHeader("Set-Cookie", req.getSession());
+                generateResponse(indexPath);
+            } else if (route_config->autoindex) {
+                std::cout << "Autoindex is enabled, generating directory listing." << std::endl;
+                setStatus(200);
+                addHeader("Content-Type", "text/html");
+                addHeader("Set-Cookie", req.getSession());
+                generateDirectoryListing(path);
+            } else {
+                std::cout << "No index file found, and autoindex is off, returning 404." << std::endl;
+                _setError(404);
+            }
+        } else {
+            std::cout << "Serving regular file: " << path << std::endl;
+            setStatus(200);
+            addHeader("Content-Type", _getMimeType(path));
+            addHeader("Set-Cookie", req.getSession());
+            generateResponse(path);
         }
-        // It's not a directory, handle as a regular file
-        // std::string content = _readFile(path);
-		setStatus(200);
-		addHeader("Content-Type", _getMimeType(path));
-		addHeader("Content-Disposition", "inline");
-		addHeader("Set-Cookie", req.getSession());
-		generateResponse(path);
-        if (req.getMethod() == "HEAD")
+        if (req.getMethod() == "HEAD") {
             _content_length = _headers_length;
-    } else {
+        }
+    }
+    else {
+        std::cout << "File or directory not found: " << path << std::endl;
         _setError(404);
-        if (req.getMethod() == "HEAD")
+
+        if (req.getMethod() == "HEAD") {
             _content_length = _headers_length;
+        }
     }
 }
 

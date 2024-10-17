@@ -18,11 +18,12 @@ struct			RouteConfig
 	std::vector<std::string> allowed_methods;
 	bool is_cgi;
 	bool autoindex;
+	int body_limit;
 	int redirect_status_code;
 	std::string redirect_url;
 
 	RouteConfig()
-    : root(""), default_file(""), is_cgi(false), autoindex(false), redirect_status_code(0), redirect_url("") {}
+    : root(""), default_file(""), is_cgi(false), autoindex(false), body_limit(-1), redirect_status_code(0), redirect_url("") {}
 
 };
 
@@ -54,7 +55,7 @@ class Config
 	const std::map<short, ServerConfig> &getAllServerConfigs() const;
 	void addServerConfig(short port, const ServerConfig &serverConfig);
 	void validateServerConfig(const ServerConfig& config) const;
-	void validateRouteConfig(const RouteConfig& route) const;
+	void validateRouteConfig(RouteConfig& route, const ServerConfig& server) const;
 
 	static std::string formatSize(int bytes);
 
