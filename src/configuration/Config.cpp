@@ -82,7 +82,8 @@ void Config::_parseServerConfig(ServerConfig& config, const std::string& line)
             } catch (const std::exception& e) {
                 throw;
             }
-        } else {
+        }
+        else {
             config.body_limit = atoi(value.c_str());
             config.formatted_body_limit = formatSize(config.body_limit);
         }
@@ -108,7 +109,7 @@ void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
 
     size_t start = value.find_first_not_of(" \t\"");
     if (start != std::string::npos) {
-    value.erase(0, start);
+        value.erase(0, start);
     }
     size_t end = value.find_last_not_of(" \t;\"");
     if (end != std::string::npos) {
@@ -117,22 +118,55 @@ void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
     if (key == "allow_methods") {
         std::istringstream methods(value);
         std::string method;
+        bool allowGet = false, allowPost = false;
+
         while (methods >> method) {
             method.erase(std::remove(method.begin(), method.end(), ';'), method.end());
             config.allowed_methods.push_back(method);
+            if (method == "GET") allowGet = true;
+            if (method == "POST") allowPost = true;
         }
+        if (allowGet || allowPost) {
+            config.allowed_methods.push_back("HEAD");
+        }
+        std::cout << "Parsed allow_methods: ";
+        for (size_t i = 0; i < config.allowed_methods.size(); ++i)
+            std::cout << config.allowed_methods[i] << " ";
+        std::cout << std::endl;
     }
     else if (key == "index") {
         config.default_file = value;
+        std::cout << "Parsed index: " << config.default_file << std::endl;
     }
     else if (key == "autoindex") {
         config.autoindex = (value == "on");
+        std::cout << "Parsed autoindex: " << (config.autoindex ? "on" : "off") << std::endl;
     }
-     else if (key == "cgi") {
+    else if (key == "cgi") {
         config.is_cgi = (value == "on");
+        std::cout << "Parsed CGI: " << (config.is_cgi ? "on" : "off") << std::endl;
     }
-     else if (key == "root") {
+    else if (key == "root") {
         config.root = value;
+        std::cout << "Parsed root: " << config.root << std::endl;
+    }
+    else if (key == "client_max_body_size") {
+        size_t pos = value.find_first_not_of("0123456789");
+        long long int sizeValue = 0;
+        int factor = 1;
+        if (pos != std::string::npos) {
+            std::string numPart = value.substr(0, pos);
+            std::string unit = value.substr(pos);
+            sizeValue = atoll(numPart.c_str());
+            if (unit == "K") factor = 1024;
+            else if (unit == "M") factor = 1024 * 1024;
+            else if (unit == "G") factor = 1024 * 1024 * 1024;
+        }
+        else {
+            sizeValue = atoi(value.c_str());
+        }
+        config.body_limit = sizeValue * factor;
+        std::cout << "Parsed body limit for route: " << config.body_limit << " bytes" << std::endl;
     }
     else if (key == "return") {
         std::istringstream redirectStream(value);
@@ -144,6 +178,7 @@ void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
             }
             config.redirect_status_code = statusCode;
             config.redirect_url = redirectUrl;
+            std::cout << "Parsed redirection: " << statusCode << " -> " << redirectUrl << std::endl;
         }
         else {
             throw std::runtime_error("Invalid return directive in config");
@@ -162,9 +197,21 @@ void Config::validateServerConfig(const ServerConfig& config) const {
         throw MissingSettingError("some required error pages in server block");
 }
 
-void Config::validateRouteConfig(const RouteConfig& route) const {
+void Config::validateRouteConfig(RouteConfig& route, const ServerConfig& server) const {
     if (route.allowed_methods.empty())
         throw MissingSettingError("allowed methods in route block");
+    if (route.root.empty()) {
+        route.root = server.root;
+        std::cout << "Using default root from server: " << route.root << std::endl;
+    }
+    if (route.default_file.empty()) {
+        route.default_file = std::string("directory content");
+        std::cout << "Using default directory content listing" << std::endl;
+    }
+    if (route.body_limit == -1) {
+        route.body_limit = server.body_limit;
+        std::cout << "Using default body limit from server: " << route.body_limit << " bytes" << std::endl;
+    }
 }
 
 void Config::loadConfig() {
@@ -214,7 +261,7 @@ void Config::loadConfig() {
                 if (currentRouteConfig.root.empty()) {
                 currentRouteConfig.root = currentServerConfig.root;
             }
-            validateRouteConfig(currentRouteConfig);
+            validateRouteConfig(currentRouteConfig, currentServerConfig);
             currentServerConfig.routes[currentLocationPath] = currentRouteConfig;
             inLocationBlock = false;
             }
