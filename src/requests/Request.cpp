@@ -72,7 +72,7 @@ RouteConfig* Request::_findMostSpecificRouteConfig(const std::string& uri)
     } else {
         std::cout << "No matching route found for URI: " << uri << std::endl;
     }
-    _uri = _uri.substr(longestMatchLength - 1, _uri.npos);
+     _uri = _uri.substr(longestMatchLength - 1);
     return bestMatch;
 }
 
@@ -363,6 +363,7 @@ bool Request::isTargetingCGI() const {
             lowerPath.rfind(".cgi") == lowerPath.length() - 4 ||
             lowerPath.rfind(".php") == lowerPath.length() - 4 ||
             lowerPath.rfind(".py") == lowerPath.length() - 3);
+            // ++ ".bla" ???
 }
 
 
@@ -374,7 +375,10 @@ std::string Request::getScriptPath() const {
     }
 
     std::string basePath = std::string(cwd) + "/web/cgi";
-    std::string scriptName = _uri.substr(_uri.rfind('/'));
+    size_t pos = _uri.rfind('/');
+    if (pos == std::string::npos)
+        throw ParsingErrorException(INTERRUPT, "check configuration file locations");
+    std::string scriptName = _uri.substr(pos);
 
     std::string fullPath = basePath + scriptName;
 
