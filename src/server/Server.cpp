@@ -43,8 +43,10 @@ void Server::_requestHandling(Request &req, Response &res)
 	req.parseHeaders(_sessions);
 	/*************************/
 	if (req.isTargetingCGI()) {
+		std::cout << "Request is targeting CGI for URI: " << req.getUri() << std::endl;
 		try {
 			std::string scriptPath = req.getScriptPath();
+			std::cout << "Executing CGI for path: " << scriptPath << std::endl;
 			if (!utils::fileExists(scriptPath)) {
 				res = Response(_config, 404, _res_buffer, _res_buffer_size);
 			} else {

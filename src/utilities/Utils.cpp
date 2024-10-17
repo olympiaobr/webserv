@@ -148,3 +148,10 @@ std::string utils::decodePercentEncoding(const std::string& encoded) {
     }
     return decoded.str();
 }
+
+std::string utils::extractFileExtension(const std::string& path) {
+    std::size_t lastDot = path.find_last_of('.');
+    if (lastDot == std::string::npos)
+		return "";
+    return path.substr(lastDot + 1);
+}

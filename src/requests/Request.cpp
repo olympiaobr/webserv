@@ -362,9 +362,10 @@ bool Request::isTargetingCGI() const {
     return (lowerPath.find("/cgi/") == 0 ||
             lowerPath.rfind(".cgi") == lowerPath.length() - 4 ||
             lowerPath.rfind(".php") == lowerPath.length() - 4 ||
-            lowerPath.rfind(".py") == lowerPath.length() - 3);
-            // ++ ".bla" ???
+            lowerPath.rfind(".py") == lowerPath.length() - 3 ||
+            lowerPath.rfind(".bla") == lowerPath.length() - 4);
 }
+
 
 
 std::string Request::getScriptPath() const {
@@ -374,6 +375,15 @@ std::string Request::getScriptPath() const {
         throw std::runtime_error("Failed to get current working directory");
     }
 
+    std::string uri = RemoveQueryString(_uri);
+    std::string extension = utils::extractFileExtension(uri);
+    std::cout << "CGI URI: " << _uri << ", extracted extension: " << extension << std::endl;
+
+    if (extension == "bla") {
+        std::string scriptPath = std::string(cwd) + uri;
+		std::cout << "Resolved script path for .bla: " << scriptPath << std::endl;
+        return scriptPath;
+    }
     std::string basePath = std::string(cwd) + "/web/cgi";
     size_t pos = _uri.rfind('/');
     if (pos == std::string::npos)
@@ -381,9 +391,9 @@ std::string Request::getScriptPath() const {
     std::string scriptName = _uri.substr(pos);
 
     std::string fullPath = basePath + scriptName;
-
     return RemoveQueryString(fullPath);
 }
+
 
 std::string Request::getSession() const
 {

@@ -29,31 +29,26 @@ void CGIHandler::setupEnvironment() {
     environment["QUERY_STRING"] = request.getQueryString();
     environment["CONTENT_LENGTH"] = contentLength;
     environment["CONTENT_TYPE"] = request.getHeader("Content-Type");
-	environment["SERVER_PORT"] = utils::toString(serverConfig.port);
-	environment["SERVER_PROTOCOL"] = request.getHttpVersion();
+    environment["SERVER_PORT"] = utils::toString(serverConfig.port);
     environment["SERVER_PROTOCOL"] = "HTTP/1.1";
     environment["PATH_INFO"] = request.getUri();
-	environment["REDIRECT_STATUS"] = "200";
+    environment["REDIRECT_STATUS"] = "200";
 
+    std::cout << "Setting up environment for CGI:" << std::endl;
+    for (std::map<std::string, std::string>::iterator it = environment.begin(); it != environment.end(); ++it) {
+        std::cout << it->first << " = " << it->second << std::endl;
+    }
     std::vector<std::string> envStrings;
     envp = new char*[environment.size() + 1];
     int i = 0;
     for (std::map<std::string, std::string>::const_iterator it = environment.begin(); it != environment.end(); ++it) {
         std::string env = it->first + "=" + it->second;
-        envStrings.push_back(env);
         envp[i] = new char[env.size() + 1];
         std::copy(env.begin(), env.end(), envp[i]);
         envp[i][env.size()] = '\0';
         i++;
     }
     envp[i] = NULL;
-}
-
-std::string extractFileExtension(const std::string& path) {
-    std::size_t lastDot = path.find_last_of('.');
-    if (lastDot == std::string::npos)
-		return "";
-    return path.substr(lastDot + 1);
 }
 
 std::string CGIHandler::execute() {
@@ -76,15 +71,26 @@ std::string CGIHandler::execute() {
             exit(EXIT_FAILURE);
         }
         close(pipe_fds[1]);  // No longer need this after dup2
-		const char* python_path = "./web/cgi/.venv/bin/python3";
-		char* const args[] = {
-			const_cast<char*>(python_path),
-			const_cast<char*>(scriptPath.c_str()),
-			NULL
-		};
 
-		execve(python_path, args, envp);
-		perror("execve failed");  // Execve doesn't return on success
+        const char* executable = NULL;
+        std::string extension = utils::extractFileExtension(scriptPath);
+
+        if (extension == "bla") {
+            executable = "./ubuntu_cgi_tester";
+        } else if (extension == "py") {
+            executable = "./web/cgi/.venv/bin/python3";
+        } else {
+            executable = scriptPath.c_str();
+        }
+
+        char* const args[] = {
+            const_cast<char*>(executable),
+            const_cast<char*>(scriptPath.c_str()),
+            NULL
+        };
+
+        execve(executable, args, envp);
+        perror("execve failed");  // Execve doesn't return on success
         exit(EXIT_FAILURE);
     } else {  // Parent process
         close(pipe_fds[1]);  // Close the write end in the parent
@@ -92,7 +98,7 @@ std::string CGIHandler::execute() {
         char buffer[1024];
         ssize_t bytesRead;
 
-         while ((bytesRead = read(pipe_fds[0], buffer, sizeof(buffer) - 1)) > 0) {
+        while ((bytesRead = read(pipe_fds[0], buffer, sizeof(buffer) - 1)) > 0) {
             if (bytesRead == -1) {
                 std::cerr << "Read error: " << strerror(errno) << std::endl;
                 close(pipe_fds[0]);
@@ -112,6 +118,7 @@ std::string CGIHandler::execute() {
         return output;
     }
 }
+
 
 
 
