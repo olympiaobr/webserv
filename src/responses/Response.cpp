@@ -31,7 +31,8 @@ Response::Response(const Request& req, const ServerConfig& config, char* buffer,
         _setError(400);
         return;
     }
-    const RouteConfig* route_config = _findMostSpecificRouteConfig(req.getUri());
+    // const RouteConfig* route_config = _findMostSpecificRouteConfig(req.getUri());
+    const RouteConfig* route_config = req.getRouteConfig();
     if (!route_config) {
         _setError(404);
         return;
@@ -71,25 +72,6 @@ bool Response::_handleRedir(int redirect_status_code, const std::string& redirec
     _content = _buffer;
     _content_length = headers.size();
     return true;
-}
-
-const RouteConfig* Response::_findMostSpecificRouteConfig(const std::string& uri) const {
-    const RouteConfig* bestMatch = NULL;
-    size_t longestMatchLength = 0;
-    for (std::map<std::string, RouteConfig>::const_iterator it = _config.routes.begin(); it != _config.routes.end(); ++it) {
-        const std::string& basePath = it->first;
-        if (uri.find(basePath) == 0 && basePath.length() > longestMatchLength) {
-            bestMatch = &it->second;
-            longestMatchLength = basePath.length();
-        }
-    }
-    if (bestMatch) {
-        std::cout << "Matched route: " << uri << " to " << bestMatch->root << std::endl;
-    } else {
-        std::cout << "No matching route found for URI: " << uri << std::endl;
-    }
-
-    return bestMatch;
 }
 
 void Response::_dispatchMethodHandler(const Request& req, const RouteConfig* route_config) {
@@ -148,10 +130,7 @@ void Response::_handleGetRequest(const Request& req, const RouteConfig* route_co
     std::string path = route_config->root;
 
     std::cout << "Original path: " << path << std::endl;
-
-    if (uri != "/directory/" && uri != "/") {
-        path += uri;
-    }
+    path += uri;
     std::cout << "Requested path: " << path << std::endl;
     struct stat fileStat;
     if (stat(path.c_str(), &fileStat) == 0) {

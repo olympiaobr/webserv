@@ -68,8 +68,14 @@ void Server::_requestHandling(Request &req, Response &res)
 		res = Response(req, _config, _res_buffer, _res_buffer_size);
 		/*********************/
 		/* Parse request body */
-		if (res.getStatusCode() < 300 && req.getMethod() == "POST")
-			req.parseBody(*this);
+        // try {
+            if (res.getStatusCode() < 300 && req.getMethod() == "POST")
+                req.parseBody(*this);
+        // } catch (Request::ParsingErrorException& e) {
+        //     std::cerr << e.what() << std::endl;
+        //     res = Response(_config, 413, _res_buffer, _res_buffer_size);
+
+        // }
 		/*********************/
 	}
 
@@ -101,14 +107,18 @@ void Server::_serveExistingClient(int client_socket, size_t i)
 	if (res.getStatusCode() == -1)
 		res = Response(_config, 500, _res_buffer, _res_buffer_size);
 
-	Outstream outsteam(res.getContentLength(), res.getContent());
-	if (_res_streams.find(client_socket) == _res_streams.end()
-		|| res.getStatusCode() != 200) {
+	Outstream outsteam(res.getContentLength(), res.getContent(), res.getStatusCode());
+    if (_res_streams.find(client_socket) == _res_streams.end()) {
+        _res_streams[client_socket] = outsteam;
+    }
+	else if (res.getStatusCode() != 200 && _res_streams[client_socket].status == 200) {
 		_res_streams[client_socket] = outsteam;
 	}
 	int response_code = res.getStatusCode();
 	if (response_code >= 500 || response_code >= 400) {
 		_cleanChunkFiles(client_socket);
+        // close(client_socket);
+        // _fds.erase(_fds.begin() + i);
 	}
 }
 
@@ -156,7 +166,7 @@ void Server::_processResponseStream(int client_socket)
 	}
 	if (resp.bytes_to_send > bytes_sent) {
 		char* buffer_to_save = resp.buffer + bytes_sent;
-		Outstream outsteam(resp.bytes_to_send - bytes_sent, buffer_to_save);
+		Outstream outsteam(resp.bytes_to_send - bytes_sent, buffer_to_save, resp.status);
 		_res_streams.erase(client_socket);
 		_res_streams[client_socket] = outsteam;
 	} else if (resp.bytes_to_send == bytes_sent) {
@@ -265,11 +275,11 @@ void Server::pollLoop() {
 				_serveExistingClient(client_socket, i);
 			}
 		} else if (_fds[i].revents & POLLOUT) {
-			if (_res_streams.find(_fds[i].fd) != _res_streams.end()) {
+			if (_res_streams.find(_fds[i].fd) != _res_streams.end())
 				_processResponseStream(_fds[i].fd);
-			} else {
-				// _serveSendingResponse(client_socket, i);
-			}
+			// } else {
+			// 	// _serveSendingResponse(client_socket, i);
+			// }
 		}
 	}
 }
@@ -433,9 +443,10 @@ std::ostream &operator<<(std::ostream &os, const Server &server) {
 	return os;
 }
 
-Outstream::Outstream(ssize_t bytes, const char *buffer) {
+Outstream::Outstream(ssize_t bytes, const char *buffer, int status_code) {
 	counter = 0;
 	bytes_to_send = bytes;
+    status = status_code;
 	this->buffer = new char[bytes_to_send];
 	std::memset(this->buffer, 0, bytes_to_send);
 	memmove(this->buffer, buffer, bytes_to_send);
@@ -451,6 +462,7 @@ Outstream::Outstream(const Outstream &src)
 		buffer = 0;
 	bytes_to_send = src.bytes_to_send;
 	counter = src.counter;
+    status = src.status;
 }
 
 Outstream &Outstream::operator=(const Outstream &src)
@@ -462,6 +474,7 @@ Outstream &Outstream::operator=(const Outstream &src)
 		std::memmove(buffer, src.buffer, src.bytes_to_send);
 		bytes_to_send = src.bytes_to_send;
 		counter = src.counter;
+        status = src.status;
 	}
 	return *this;
 }
