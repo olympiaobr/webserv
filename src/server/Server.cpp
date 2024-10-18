@@ -40,6 +40,9 @@ void Server::_requestHandling(Request &req, Response &res)
 		res.setStatus(200);
 		return ;
 	}
+    if (_res_streams.find(req.getSocket()) != _res_streams.end() && _res_streams[req.getSocket()].status >= 400) {
+        return ;
+    }
 	req.parseHeaders(_sessions);
 	/*************************/
 	if (req.isTargetingCGI()) {
