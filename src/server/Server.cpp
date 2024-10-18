@@ -240,8 +240,8 @@ void Server::pollfds() {
 			// std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
 
 			// send(_fds[i].fd, res.getContent(), res.getContentLength(), MSG_DONTWAIT);
-			// close(_fds[i].fd);
-			// _fds.erase(_fds.begin() + i);
+			close(_fds[i].fd);
+			_fds.erase(_fds.begin() + i);
 			// _cleanChunkFiles(_fds[i].fd);
 		}
 	}

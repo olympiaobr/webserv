@@ -129,26 +129,26 @@ void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
         if (allowGet || allowPost) {
             config.allowed_methods.push_back("HEAD");
         }
-        std::cout << "Parsed allow_methods: ";
+        // std::cout << "Parsed allow_methods: ";
         for (size_t i = 0; i < config.allowed_methods.size(); ++i)
             std::cout << config.allowed_methods[i] << " ";
         std::cout << std::endl;
     }
     else if (key == "index") {
         config.default_file = value;
-        std::cout << "Parsed index: " << config.default_file << std::endl;
+        // std::cout << "Parsed index: " << config.default_file << std::endl;
     }
     else if (key == "autoindex") {
         config.autoindex = (value == "on");
-        std::cout << "Parsed autoindex: " << (config.autoindex ? "on" : "off") << std::endl;
+        // std::cout << "Parsed autoindex: " << (config.autoindex ? "on" : "off") << std::endl;
     }
     else if (key == "cgi") {
         config.is_cgi = (value == "on");
-        std::cout << "Parsed CGI: " << (config.is_cgi ? "on" : "off") << std::endl;
+        // std::cout << "Parsed CGI: " << (config.is_cgi ? "on" : "off") << std::endl;
     }
     else if (key == "root") {
         config.root = value;
-        std::cout << "Parsed root: " << config.root << std::endl;
+        // std::cout << "Parsed root: " << config.root << std::endl;
     }
     else if (key == "client_max_body_size") {
         size_t pos = value.find_first_not_of("0123456789");
@@ -166,7 +166,7 @@ void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
             sizeValue = atoi(value.c_str());
         }
         config.body_limit = sizeValue * factor;
-        std::cout << "Parsed body limit for route: " << config.body_limit << " bytes" << std::endl;
+        // std::cout << "Parsed body limit for route: " << config.body_limit << " bytes" << std::endl;
     }
     else if (key == "return") {
         std::istringstream redirectStream(value);
@@ -178,7 +178,7 @@ void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
             }
             config.redirect_status_code = statusCode;
             config.redirect_url = redirectUrl;
-            std::cout << "Parsed redirection: " << statusCode << " -> " << redirectUrl << std::endl;
+            // std::cout << "Parsed redirection: " << statusCode << " -> " << redirectUrl << std::endl;
         }
         else {
             throw std::runtime_error("Invalid return directive in config");
@@ -206,11 +206,11 @@ void Config::validateRouteConfig(RouteConfig& route, const ServerConfig& server)
     }
     if (route.default_file.empty()) {
         route.default_file = std::string("directory content");
-        std::cout << "Using default directory content listing" << std::endl;
+        // std::cout << "Using default directory content listing" << std::endl;
     }
     if (route.body_limit == -1) {
         route.body_limit = server.body_limit;
-        std::cout << "Using default body limit from server: " << route.body_limit << " bytes" << std::endl;
+        // std::cout << "Using default body limit from server: " << route.body_limit << " bytes" << std::endl;
     }
 }
 

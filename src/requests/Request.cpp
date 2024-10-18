@@ -67,11 +67,11 @@ RouteConfig* Request::_findMostSpecificRouteConfig(const std::string& uri)
             longestMatchLength = basePath.length();
         }
     }
-    if (bestMatch) {
-        std::cout << "Matched route: " << uri << " to " << bestMatch->root << std::endl;
-    } else {
-        std::cout << "No matching route found for URI: " << uri << std::endl;
-    }
+    // if (bestMatch) {
+    //     std::cout << "Matched route: " << uri << " to " << bestMatch->root << std::endl;
+    // } else {
+    //     std::cout << "No matching route found for URI: " << uri << std::endl;
+    // }
      _uri = _uri.substr(longestMatchLength - 1);
     return bestMatch;
 }

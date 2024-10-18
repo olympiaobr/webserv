@@ -129,9 +129,9 @@ void Response::_handleGetRequest(const Request& req, const RouteConfig* route_co
     std::string uri = req.getUri();
     std::string path = route_config->root;
 
-    std::cout << "Original path: " << path << std::endl;
+    // std::cout << "Original path: " << path << std::endl;
     path += uri;
-    std::cout << "Requested path: " << path << std::endl;
+    // std::cout << "Requested path: " << path << std::endl;
     struct stat fileStat;
     if (stat(path.c_str(), &fileStat) == 0) {
         if (S_ISDIR(fileStat.st_mode)) {
@@ -139,25 +139,25 @@ void Response::_handleGetRequest(const Request& req, const RouteConfig* route_co
                 path += "/";
             }
             std::string indexPath = path + route_config->default_file;
-            std::cout << "Looking for index file: " << indexPath << std::endl;
+            // std::cout << "Looking for index file: " << indexPath << std::endl;
             if (stat(indexPath.c_str(), &fileStat) == 0 && !S_ISDIR(fileStat.st_mode)) {
-                std::cout << "Index file found: " << indexPath << std::endl;
+                // std::cout << "Index file found: " << indexPath << std::endl;
                 setStatus(200);
                 addHeader("Content-Type", _getMimeType(indexPath));
                 addHeader("Set-Cookie", req.getSession());
                 generateResponse(indexPath);
             } else if (route_config->autoindex) {
-                std::cout << "Autoindex is enabled, generating directory listing." << std::endl;
+                // std::cout << "Autoindex is enabled, generating directory listing." << std::endl;
                 setStatus(200);
                 addHeader("Content-Type", "text/html");
                 addHeader("Set-Cookie", req.getSession());
                 generateDirectoryListing(path);
             } else {
-                std::cout << "No index file found, and autoindex is off, returning 404." << std::endl;
+                // std::cout << "No index file found, and autoindex is off, returning 404." << std::endl;
                 _setError(404);
             }
         } else {
-            std::cout << "Serving regular file: " << path << std::endl;
+            // std::cout << "Serving regular file: " << path << std::endl;
             setStatus(200);
             addHeader("Content-Type", _getMimeType(path));
             addHeader("Set-Cookie", req.getSession());
@@ -168,7 +168,7 @@ void Response::_handleGetRequest(const Request& req, const RouteConfig* route_co
         }
     }
     else {
-        std::cout << "File or directory not found: " << path << std::endl;
+        // std::cout << "File or directory not found: " << path << std::endl;
         _setError(404);
 
         if (req.getMethod() == "HEAD") {
