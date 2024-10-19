@@ -366,8 +366,6 @@ bool Request::isTargetingCGI() const {
             lowerPath.rfind(".bla") == lowerPath.length() - 4);
 }
 
-
-
 std::string Request::getScriptPath() const {
     char cwd[1024];
     if (getcwd(cwd, sizeof(cwd)) == NULL) {
@@ -377,23 +375,14 @@ std::string Request::getScriptPath() const {
 
     std::string uri = RemoveQueryString(_uri);
     std::string extension = utils::extractFileExtension(uri);
-    std::cout << "CGI URI: " << _uri << ", extracted extension: " << extension << std::endl;
 
-    if (extension == "bla") {
+    if (extension == "bla" || extension == "py" || extension.empty()) {
         std::string scriptPath = std::string(cwd) + uri;
-		std::cout << "Resolved script path for .bla: " << scriptPath << std::endl;
+        std::cout << "CGI path: " << scriptPath << std::endl;  // Debugging
         return scriptPath;
     }
-    std::string basePath = std::string(cwd) + "/web/cgi";
-    size_t pos = _uri.rfind('/');
-    if (pos == std::string::npos)
-        throw ParsingErrorException(INTERRUPT, "check configuration file locations");
-    std::string scriptName = _uri.substr(pos);
-
-    std::string fullPath = basePath + scriptName;
-    return RemoveQueryString(fullPath);
+	throw std::runtime_error("Invalid CGI request: no valid extension found.");
 }
-
 
 std::string Request::getSession() const
 {

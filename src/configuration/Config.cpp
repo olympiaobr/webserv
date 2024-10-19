@@ -189,8 +189,6 @@ void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
 void Config::validateServerConfig(const ServerConfig& config) const {
     if (config.hostnames.empty())
         throw MissingSettingError("server_name in server block");
-    if (config.root.empty())
-        throw MissingSettingError("root directory in server block");
     if (config.body_limit == 0)
         throw InvalidValueError("0", "body limit in server block");
     if (config.error_pages.size() < 10)
