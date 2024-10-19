@@ -44,9 +44,10 @@ struct Outstream {
 	int			counter;
 	char*		buffer;
 	ssize_t		bytes_to_send;
-	Outstream(ssize_t bytes_to_send, const char *buffer);
+    int         status;
+	Outstream(ssize_t bytes_to_send, const char *buffer, int status_code);
 	Outstream(const Outstream& src);
-	Outstream(): counter(0), buffer(0), bytes_to_send(-1) {};
+	Outstream(): counter(0), buffer(0), bytes_to_send(-1), status(200) {};
 	~Outstream() {
 		if (buffer)
 			delete[] buffer;

@@ -53,6 +53,27 @@ void Request::parseHeaders(std::vector<Session>& sessions) {
 	} else {
 		std::memset(_buffer, 0, _buffer_length);
 	}
+    _route_config = _findMostSpecificRouteConfig(getUri());
+}
+
+RouteConfig* Request::_findMostSpecificRouteConfig(const std::string& uri)
+{
+    RouteConfig* bestMatch = NULL;
+    size_t longestMatchLength = 0;
+    for (std::map<std::string, RouteConfig>::iterator it = _config.routes.begin(); it != _config.routes.end(); ++it) {
+        const std::string& basePath = it->first;
+        if (uri.find(basePath) == 0 && basePath.length() > longestMatchLength) {
+            bestMatch = &it->second;
+            longestMatchLength = basePath.length();
+        }
+    }
+    // if (bestMatch) {
+    //     std::cout << "Matched route: " << uri << " to " << bestMatch->root << std::endl;
+    // } else {
+    //     std::cout << "No matching route found for URI: " << uri << std::endl;
+    // }
+     _uri = _uri.substr(longestMatchLength - 1);
+    return bestMatch;
 }
 
 int Request::parseBody(Server& server) {
@@ -60,7 +81,7 @@ int Request::parseBody(Server& server) {
     int contentLength = atoi(content_length.c_str());
     std::string content_type = getHeader("Content-Type");
 
-    if (contentLength > _config.body_limit) {
+    if (contentLength > _config.body_limit || contentLength > _route_config->body_limit) {
         throw ParsingErrorException(CONTENT_LENGTH, "content length is above limit");
 	}
 	if (content_type.find("multipart/form-data") != content_type.npos) {
@@ -94,6 +115,7 @@ void Request::_parseHeader(const std::string& line) {
         _headers[key] = value;
     }
 }
+
 
 void Request::_readBody(const char *buffer, ssize_t bytesRead) {
 	_body += buffer;
@@ -356,7 +378,10 @@ std::string Request::getScriptPath() const {
     }
 
     std::string basePath = std::string(cwd) + "/web/cgi";
-    std::string scriptName = _uri.substr(_uri.rfind('/'));
+    size_t pos = _uri.rfind('/');
+    if (pos == std::string::npos)
+        throw ParsingErrorException(INTERRUPT, "check configuration file locations");
+    std::string scriptName = _uri.substr(pos);
 
     std::string fullPath = basePath + scriptName;
 
@@ -366,6 +391,11 @@ std::string Request::getScriptPath() const {
 std::string Request::getSession() const
 {
     return _session_id;
+}
+
+const RouteConfig* Request::getRouteConfig() const
+{
+    return _route_config;
 }
 
 void Request::setBufferLen(size_t len)

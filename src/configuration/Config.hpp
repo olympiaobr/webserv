@@ -18,8 +18,13 @@ struct			RouteConfig
 	std::vector<std::string> allowed_methods;
 	bool is_cgi;
 	bool autoindex;
+	int body_limit;
+	int redirect_status_code;
+	std::string redirect_url;
 
-	RouteConfig() : is_cgi(false), autoindex(false) {}
+	RouteConfig()
+    : root(""), default_file(""), is_cgi(false), autoindex(false), body_limit(-1), redirect_status_code(0), redirect_url("") {}
+
 };
 
 struct			ServerConfig
@@ -31,6 +36,9 @@ struct			ServerConfig
 	std::map<std::string, RouteConfig> routes;
 	int port;
 	std::string formatted_body_limit;
+
+	ServerConfig()
+        : root(""), body_limit(0), port(0), formatted_body_limit("") {}
 };
 
 class Config
@@ -47,13 +55,15 @@ class Config
 	const std::map<short, ServerConfig> &getAllServerConfigs() const;
 	void addServerConfig(short port, const ServerConfig &serverConfig);
 	void validateServerConfig(const ServerConfig& config) const;
-	void validateRouteConfig(const RouteConfig& route) const;
+	void validateRouteConfig(RouteConfig& route, const ServerConfig& server) const;
 
 	static std::string formatSize(int bytes);
 
 	friend std::ostream& operator<<(std::ostream& os, const RouteConfig& config);
 	friend std::ostream& operator<<(std::ostream& os, const ServerConfig& config);
 	friend std::ostream& operator<<(std::ostream& os, const Config& config);
+
+	std::map<std::string, RouteConfig> routes;
 
   private:
 	std::string _filename;
@@ -72,13 +82,13 @@ public:
 class MissingSettingError : public ConfigError {
 public:
     explicit MissingSettingError(const std::string& setting)
-        : ConfigError("Missing configuration setting: " + setting) {}
+        : ConfigError("missing configuration setting: " + setting) {}
 };
 
 class InvalidValueError : public ConfigError {
 public:
     explicit InvalidValueError(const std::string& value, const std::string& setting)
-        : ConfigError("Invalid value '" + value + "' for setting '" + setting + "'") {}
+        : ConfigError("invalid value '" + value + "' for setting '" + setting + "'") {}
 };
 
 #endif

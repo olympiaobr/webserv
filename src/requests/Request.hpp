@@ -45,10 +45,12 @@ public:
 	std::string getQueryString() const;
 	std::string getScriptPath() const;
 	std::string getSession() const;
+    const RouteConfig* getRouteConfig() const;
 
 	void		setBufferLen(size_t len);
 
 	std::string RemoveQueryString(std::string uri) const;
+
 	bool isTargetingCGI() const;
 
 	void addHeader(const std::string& key, const std::string& value);
@@ -87,6 +89,7 @@ public:
 		std::map<std::string, std::string>		_headers;
 		std::string								_body;
 		ServerConfig							_config;
+        RouteConfig*                            _route_config;
 
 		char*									_buffer;
 		size_t									_buffer_length;
@@ -97,6 +100,7 @@ public:
 		void _readBody(const char *init_buffer, ssize_t bytesRead);
 		void _readBodyChunked(const char *init_buffer, ssize_t bytesRead);
 
+        RouteConfig*	_findMostSpecificRouteConfig(const std::string& uri);
 };
 
 #endif

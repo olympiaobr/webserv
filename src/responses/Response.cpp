@@ -19,13 +19,10 @@ Response::Response(const Request& req, const ServerConfig& config, char* buffer,
     : _httpVersion("HTTP/1.1"), _config(config), _buffer(buffer), _buffer_size(buffer_size), _content_length(0) {
     initializeHttpErrors();
 
-    // Ensure the request is using HTTP/1.1 standard
     if (req.getHttpVersion() != "HTTP/1.1") {
         _setError(505);
         return;
     }
-
-    // Ensure the hostname is valid
     if (std::find(
             config.hostnames.begin(),
             config.hostnames.end(),
@@ -34,11 +31,13 @@ Response::Response(const Request& req, const ServerConfig& config, char* buffer,
         _setError(400);
         return;
     }
-
-    // Ensure the method is allowed in the requested route
-    const RouteConfig* route_config = _findMostSpecificRouteConfig(req.getUri());
+    // const RouteConfig* route_config = _findMostSpecificRouteConfig(req.getUri());
+    const RouteConfig* route_config = req.getRouteConfig();
     if (!route_config) {
         _setError(404);
+        return;
+    }
+	if (this->_handleRedir(route_config->redirect_status_code, route_config->redirect_url)) {
         return;
     }
     if (std::find(route_config->allowed_methods.begin(), route_config->allowed_methods.end(), req.getMethod()) == route_config->allowed_methods.end()) {
@@ -48,26 +47,38 @@ Response::Response(const Request& req, const ServerConfig& config, char* buffer,
     _dispatchMethodHandler(req, route_config);
 }
 
+bool Response::_handleRedir(int redirect_status_code, const std::string& redirect_url) {
 
-const RouteConfig* Response::_findMostSpecificRouteConfig(const std::string& uri) const {
-    const RouteConfig* bestMatch = NULL;
-    size_t longestMatchLength = 0;
+    if (redirect_status_code == 0 || redirect_url.empty()) {
 
-    for (std::map<std::string, RouteConfig>::const_iterator it = _config.routes.begin(); it != _config.routes.end(); ++it) {
-        const std::string& basePath = it->first;
-        if (uri.find(basePath) == 0 && basePath.length() > longestMatchLength) {
-            bestMatch = &it->second;
-            longestMatchLength = basePath.length();
-        }
+        return false;
+
     }
-    return bestMatch;
+    std::cout << "Redirecting to: " << redirect_url << " with status code: " << redirect_status_code << std::endl;
+
+    setStatus(redirect_status_code);
+    addHeader("Location", redirect_url);
+    addHeader("Content-Length", "0");
+    _connection = "close";
+
+    std::string headers = _headersToString();
+    if (headers.size() > _buffer_size) {
+
+        throw std::runtime_error("Buffer overflow: headers too large for buffer.");
+
+    }
+    std::memset(_buffer, 0, _buffer_size);
+    std::memcpy(_buffer, headers.c_str(), headers.size());
+    _content = _buffer;
+    _content_length = headers.size();
+    return true;
 }
 
 void Response::_dispatchMethodHandler(const Request& req, const RouteConfig* route_config) {
 	try {
-		if (req.getMethod() == "GET")
+		if (req.getMethod() == "GET" || req.getMethod() == "HEAD")
 			_handleGetRequest(req, route_config);
-		else if (req.getMethod() == "POST")
+		else if (req.getMethod() == "POST" || req.getMethod() == "PUT")
 			_handlePostRequest(req, route_config);
 		else if (req.getMethod() == "DELETE")
 			_handleDeleteRequest(req, route_config);
@@ -99,6 +110,7 @@ void Response::initializeHttpErrors() {
     _httpErrors[200] = "OK";
     _httpErrors[201] = "Created";
     // _httpErrors[300] = "Multiple Choices";
+    _httpErrors[307] = "Temporary Redirect";
     _httpErrors[400] = "Bad Request";
     // _httpErrors[403] = "Forbidden";
     _httpErrors[404] = "Not Found";
@@ -114,40 +126,54 @@ void Response::initializeHttpErrors() {
 }
 
 void Response::_handleGetRequest(const Request& req, const RouteConfig* route_config) {
-    std::string path = _config.root + req.getUri();
+    std::string uri = req.getUri();
+    std::string path = route_config->root;
 
+    // std::cout << "Original path: " << path << std::endl;
+    path += uri;
+    // std::cout << "Requested path: " << path << std::endl;
     struct stat fileStat;
     if (stat(path.c_str(), &fileStat) == 0) {
-        if (S_ISDIR(fileStat.st_mode)) {  // Check if it's a directory
-            std::string indexPath = path + route_config->default_file;
-            if (stat(indexPath.c_str(), &fileStat) == 0 && !S_ISDIR(fileStat.st_mode)) {
-				setStatus(200);
-				addHeader("Content-Type", _getMimeType(indexPath));
-				addHeader("Set-Cookie", req.getSession());
-				generateResponse(indexPath);
-            } else {
-                const RouteConfig* routeConfig = _findMostSpecificRouteConfig(req.getUri());
-                if (routeConfig && routeConfig->autoindex) {
-					setStatus(200);
-					addHeader("Content-Type", "text/html");
-					addHeader("Set-Cookie", req.getSession());
-					generateDirectoryListing(path);
-
-                } else {
-                    _setError(404); // No index.html and autoindex is not enabled
-                }
+        if (S_ISDIR(fileStat.st_mode)) {
+            if (path[path.length() - 1] != '/') {
+                path += "/";
             }
-            return;
+            std::string indexPath = path + route_config->default_file;
+            // std::cout << "Looking for index file: " << indexPath << std::endl;
+            if (stat(indexPath.c_str(), &fileStat) == 0 && !S_ISDIR(fileStat.st_mode)) {
+                // std::cout << "Index file found: " << indexPath << std::endl;
+                setStatus(200);
+                addHeader("Content-Type", _getMimeType(indexPath));
+                addHeader("Set-Cookie", req.getSession());
+                generateResponse(indexPath);
+            } else if (route_config->autoindex) {
+                // std::cout << "Autoindex is enabled, generating directory listing." << std::endl;
+                setStatus(200);
+                addHeader("Content-Type", "text/html");
+                addHeader("Set-Cookie", req.getSession());
+                generateDirectoryListing(path);
+            } else {
+                // std::cout << "No index file found, and autoindex is off, returning 404." << std::endl;
+                _setError(404);
+            }
+        } else {
+            // std::cout << "Serving regular file: " << path << std::endl;
+            setStatus(200);
+            addHeader("Content-Type", _getMimeType(path));
+            addHeader("Set-Cookie", req.getSession());
+            generateResponse(path);
         }
-        // It's not a directory, handle as a regular file
-        // std::string content = _readFile(path);
-		setStatus(200);
-		addHeader("Content-Type", _getMimeType(path));
-		addHeader("Content-Disposition", "inline");
-		addHeader("Set-Cookie", req.getSession());
-		generateResponse(path);
-    } else {
-        _setError(404); // File or directory not found
+        if (req.getMethod() == "HEAD") {
+            _content_length = _headers_length;
+        }
+    }
+    else {
+        // std::cout << "File or directory not found: " << path << std::endl;
+        _setError(404);
+
+        if (req.getMethod() == "HEAD") {
+            _content_length = _headers_length;
+        }
     }
 }
 
@@ -207,7 +233,12 @@ void Response::_handleDeleteRequest(const Request& req, const RouteConfig* route
 	setStatus(200);
 	addHeader("Content-Type", _getMimeType(filePath));
 	addHeader("Set-Cookie", req.getSession());
-	generateResponse(filePath);
+    if (!utils::fileExists(filePath)) {
+        throw FileSystemErrorException("File does not exist");
+    }
+    else if (!utils::deleteFile(filePath)) {
+        throw FileSystemErrorException("Fobidden");
+    }
 	(void)route_config;
 }
 
@@ -303,9 +334,9 @@ void Response::generateResponse(const std::string& filename) {
     std::memmove(_buffer, headers.c_str(), newHeaderSize);
     _content = _buffer;
     _content_length = newHeaderSize + bytesRead;
+    _headers_length = newHeaderSize;
     close(fd);
 }
-
 
 void Response::generateDirectoryListing(const std::string& directoryPath) {
     std::ostringstream listing;
@@ -340,6 +371,7 @@ void Response::generateDirectoryListing(const std::string& directoryPath) {
 	std::memcpy(body, list.c_str(), list.size());
 	_content = _buffer;
 	_content_length = headers.size() + list.size();
+    _headers_length = headers.size();
 }
 
 
