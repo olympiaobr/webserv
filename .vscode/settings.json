@@ -74,6 +74,9 @@
 		"variant": "cpp",
 		"chrono": "cpp",
 		"codecvt": "cpp",
-		"list": "cpp"
+		"list": "cpp",
+		"print": "cpp",
+		"queue": "cpp",
+		"stack": "cpp"
 	}
 }

@@ -71,14 +71,8 @@ void Server::_requestHandling(Request &req, Response &res)
 		res = Response(req, _config, _res_buffer, _res_buffer_size);
 		/*********************/
 		/* Parse request body */
-        // try {
-            if (res.getStatusCode() < 300 && req.getMethod() == "POST")
-                req.parseBody(*this);
-        // } catch (Request::ParsingErrorException& e) {
-        //     std::cerr << e.what() << std::endl;
-        //     res = Response(_config, 413, _res_buffer, _res_buffer_size);
-
-        // }
+		if (res.getStatusCode() < 300 && req.getMethod() == "POST")
+			req.parseBody(*this);
 		/*********************/
 	}
 

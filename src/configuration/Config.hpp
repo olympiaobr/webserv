@@ -21,6 +21,7 @@ struct			RouteConfig
 	int body_limit;
 	int redirect_status_code;
 	std::string redirect_url;
+	std::string location;
 
 	RouteConfig()
     : root(""), default_file(""), is_cgi(false), autoindex(false), body_limit(-1), redirect_status_code(0), redirect_url("") {}

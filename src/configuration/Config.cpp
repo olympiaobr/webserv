@@ -201,7 +201,7 @@ void Config::validateRouteConfig(RouteConfig& route, const ServerConfig& server)
     if (route.allowed_methods.empty())
         throw MissingSettingError("allowed methods in route block");
     if (route.root.empty()) {
-        route.root = server.root;
+        route.root = server.root + '/';
         std::cout << "Using default root from server: " << route.root << std::endl;
     }
     if (route.default_file.empty()) {
@@ -211,6 +211,12 @@ void Config::validateRouteConfig(RouteConfig& route, const ServerConfig& server)
     if (route.body_limit == -1) {
         route.body_limit = server.body_limit;
         // std::cout << "Using default body limit from server: " << route.body_limit << " bytes" << std::endl;
+    }
+    if (*(route.root.end() - 1) != '/') {
+        throw std::invalid_argument("location must have / in the end");
+    }
+    if (route.root.find(server.root) != 0) {
+        throw std::invalid_argument("route does not mount to server root");
     }
 }
 
@@ -259,8 +265,12 @@ void Config::loadConfig() {
         if (key == "}") {
             if (inLocationBlock) {
                 if (currentRouteConfig.root.empty()) {
-                currentRouteConfig.root = currentServerConfig.root;
-            }
+                    currentRouteConfig.root = currentServerConfig.root + currentLocationPath;
+                } else {
+                    if (currentRouteConfig.root[0] != '.')
+                        throw std::invalid_argument("root must be relative path");
+                    currentRouteConfig.root = currentServerConfig.root + currentRouteConfig.root.substr(1);
+                }
             validateRouteConfig(currentRouteConfig, currentServerConfig);
             currentServerConfig.routes[currentLocationPath] = currentRouteConfig;
             inLocationBlock = false;

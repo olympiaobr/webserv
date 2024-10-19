@@ -32,8 +32,8 @@ $(TMPDIR):
 	mkdir -p $(TMPDIR)
 
 $(CGI_ENV):
-	pip3 install virtualenv
-	python3 -m virtualenv web/cgi/.venv
+	# pip3 install virtualenv
+	python3 -m venv web/cgi/.venv
 	web/cgi/.venv/bin/python -m pip install --upgrade pip setuptools wheel
 	web/cgi/.venv/bin/pip install --use-pep517 -r web/cgi/requirements.txt
 

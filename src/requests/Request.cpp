@@ -188,7 +188,7 @@ int Request::readBodyFile(char *buffer, ssize_t bytesRead, Server& server) {
 			new_file_name.erase(new_file_name.end() - 1);
 			if (new_file_name == "")
 				new_file_name = "file";
-			unique_filename = _config.root + getUri() + new_file_name;
+			unique_filename = _route_config->root + getUri() + new_file_name;
 			new_file_name = unique_filename;
 			int i = 1;
 			while (access(unique_filename.c_str(), F_OK) == 0) {
@@ -347,7 +347,7 @@ std::string Request::RemoveQueryString(std::string uri) const {
     if (queryEnd != std::string::npos) {
         return uri.substr(0, queryEnd);
     }
-    return "";
+    return uri;
 }
 
 
@@ -359,14 +359,18 @@ bool Request::isTargetingCGI() const {
     std::string lowerPath = path;
     std::transform(lowerPath.begin(), lowerPath.end(), lowerPath.begin(), ::tolower);
 
+	bool result = false;
 	if (lowerPath.length() >= 5) {
-		return (lowerPath.rfind(".cgi") == lowerPath.length() - 4 ||
-			lowerPath.rfind(".php") == lowerPath.length() - 4);
+		result = lowerPath.rfind(".cgi") == lowerPath.length() - 4 ||
+			lowerPath.rfind(".php") == lowerPath.length() - 4 ||
+			lowerPath.rfind(".bla") == lowerPath.length() - 4;
 	}
+	if (result == true)
+		return true;
 	if (lowerPath.length() >= 4) {
-		return (lowerPath.rfind(".py") == lowerPath.length() - 3);
+		result = lowerPath.rfind(".py") == lowerPath.length() - 3;
 	}
-	return false;
+	return result;
 }
 
 
@@ -377,14 +381,17 @@ std::string Request::getScriptPath() const {
         throw std::runtime_error("Failed to get current working directory");
     }
 
-    std::string basePath = std::string(cwd) + "/web/cgi";
+    std::string basePath = std::string(cwd) + _route_config->root.substr(1);
     size_t pos = _uri.rfind('/');
     if (pos == std::string::npos)
         throw ParsingErrorException(INTERRUPT, "check configuration file locations");
     std::string scriptName = _uri.substr(pos);
-
-    std::string fullPath = basePath + scriptName;
-
+	std::string fullPath;
+	if (_route_config->is_cgi == true) {
+		fullPath = basePath + _route_config->default_file;
+	} else {
+		fullPath = basePath + scriptName;
+	}
     return RemoveQueryString(fullPath);
 }
 
