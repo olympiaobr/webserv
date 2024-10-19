@@ -115,6 +115,8 @@ void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
     if (end != std::string::npos) {
         value.erase(end + 1);
     }
+    std::cout << "Parsing key: " << key << ", value: " << value << std::endl;
+
     if (key == "allow_methods") {
         std::istringstream methods(value);
         std::string method;
@@ -251,6 +253,16 @@ void Config::loadConfig() {
             currentRouteConfig = RouteConfig();
 
             iss >> currentLocationPath;
+            std::cout << "Parsing location: " << currentLocationPath << std::endl;
+
+             if (currentLocationPath.find('~') != std::string::npos) {
+                std::string regexPath;
+                iss >> regexPath;
+                std::cout << "Regex-based location: " << regexPath << std::endl;
+
+                currentLocationPath = regexPath;
+            }
+
             if (currentLocationPath.empty())
                 throw std::invalid_argument("location block missing a path");
 

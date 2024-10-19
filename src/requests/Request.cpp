@@ -350,7 +350,6 @@ std::string Request::RemoveQueryString(std::string uri) const {
     return "";
 }
 
-
 bool Request::isTargetingCGI() const {
     const std::string& uri = getUri();
     size_t queryPos = uri.find('?');
@@ -359,13 +358,18 @@ bool Request::isTargetingCGI() const {
     std::string lowerPath = path;
     std::transform(lowerPath.begin(), lowerPath.end(), lowerPath.begin(), ::tolower);
 
-    return (lowerPath.find("/cgi/") == 0 ||
-            lowerPath.rfind(".cgi") == lowerPath.length() - 4 ||
-            lowerPath.rfind(".php") == lowerPath.length() - 4 ||
-            lowerPath.rfind(".py") == lowerPath.length() - 3);
-            // ++ ".bla" ???
+    if (lowerPath.length() >= 4 && lowerPath.rfind(".bla") == lowerPath.length() - 4) {
+        std::cout << "Matched .bla extension for URI: " << lowerPath << std::endl;
+        return true;
+    }
+    if (lowerPath.find("/cgi/") == 0 ||
+        (lowerPath.length() >= 4 && lowerPath.rfind(".php") == lowerPath.length() - 4) ||
+        (lowerPath.length() >= 3 && lowerPath.rfind(".py") == lowerPath.length() - 3)) {
+        std::cout << "Matched other CGI target for URI: " << lowerPath << std::endl;
+        return true;
+    }
+    return false;
 }
-
 
 std::string Request::getScriptPath() const {
     char cwd[1024];

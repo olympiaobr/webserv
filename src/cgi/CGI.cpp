@@ -49,13 +49,6 @@ void CGIHandler::setupEnvironment() {
     envp[i] = NULL;
 }
 
-std::string extractFileExtension(const std::string& path) {
-    std::size_t lastDot = path.find_last_of('.');
-    if (lastDot == std::string::npos)
-		return "";
-    return path.substr(lastDot + 1);
-}
-
 std::string CGIHandler::execute() {
     int pipe_fds[2];
     if (pipe(pipe_fds) != 0) {
