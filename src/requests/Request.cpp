@@ -337,10 +337,14 @@ bool Request::isTargetingCGI() const {
     std::string lowerPath = path;
     std::transform(lowerPath.begin(), lowerPath.end(), lowerPath.begin(), ::tolower);
 
-    return (lowerPath.find("/cgi/") == 0 ||
-            lowerPath.rfind(".cgi") == lowerPath.length() - 4 ||
-            lowerPath.rfind(".php") == lowerPath.length() - 4 ||
-            lowerPath.rfind(".py") == lowerPath.length() - 3);
+	if (lowerPath.length() >= 5) {
+		return (lowerPath.rfind(".cgi") == lowerPath.length() - 4 ||
+			lowerPath.rfind(".php") == lowerPath.length() - 4);
+	}
+	if (lowerPath.length() >= 4) {
+		return (lowerPath.rfind(".py") == lowerPath.length() - 3);
+	}
+	return false;
 }
 
 
