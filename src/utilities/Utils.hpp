@@ -33,7 +33,6 @@ namespace utils {
 	std::string toString(int value);
 	bool		fileExists(const std::string& path);
 	std::string decodePercentEncoding(const std::string& encoded);
-	std::string extractFileExtension(const std::string& path);
 }
 
 #endif
