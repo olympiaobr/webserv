@@ -257,6 +257,16 @@ void Config::loadConfig() {
             currentRouteConfig = RouteConfig();
 
             iss >> currentLocationPath;
+            // std::cout << "Parsing location: " << currentLocationPath << std::endl;
+
+             if (currentLocationPath.find('~') != std::string::npos) {
+                std::string regexPath;
+                iss >> regexPath;
+                std::cout << "Regex-based location: " << regexPath << std::endl;
+
+                currentLocationPath = regexPath;
+            }
+
             if (currentLocationPath.empty())
                 throw std::invalid_argument("location block missing a path");
 

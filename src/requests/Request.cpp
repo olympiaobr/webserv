@@ -350,7 +350,6 @@ std::string Request::RemoveQueryString(std::string uri) const {
     return uri;
 }
 
-
 bool Request::isTargetingCGI() const {
     const std::string& uri = getUri();
     size_t queryPos = uri.find('?');
