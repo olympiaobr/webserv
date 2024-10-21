@@ -22,7 +22,7 @@ void Server::_addNewClient(int client_socket)
 		return ;
 	fcntl(client_socket, F_SETFL, O_NONBLOCK);
 	addPollfd(new_client_socket, POLLIN | POLLOUT);
-	_setRequestTime(new_client_socket);
+	// _setRequestTime(new_client_socket);
 }
 
 void Server::_requestHandling(Request &req, Response &res)
@@ -86,7 +86,6 @@ void Server::_serveExistingClient(int client_socket, size_t i)
 	try {
 		_requestHandling(req, res);
 	} catch (Request::SocketCloseException &e) {
-		std::cout << e.what() << std::endl;
 		_cleanChunkFiles(client_socket);
 		close(client_socket);
 		_fds.erase(_fds.begin() + i);
@@ -114,8 +113,6 @@ void Server::_serveExistingClient(int client_socket, size_t i)
 	int response_code = res.getStatusCode();
 	if (response_code >= 500 || response_code >= 400) {
 		_cleanChunkFiles(client_socket);
-        // close(client_socket);
-        // _fds.erase(_fds.begin() + i);
 	}
 }
 
@@ -229,19 +226,14 @@ void Server::pollfds() {
 	int poll_count;
 
 	poll_count = poll(_fds.data(), _fds.size(), 0);
-	for (size_t i = 0; i < _fds.size(); ++i)
-	{
-		if (_fds[i].fd != _main_socketfd && _checkRequestTimeout(_fds[i].fd)) {
-			// Response res(_config, 408, _res_buffer, _res_buffer_size);
-			/* Debug print */
-			// std::cout << CYAN << "Response sent:" << std::endl << response << RESET << std::endl;
-
-			// send(_fds[i].fd, res.getContent(), res.getContentLength(), MSG_DONTWAIT);
-			close(_fds[i].fd);
-			_fds.erase(_fds.begin() + i);
-			// _cleanChunkFiles(_fds[i].fd);
-		}
-	}
+	// for (size_t i = 0; i < _fds.size(); ++i)
+	// {
+	// 	if (_fds[i].fd != _main_socketfd && _checkRequestTimeout(_fds[i].fd)) {
+	// 		std::cerr << "Request timeout" << std::endl;
+	// 		close(_fds[i].fd);
+	// 		_fds.erase(_fds.begin() + i);
+	// 	}
+	// }
 
 	if (poll_count == -1) {
 		close(_main_socketfd);
@@ -257,6 +249,7 @@ size_t Server::getSocketsSize() const {
 void Server::pollLoop() {
 	for (size_t i = 0; i < getSocketsSize(); ++i) {
 		if (_fds[i].revents & POLLERR) {
+			std::cerr << "Polling error: " << errno << std::endl;
 			close(_fds[i].fd);
 			_fds.erase(_fds.begin() + i);
 			if (_fds[i].fd == _main_socketfd)
@@ -264,19 +257,18 @@ void Server::pollLoop() {
 		}
 		int client_socket = _fds[i].fd;
 		if (_fds[i].revents & POLLIN) {
-			if (client_socket != _main_socketfd)
-				_setRequestTime(client_socket);
+			// if (client_socket != _main_socketfd)
+				// _setRequestTime(client_socket);
 			if (client_socket == _main_socketfd) {
 				_addNewClient(client_socket);
 			} else {
 				_serveExistingClient(client_socket, i);
 			}
 		} else if (_fds[i].revents & POLLOUT) {
-			if (_res_streams.find(_fds[i].fd) != _res_streams.end())
+			if (_res_streams.find(_fds[i].fd) != _res_streams.end()) {
+				// _setRequestTime(client_socket);
 				_processResponseStream(_fds[i].fd);
-			// } else {
-			// 	// _serveSendingResponse(client_socket, i);
-			// }
+			}
 		}
 	}
 }
@@ -304,17 +296,17 @@ void Server::_bindSocketName() {
 	}
 }
 
-void Server::_setRequestTime(int client_socket)
-{
-	_request_time[client_socket] = utils::getCurrentTime();
-}
+// void Server::_setRequestTime(int client_socket)
+// {
+// 	_request_time[client_socket] = utils::getCurrentTime();
+// }
 
-bool Server::_checkRequestTimeout(int client_socket)
-{
-	if (difftime(utils::getCurrentTime(), _request_time[client_socket]) >= REQUEST_TIMEOUT)
-		return true;
-	return false;
-}
+// bool Server::_checkRequestTimeout(int client_socket)
+// {
+// 	if (difftime(utils::getCurrentTime(), _request_time[client_socket]) >= REQUEST_TIMEOUT)
+// 		return true;
+// 	return false;
+// }
 
 void Server::_cleanChunkFiles(int client_socket)
 {

@@ -61,8 +61,21 @@ RouteConfig* Request::_findMostSpecificRouteConfig(const std::string& uri)
     RouteConfig* bestMatch = NULL;
     size_t longestMatchLength = 0;
     for (std::map<std::string, RouteConfig>::iterator it = _config.routes.begin(); it != _config.routes.end(); ++it) {
-        const std::string& basePath = it->first;
-        if (uri.find(basePath) == 0 && basePath.length() > longestMatchLength) {
+        std::string basePath = it->first;
+		if (*basePath.begin() == '~' && *(basePath.end() - 1) == '$')
+		{
+			basePath.erase(basePath.begin());
+			basePath.erase(basePath.begin());
+			basePath.erase(basePath.end() - 1);
+			// std::cout << uri.rfind(basePath)  << std::endl;
+			// std::cout << uri.length() - 1 << std::endl;
+			if (uri.length() > 1 && uri.rfind(basePath) == uri.length() - basePath.length())
+			{
+				bestMatch = &it->second;
+				longestMatchLength = 1; // >>??
+				break;
+			}		}
+		else if (uri.find(basePath) == 0 && basePath.length() > longestMatchLength) {
             bestMatch = &it->second;
             longestMatchLength = basePath.length();
         }

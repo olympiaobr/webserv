@@ -27,7 +27,7 @@ typedef std::vector<std::string> HostList;
 
 # define BACKLOG 3
 // # define TEMP_FILES_DIRECTORY "tmp/"
-# define REQUEST_TIMEOUT 10
+# define REQUEST_TIMEOUT 5
 # define RESPONSE_MAX_BODY_SIZE 80000000
 # define MAX_NUBMER_ATTEMPTS 3
 
@@ -137,8 +137,8 @@ class Server {
 		void _setSocketOpt();
 		void _setSocketNonblock();
 		void _bindSocketName();
-		void _setRequestTime(int client_socket);
-		bool _checkRequestTimeout(int client_socket);
+		// void _setRequestTime(int client_socket);
+		// bool _checkRequestTimeout(int client_socket);
 		void _cleanChunkFiles(int client_socket);
 		void _addNewClient(int client_socket);
 		void _requestHandling(Request &req, Response &res);

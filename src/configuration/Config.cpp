@@ -264,7 +264,7 @@ void Config::loadConfig() {
                 iss >> regexPath;
                 std::cout << "Regex-based location: " << regexPath << std::endl;
 
-                currentLocationPath = regexPath;
+                currentLocationPath = "~" + regexPath;
             }
 
             if (currentLocationPath.empty())
