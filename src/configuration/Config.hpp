@@ -30,7 +30,7 @@ struct			RouteConfig
 
 struct			ServerConfig
 {
-	HostList	hostnames;
+	HostList hostnames;
 	std::string root;
 	std::map<int, std::string> error_pages;
 	int			body_limit;
@@ -52,9 +52,9 @@ class Config
 	Config &operator=(const Config &other);
 
 	void loadConfig();
-	const ServerConfig &getServerConfig(short port) const;
-	const std::map<short, ServerConfig> &getAllServerConfigs() const;
-	void addServerConfig(short port, const ServerConfig &serverConfig);
+    const ServerConfig& getServerConfig(short port, const std::string& hostname) const;
+	const std::map<short, std::map<std::string, ServerConfig> >& getAllServerConfigs() const;
+	void addServerConfig(short port, const std::string& hostname, const ServerConfig& serverConfig);
 	void validateServerConfig(const ServerConfig& config) const;
 	void validateRouteConfig(RouteConfig& route, const ServerConfig& server) const;
 
@@ -68,7 +68,7 @@ class Config
 
   private:
 	std::string _filename;
-	std::map<short, ServerConfig> _servers;
+	std::map<short, std::map<std::string, ServerConfig> > _servers;
 
 	void _parseRouteConfig(RouteConfig &config, const std::string &line);
 	void _parseServerConfig(ServerConfig &config, const std::string &line);

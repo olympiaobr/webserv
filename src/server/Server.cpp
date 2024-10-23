@@ -204,9 +204,10 @@ void Server::deleteStream(int client_socket)
 	_streams.erase(client_socket);
 }
 
-void Server::initEndpoint(const HostList &hosts, short port, const ServerConfig &config) {
-	_port = port;
-	_hosts = hosts;
+void Server::initEndpoint(const std::string &hostname, short port, const ServerConfig &config) {
+    _port = port;
+    _hosts.clear();
+    _hosts.push_back(hostname);
 	_config = config;
 	_main_socketfd = socket(PF_INET, SOCK_STREAM, 0);
 	if (_main_socketfd < 0) {

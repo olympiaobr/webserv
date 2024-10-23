@@ -90,7 +90,7 @@ class Server {
 				const char* what() const throw();
 		};
 		/* Initialize server */
-		void	initEndpoint(const HostList &hosts, short port, const ServerConfig &config);
+		void	initEndpoint(const std::string &hostname, short port, const ServerConfig &config);
 		/* Socket fucntions */
 		void	addPollfd(int socket_fd, short events);
 		void	pollfds();
