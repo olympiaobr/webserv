@@ -49,7 +49,7 @@ int	main(int argc, char *argv[])
         return 1;
     }
 
-	typedef std::map<short, ServerConfig> ConfType;
+	typedef std::map<short, std::map<std::string, ServerConfig> > ConfType;
 
 	const ConfType &allConfigs = config.getAllServerConfigs();
 	try {
@@ -58,14 +58,27 @@ int	main(int argc, char *argv[])
 		std::cerr << e.what() << std::endl;
 		return 1;
 	}
-	std::vector<Server> servers(allConfigs.size());
-	size_t i = 0;
+	std::vector<Server> servers;
 	try {
-		for (ConfType::const_iterator it = allConfigs.begin(); it != allConfigs.end(); ++it) {
-			servers[i++].initEndpoint(it->second.hostnames, it->first, it->second);
+		for (ConfType::const_iterator portIt = allConfigs.begin(); portIt != allConfigs.end(); ++portIt) {
+			const short port = portIt->first;
+			const std::map<std::string, ServerConfig>& hostConfigs = portIt->second;
+
+			for (std::map<std::string, ServerConfig>::const_iterator hostIt = hostConfigs.begin(); hostIt != hostConfigs.end(); ++hostIt) {
+				const std::string& hostname = hostIt->first;
+				const ServerConfig& serverConfig = hostIt->second;
+
+				Server server;
+				server.initEndpoint(hostname, port, serverConfig);
+				servers.push_back(server);
+
+				std::cout << "Initialized server on hostname: " << hostname << " and port: " << port << std::endl;
+			}
 		}
+
 		Server::RUN(servers);
 		clnTmpDir();
+
 	} catch (Server::InitialisationException& e) {
 		std::cerr << RED << e.what() << " (on exit)" << RESET << std::endl;
 		return 1;
@@ -73,5 +86,5 @@ int	main(int argc, char *argv[])
 		std::cerr << RED << e.what() << RESET << std::endl;
 		return 2;
 	}
-	return (0);
 }
+
