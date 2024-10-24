@@ -23,7 +23,6 @@
 class Request;
 class Response;
 
-typedef std::vector<std::string> HostList;
 
 # define BACKLOG 3
 // # define TEMP_FILES_DIRECTORY "tmp/"
@@ -31,7 +30,12 @@ typedef std::vector<std::string> HostList;
 # define RESPONSE_MAX_BODY_SIZE 80000000
 # define MAX_NUBMER_ATTEMPTS 3
 
-struct Stream {
+typedef std::map<short, std::map<std::string, ServerConfig> > ConfType;
+typedef std::vector<std::string> HostList;
+typedef std::map<std::string, ServerConfig> ConfigList;
+
+	struct Stream
+{
 	int			counter;
 	int			file_fd;
 	Request		req;
@@ -90,7 +94,7 @@ class Server {
 				const char* what() const throw();
 		};
 		/* Initialize server */
-		void	initEndpoint(const std::string &hostname, short port, const ServerConfig &config);
+		void initEndpoint(const std::string &hostname, short port, const ConfigList &configs);
 		/* Socket fucntions */
 		void	addPollfd(int socket_fd, short events);
 		void	pollfds();
@@ -121,6 +125,7 @@ class Server {
 		int							_address_len;
 		std::vector<pollfd>			_fds;
 		ServerConfig				_config;
+		ConfigList 					_configs;
 		std::map<int, std::time_t>	_request_time;
 
 		char*						_buffer;

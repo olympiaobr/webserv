@@ -204,11 +204,13 @@ void Server::deleteStream(int client_socket)
 	_streams.erase(client_socket);
 }
 
-void Server::initEndpoint(const std::string &hostname, short port, const ServerConfig &config) {
-    _port = port;
+void Server::initEndpoint(const std::string &hostname, short port, const ConfigList &configs)
+{
+	_port = port;
     _hosts.clear();
     _hosts.push_back(hostname);
-	_config = config;
+	_configs = configs;
+
 	_main_socketfd = socket(PF_INET, SOCK_STREAM, 0);
 	if (_main_socketfd < 0) {
 		throw InitialisationException("server socket endpoint is not created");
@@ -317,7 +319,7 @@ void Server::_cleanChunkFiles(int client_socket)
 
 void Server::listenPort(int backlog) {
 	if (listen(_main_socketfd, backlog) < 0) {
-		ListenErrorException(strerror(errno));
+		throw ListenErrorException(strerror(errno));
 	}
 }
 
