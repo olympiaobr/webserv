@@ -56,7 +56,8 @@ int	main(int argc, char *argv[])
 		std::cerr << e.what() << std::endl;
 		return 1;
 	}
-	std::vector<Server> servers;
+	std::vector<Server> servers(allConfigs.size());
+	size_t i = 0;
 	try {
 		for (ConfType::const_iterator portIt = allConfigs.begin(); portIt != allConfigs.end(); ++portIt) {
 			const short port = portIt->first;
@@ -67,8 +68,7 @@ int	main(int argc, char *argv[])
 				// const ServerConfig& serverConfig = hostIt->second;
 
 				Server server;
-				server.initEndpoint(hostname, port, hostConfigs);
-				servers.push_back(server);
+				servers[i++].initEndpoint(hostname, port, hostConfigs);
 
 				std::cout << "Initialized server on hostname: " << hostname << " and port: " << port << std::endl;
 			// }
