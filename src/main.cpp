@@ -64,13 +64,11 @@ int	main(int argc, char *argv[])
 			const ConfigList& hostConfigs = portIt->second;
 
 			// for (std::map<std::string, ServerConfig>::const_iterator hostIt = hostConfigs.begin(); hostIt != hostConfigs.end(); ++hostIt) {
-				const std::string& hostname = "check";
+				// const std::string& hostname = "check";
 				// const ServerConfig& serverConfig = hostIt->second;
 
 				Server server;
-				servers[i++].initEndpoint(hostname, port, hostConfigs);
-
-				std::cout << "Initialized server on hostname: " << hostname << " and port: " << port << std::endl;
+				servers[i++].initEndpoint(port, hostConfigs);
 			// }
 		}
 

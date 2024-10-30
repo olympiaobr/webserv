@@ -24,6 +24,8 @@ struct Stream;
 class Server;
 class Session;
 
+typedef std::map<std::string, ServerConfig> ConfigList;
+
 class Request {
 public:
 	Request(int clientSocket, ServerConfig &config, char *buffer, int buffer_len);
@@ -46,6 +48,7 @@ public:
 	std::string getScriptPath() const;
 	std::string getSession() const;
     const RouteConfig* getRouteConfig() const;
+	const ServerConfig& getConfig() const;
 
 	void		setBufferLen(size_t len);
 
@@ -55,7 +58,9 @@ public:
 
 	void addHeader(const std::string& key, const std::string& value);
 
-	friend std::ostream& operator<<(std::ostream& os, const Request& request);
+	bool setConfig(const ConfigList &configs);
+
+	friend std::ostream &operator<<(std::ostream &os, const Request &request);
 
 	/* Exceptions */
 	enum ErrorType {CONTENT_LENGTH, BAD_REQUEST, FILE_SYSTEM, INTERRUPT};

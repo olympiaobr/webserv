@@ -94,7 +94,7 @@ class Server {
 				const char* what() const throw();
 		};
 		/* Initialize server */
-		void initEndpoint(const std::string &hostname, short port, const ConfigList &configs);
+		void initEndpoint(short port, const ConfigList &configs);
 		/* Socket fucntions */
 		void	addPollfd(int socket_fd, short events);
 		void	pollfds();
@@ -108,7 +108,7 @@ class Server {
 		void	addStream(int client_socket, int file_fd, Request& req, std::string& boundary);
 		void	deleteStream(int client_socket);
 		/* Getters */
-		const HostList				&getHostList() const;
+		// const HostList				&getHostList() const;
 		short						getPort() const;
 		int							getMainSocketFd() const;
 		const std::vector<pollfd>	&getSockets() const;
@@ -119,12 +119,11 @@ class Server {
 	private:
 		/*Variables*/
 		short						_port;
-		HostList					_hosts;
 		int							_main_socketfd;
 		sockaddr_in					_address;
 		int							_address_len;
 		std::vector<pollfd>			_fds;
-		ServerConfig				_config;
+		ServerConfig*				_config;
 		ConfigList 					_configs;
 		std::map<int, std::time_t>	_request_time;
 

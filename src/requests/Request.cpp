@@ -53,7 +53,6 @@ void Request::parseHeaders(std::vector<Session>& sessions) {
 	} else {
 		std::memset(_buffer, 0, _buffer_length);
 	}
-    _route_config = _findMostSpecificRouteConfig(getUri());
 }
 
 RouteConfig* Request::_findMostSpecificRouteConfig(const std::string& uri)
@@ -125,6 +124,9 @@ void Request::_parseHeader(const std::string& line) {
             value = value.substr(first, last - first + 1);
         }
         key = utils::toLowerCase(key);
+		if (key == "host") {
+			value = value.substr(0, value.find(':'));
+		}
         _headers[key] = value;
     }
 }
@@ -282,6 +284,21 @@ std::string Request::getHeader(const std::string& key) const {
     return "";
 }
 
+bool Request::setConfig(const ConfigList &configs)
+{
+	ConfigList::const_iterator config = configs.find(getHost());
+	if (config == configs.end())
+	{
+		return false;
+	}
+	else
+	{
+		_config = config->second;
+		_route_config = _findMostSpecificRouteConfig(getUri());
+		return true;
+	}
+}
+
 std::string Request::getHost() const {
     std::map<std::string, std::string>::const_iterator it = _headers.find("host");
     if (it != _headers.end()) {
@@ -415,6 +432,11 @@ std::string Request::getSession() const
 const RouteConfig* Request::getRouteConfig() const
 {
     return _route_config;
+}
+
+const ServerConfig &Request::getConfig() const
+{
+    return _config;
 }
 
 void Request::setBufferLen(size_t len)

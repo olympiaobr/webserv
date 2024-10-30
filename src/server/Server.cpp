@@ -44,17 +44,19 @@ void Server::_requestHandling(Request &req, Response &res)
         return ;
     }
 	req.parseHeaders(_sessions);
+	if (!req.setConfig(_configs))
+		throw Request::ParsingErrorException(Request::BAD_REQUEST, "hostname is not configured");
 	/*************************/
 	if (req.isTargetingCGI()) {
 		try {
 			std::string scriptPath = req.getScriptPath();
 			if (!utils::fileExists(scriptPath)) {
-				res = Response(_config, 404, _res_buffer, _res_buffer_size);
+				res = Response(req.getConfig(), 404, _res_buffer, _res_buffer_size);
 			} else {
-				CGIHandler cgiHandler(scriptPath, req, _config);
+				CGIHandler cgiHandler(scriptPath, req, *_config);
 				std::string cgiOutput = cgiHandler.execute();
 				if (cgiOutput.empty()) {
-					res = Response(_config, 500, _res_buffer, _res_buffer_size);
+					res = Response(req.getConfig(), 500, _res_buffer, _res_buffer_size);
 				} else {
 					res.setStatus(200);
 					res.addHeader("Content-Type", "text/html");
@@ -64,11 +66,11 @@ void Server::_requestHandling(Request &req, Response &res)
 			}
 		} catch (std::runtime_error& e) {
 			std::cerr << e.what() << std::endl;
-			res = Response(_config, 500, _res_buffer, _res_buffer_size);
+			res = Response(req.getConfig(), 500, _res_buffer, _res_buffer_size);
 		}
 	} else {
 		/* Configure response */
-		res = Response(req, _config, _res_buffer, _res_buffer_size);
+		res = Response(req, req.getConfig(), _res_buffer, _res_buffer_size);
 		/*********************/
 		/* Parse request body */
 		if (res.getStatusCode() < 300 && req.getMethod() == "POST")
@@ -80,8 +82,8 @@ void Server::_requestHandling(Request &req, Response &res)
 
 void Server::_serveExistingClient(int client_socket, size_t i)
 {
-	Request req(client_socket, _config, _buffer, _buffer_size);
-	Response res(req, _config, _res_buffer, _res_buffer_size);
+	Request req(client_socket, *_config, _buffer, _buffer_size);
+	Response res(*_config, _res_buffer, _res_buffer_size);
 	/* Request handling */
 	try {
 		_requestHandling(req, res);
@@ -92,16 +94,16 @@ void Server::_serveExistingClient(int client_socket, size_t i)
 		return ;
 	} catch (Request::ParsingErrorException& e) {
 		if (e.type == Request::BAD_REQUEST)
-			res = Response(_config, 400, _res_buffer, _res_buffer_size);
+			res = Response(req.getConfig(), 400, _res_buffer, _res_buffer_size);
 		else if (e.type == Request::CONTENT_LENGTH)
-			res = Response(_config, 413, _res_buffer, _res_buffer_size);
+			res = Response(req.getConfig(), 413, _res_buffer, _res_buffer_size);
 		else if (e.type == Request::FILE_SYSTEM)
-			res = Response(_config, 500, _res_buffer, _res_buffer_size);
+			res = Response(req.getConfig(), 500, _res_buffer, _res_buffer_size);
 		_cleanChunkFiles(client_socket);
 	}
 	/*******************/
 	if (res.getStatusCode() == -1)
-		res = Response(_config, 500, _res_buffer, _res_buffer_size);
+		res = Response(req.getConfig(), 500, _res_buffer, _res_buffer_size);
 
 	Outstream outsteam(res.getContentLength(), res.getContent(), res.getStatusCode());
     if (_res_streams.find(client_socket) == _res_streams.end()) {
@@ -204,11 +206,11 @@ void Server::deleteStream(int client_socket)
 	_streams.erase(client_socket);
 }
 
-void Server::initEndpoint(const std::string &hostname, short port, const ConfigList &configs)
+void Server::initEndpoint(short port, const ConfigList &configs)
 {
 	_port = port;
-    _hosts.clear();
-    _hosts.push_back(hostname);
+    // _hosts.clear();
+    // _hosts.push_back(hostname);
 	_configs = configs;
 
 	_main_socketfd = socket(PF_INET, SOCK_STREAM, 0);
@@ -323,9 +325,9 @@ void Server::listenPort(int backlog) {
 	}
 }
 
-const HostList &Server::getHostList() const {
-	return _hosts;
-}
+// const HostList &Server::getHostList() const {
+// 	return _hosts;
+// }
 
 short Server::getPort() const {
 	return _port;
@@ -342,7 +344,9 @@ const std::vector<pollfd> &Server::getSockets() const {
 void Server::RUN(std::vector<Server> servers) {
 	for (size_t i = 0; i < servers.size(); ++i) {
 		{
-			int buffer_size = servers[i]._config.body_limit + 10 * 1024;
+			servers[i]._config = &servers[i]._configs.begin()->second;
+			int buffer_size = servers[i]._config->body_limit + 10 * 1024;
+			// int buffer_size = 8000000 + 10 * 1024;
 			char *buffer = new char[buffer_size];
 			servers[i].setBuffer(buffer, buffer_size);
 		}
@@ -421,10 +425,10 @@ std::ostream &operator<<(std::ostream &os, const Server &server) {
 	os << "Server data: " << std::endl;
 	os << "Server port: " << server.getPort() << std::endl;
 	os << "Server hostnames:";
-	if (server.getHostList().size() == 0)
-		os << "empty" << std::endl;
-	for (size_t i = 0; i < server.getHostList().size(); ++i)
-		os << " " << server.getHostList()[i] << std::endl;
+	// if (server.getHostList().size() == 0)
+	// 	os << "empty" << std::endl;
+	// for (size_t i = 0; i < server.getHostList().size(); ++i)
+	// 	os << " " << server.getHostList()[i] << std::endl;
 	os << "Server sockets:";
 	if (server.getSocketsSize() == 0)
 		os << "empty" << std::endl;
