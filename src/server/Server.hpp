@@ -30,9 +30,9 @@ class Response;
 # define RESPONSE_MAX_BODY_SIZE 80000000
 # define MAX_NUBMER_ATTEMPTS 3
 
-typedef std::map<short, std::map<std::string, ServerConfig> > ConfType;
+// typedef std::map<short, std::map<std::string, ServerConfig>> ConfigList;
 typedef std::vector<std::string> HostList;
-typedef std::map<std::string, ServerConfig> ConfigList;
+// typedef std::map<std::string, ServerConfig> ConfigList;
 
 	struct Stream
 {
@@ -94,7 +94,7 @@ class Server {
 				const char* what() const throw();
 		};
 		/* Initialize server */
-		void initEndpoint(short port, const ConfigList &configs);
+		void initEndpoint(short port, const std::vector<ServerConfig> &configs);
 		/* Socket fucntions */
 		void	addPollfd(int socket_fd, short events);
 		void	pollfds();
@@ -124,7 +124,7 @@ class Server {
 		int							_address_len;
 		std::vector<pollfd>			_fds;
 		ServerConfig*				_config;
-		ConfigList 					_configs;
+		std::vector<ServerConfig>	_configs;
 		std::map<int, std::time_t>	_request_time;
 
 		char*						_buffer;

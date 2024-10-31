@@ -49,7 +49,7 @@ int	main(int argc, char *argv[])
         return 1;
     }
 
-	const ConfType &allConfigs = config.getAllServerConfigs();
+	const ConfigList &allConfigs = config.getAllServerConfigs();
 	try {
 		clnTmpDir();
 	} catch (Server::InitialisationException& e) {
@@ -59,9 +59,10 @@ int	main(int argc, char *argv[])
 	std::vector<Server> servers(allConfigs.size());
 	size_t i = 0;
 	try {
-		for (ConfType::const_iterator portIt = allConfigs.begin(); portIt != allConfigs.end(); ++portIt) {
+		for (ConfigList::const_iterator portIt = allConfigs.begin(); portIt != allConfigs.end(); ++portIt)
+		{
 			const short port = portIt->first;
-			const ConfigList& hostConfigs = portIt->second;
+			const std::vector<ServerConfig>&hostConfigs = portIt->second;
 
 			// for (std::map<std::string, ServerConfig>::const_iterator hostIt = hostConfigs.begin(); hostIt != hostConfigs.end(); ++hostIt) {
 				// const std::string& hostname = "check";

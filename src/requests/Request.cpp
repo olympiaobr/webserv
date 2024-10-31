@@ -1,7 +1,7 @@
 #include "Request.hpp"
 #include "../server/Server.hpp"
 
-Request::Request(int clientSocket, ServerConfig &config, char *buffer, int buffer_len)
+Request::Request(int clientSocket, ServerConfig* config, char *buffer, int buffer_len)
 	: _clientSocket(clientSocket), _config(config), _buffer(buffer), _buffer_length(buffer_len) {}
 
 Request::Request() {}
@@ -59,7 +59,7 @@ RouteConfig* Request::_findMostSpecificRouteConfig(const std::string& uri)
 {
     RouteConfig* bestMatch = NULL;
     size_t longestMatchLength = 0;
-    for (std::map<std::string, RouteConfig>::iterator it = _config.routes.begin(); it != _config.routes.end(); ++it) {
+    for (std::map<std::string, RouteConfig>::iterator it = _config->routes.begin(); it != _config->routes.end(); ++it) {
         std::string basePath = it->first;
 		if (*basePath.begin() == '~' && *(basePath.end() - 1) == '$')
 		{
@@ -84,7 +84,9 @@ RouteConfig* Request::_findMostSpecificRouteConfig(const std::string& uri)
     // } else {
     //     std::cout << "No matching route found for URI: " << uri << std::endl;
     // }
-     _uri = _uri.substr(longestMatchLength - 1);
+	if (_uri.length() > 1) {
+    	_uri = _uri.substr(longestMatchLength - 1);
+	}
     return bestMatch;
 }
 
@@ -93,7 +95,7 @@ int Request::parseBody(Server& server) {
     int contentLength = atoi(content_length.c_str());
     std::string content_type = getHeader("Content-Type");
 
-    if (contentLength > _config.body_limit || contentLength > _route_config->body_limit) {
+    if (contentLength > _config->body_limit || contentLength > _route_config->body_limit) {
         throw ParsingErrorException(CONTENT_LENGTH, "content length is above limit");
 	}
 	if (content_type.find("multipart/form-data") != content_type.npos) {
@@ -154,7 +156,7 @@ void Request::_readBodyChunked(const char *buffer, ssize_t bytesRead) {
 		read_len = atoi(stream);
 		if (read_len == 0) {
 			close(file_fd);
-			utils::saveFile(file_name, _config, getUri());
+			utils::saveFile(file_name, *_config, getUri());
 			return ;
 		}
 		stream = utils::strstr(stream, "\r\n", bytesRead) + 2;
@@ -284,19 +286,20 @@ std::string Request::getHeader(const std::string& key) const {
     return "";
 }
 
-bool Request::setConfig(const ConfigList &configs)
+bool Request::setConfig(std::vector<ServerConfig> &configs)
 {
-	ConfigList::const_iterator config = configs.find(getHost());
-	if (config == configs.end())
-	{
-		return false;
+	for (std::vector<ServerConfig>::iterator configIt = configs.begin();
+		 configIt != configs.end(); configIt++) {
+		for (HostList::iterator hostIt = configIt->hostnames.begin();
+			 hostIt != configIt->hostnames.end(); hostIt++) {
+				if (*hostIt == getHost()) {
+					_config = &*configIt;
+					_route_config = _findMostSpecificRouteConfig(getUri());
+					return true;
+				}
+		}
 	}
-	else
-	{
-		_config = config->second;
-		_route_config = _findMostSpecificRouteConfig(getUri());
-		return true;
-	}
+	return false;
 }
 
 std::string Request::getHost() const {
@@ -434,9 +437,9 @@ const RouteConfig* Request::getRouteConfig() const
     return _route_config;
 }
 
-const ServerConfig &Request::getConfig() const
+const ServerConfig& Request::getConfig() const
 {
-    return _config;
+    return *_config;
 }
 
 void Request::setBufferLen(size_t len)

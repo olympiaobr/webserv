@@ -82,7 +82,7 @@ void Server::_requestHandling(Request &req, Response &res)
 
 void Server::_serveExistingClient(int client_socket, size_t i)
 {
-	Request req(client_socket, *_config, _buffer, _buffer_size);
+	Request req(client_socket, _config, _buffer, _buffer_size);
 	Response res(*_config, _res_buffer, _res_buffer_size);
 	/* Request handling */
 	try {
@@ -206,7 +206,7 @@ void Server::deleteStream(int client_socket)
 	_streams.erase(client_socket);
 }
 
-void Server::initEndpoint(short port, const ConfigList &configs)
+void Server::initEndpoint(short port, const std::vector<ServerConfig> &configs)
 {
 	_port = port;
     // _hosts.clear();
@@ -344,8 +344,8 @@ const std::vector<pollfd> &Server::getSockets() const {
 void Server::RUN(std::vector<Server> servers) {
 	for (size_t i = 0; i < servers.size(); ++i) {
 		{
-			servers[i]._config = &servers[i]._configs.begin()->second;
-			int buffer_size = servers[i]._config->body_limit + 10 * 1024;
+			// servers[i]._config = &servers[i]._configs.begin();
+			int buffer_size = 12000000 + 10 * 1024;
 			// int buffer_size = 8000000 + 10 * 1024;
 			char *buffer = new char[buffer_size];
 			servers[i].setBuffer(buffer, buffer_size);

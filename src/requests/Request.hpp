@@ -24,11 +24,11 @@ struct Stream;
 class Server;
 class Session;
 
-typedef std::map<std::string, ServerConfig> ConfigList;
+// typedef std::map<std::string, ServerConfig> ConfigList;
 
 class Request {
 public:
-	Request(int clientSocket, ServerConfig &config, char *buffer, int buffer_len);
+	Request(int clientSocket, ServerConfig* config, char *buffer, int buffer_len);
 	Request();
 	~Request();
 
@@ -58,7 +58,7 @@ public:
 
 	void addHeader(const std::string& key, const std::string& value);
 
-	bool setConfig(const ConfigList &configs);
+	bool setConfig(std::vector<ServerConfig> &configs);
 
 	friend std::ostream &operator<<(std::ostream &os, const Request &request);
 
@@ -93,7 +93,7 @@ public:
 		std::string								_httpVersion;
 		std::map<std::string, std::string>		_headers;
 		std::string								_body;
-		ServerConfig							_config;
+		ServerConfig*							_config;
         RouteConfig*                            _route_config;
 
 		char*									_buffer;

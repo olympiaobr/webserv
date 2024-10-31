@@ -232,7 +232,7 @@ void Config::loadConfig() {
     bool inLocationBlock = false;
     std::string currentLocationPath;
     short currentPort = 0;
-    std::string currentHostname;
+    // std::string currentHostname;
 
     while (getline(file, line)) {
         std::istringstream iss(line);
@@ -242,7 +242,7 @@ void Config::loadConfig() {
         if (key == "server") {
             if (inServerBlock) {
                 validateServerConfig(currentServerConfig);
-                addServerConfig(currentPort, currentHostname, currentServerConfig);
+                addServerConfig(currentPort, currentServerConfig);
                 throw std::invalid_argument("found forbidden nested server block");
             }
             inServerBlock = true;
@@ -288,7 +288,7 @@ void Config::loadConfig() {
                     throw std::invalid_argument("server block missing 'listen' directive");
 
                 validateServerConfig(currentServerConfig);
-                _servers[currentPort][currentHostname] = currentServerConfig;
+                addServerConfig(currentPort, currentServerConfig);
                 inServerBlock = false;
             }
             continue;
@@ -296,8 +296,8 @@ void Config::loadConfig() {
         if (inServerBlock && !inLocationBlock) {
             if (key == "listen") {
                 iss >> currentPort;
-            } else if (key == "server_name") {
-                iss >> currentHostname;
+            // } else if (key == "server_name") {
+            //     iss >> currentHostname;
             } else {
                 _parseServerConfig(currentServerConfig, line);
             }
@@ -311,27 +311,32 @@ void Config::loadConfig() {
 }
 
 const ServerConfig& Config::getServerConfig(short port, const std::string& hostname) const {
-    std::map<short, std::map<std::string, ServerConfig> >::const_iterator portIt = _servers.find(port);
+    ConfigList::const_iterator portIt = _servers.find(port);
     if (portIt == _servers.end()) {
         throw std::out_of_range("Configuration for specified port is not found.");
     }
-    const std::map<std::string, ServerConfig>& serversOnPort = portIt->second;
-    std::map<std::string, ServerConfig>::const_iterator hostIt = serversOnPort.find(hostname);
-    if (hostIt != serversOnPort.end()) {
-        return hostIt->second;
+    const std::vector<ServerConfig>& serversOnPort = portIt->second;
+    std::vector<ServerConfig>::const_iterator hostIt = serversOnPort.begin();
+    while (hostIt != serversOnPort.end()) {
+        for (HostList::const_iterator hostnamesIt = hostIt->hostnames.begin(); hostnamesIt != hostIt->hostnames.end(); hostnamesIt++) {
+            if (*hostnamesIt == hostname)
+                return *hostIt;
+        }
     }
-    return serversOnPort.begin()->second;
+    return *serversOnPort.begin();
 }
 
-const std::map<short, std::map<std::string, ServerConfig> >& Config::getAllServerConfigs() const {
+const ConfigList &Config::getAllServerConfigs() const
+{
     return _servers;
 }
 
-void Config::addServerConfig(short port, const std::string& hostname, const ServerConfig& serverConfig) {
-    _servers[port][hostname] = serverConfig;
+void Config::addServerConfig(short port, const ServerConfig &serverConfig){
+    _servers[port].push_back(serverConfig);
 }
 
-std::ostream& operator<<(std::ostream& os, const RouteConfig& config) {
+std::ostream &operator<<(std::ostream &os, const RouteConfig &config)
+{
     os << "      Root: " << config.root << "\n"
        << "      Default File: " << config.default_file << "\n"
        << "      Allowed Methods: ";
@@ -343,7 +348,6 @@ std::ostream& operator<<(std::ostream& os, const RouteConfig& config) {
        << "      Autoindex: " << config.autoindex << "\n";
     return os;
 }
-
 
 std::ostream& operator<<(std::ostream& os, const ServerConfig& config) {
     os << "  Hostnames: ";
@@ -366,23 +370,24 @@ std::ostream& operator<<(std::ostream& os, const ServerConfig& config) {
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const Config& config) {
-    os << std::endl
-       << "Config:\n"
-       << "  Filename: " << config._filename << "\n"
-       << std::endl;
+// std::ostream& operator<<(std::ostream& os, const Config& config) {
+//     os << std::endl
+//        << "Config:\n"
+//        << "  Filename: " << config._filename << "\n"
+//        << std::endl;
 
-    std::map<short, std::map<std::string, ServerConfig> >::const_iterator it;
-    for (it = config.getAllServerConfigs().begin(); it != config.getAllServerConfigs().end(); ++it) {
-        os << "Port " << it->first << ":\n";
-        const std::map<std::string, ServerConfig>& servers = it->second;
-        for (std::map<std::string, ServerConfig>::const_iterator hostIt = servers.begin();
-             hostIt != servers.end(); ++hostIt) {
-            os << "  Hostname: " << hostIt->first << "\n" << hostIt->second << std::endl;
-        }
-    }
-    return os;
-}
+//     ServerList::const_iterator it;
+//     for (it = config.getAllServerConfigs().begin(); it != config.getAllServerConfigs().end(); ++it) {
+//         os << "Port " << it->first << ":\n";
+//         const std::vector<ServerConfig>& servers = it->second;
+//         for (std::vector<ServerConfig>::const_iterator hostIt = servers.begin();
+//              hostIt != servers.end(); ++hostIt)
+//         {
+//             os << "  Hostnames: " << hostIt->hostnames << "\n" << hostIt->second << std::endl;
+//         }
+//     }
+//     return os;
+// }
 
 std::string Config::formatSize(int bytes) {
     static const char* sizes[] = {"Bytes", "KB", "MB", "GB"};
