@@ -7,8 +7,8 @@
 #include <sstream>
 #include <cstdlib>
 
-CGIHandler::CGIHandler(const std::string& path, const Request& req, const ServerConfig& conf)
-    : scriptPath(path), serverConfig(conf), request(req) {
+CGIHandler::CGIHandler(const std::string& path, const Request& req)
+    : scriptPath(path), serverConfig(req.getConfig()), request(req) {
     setupEnvironment();
 }
 

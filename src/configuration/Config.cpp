@@ -130,9 +130,9 @@ void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
             config.allowed_methods.push_back("HEAD");
         }
         // std::cout << "Parsed allow_methods: ";
-        for (size_t i = 0; i < config.allowed_methods.size(); ++i)
-            std::cout << config.allowed_methods[i] << " ";
-        std::cout << std::endl;
+        // for (size_t i = 0; i < config.allowed_methods.size(); ++i)
+        //     std::cout << config.allowed_methods[i] << " ";
+        // std::cout << std::endl;
     }
     else if (key == "index") {
         config.default_file = value;

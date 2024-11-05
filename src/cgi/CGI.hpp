@@ -16,7 +16,7 @@ class Request;
 
 class CGIHandler {
 public:
-	CGIHandler(const std::string& path, const Request& req, const ServerConfig& conf);
+	CGIHandler(const std::string& path, const Request& req);
     ~CGIHandler();
     std::string execute();
 	void setupEnvironment();

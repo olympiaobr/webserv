@@ -53,7 +53,7 @@ void Server::_requestHandling(Request &req, Response &res)
 			if (!utils::fileExists(scriptPath)) {
 				res = Response(req.getConfig(), 404, _res_buffer, _res_buffer_size);
 			} else {
-				CGIHandler cgiHandler(scriptPath, req, *_config);
+				CGIHandler cgiHandler(scriptPath, req);
 				std::string cgiOutput = cgiHandler.execute();
 				if (cgiOutput.empty()) {
 					res = Response(req.getConfig(), 500, _res_buffer, _res_buffer_size);
