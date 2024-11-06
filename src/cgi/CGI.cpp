@@ -69,9 +69,9 @@ std::string CGIHandler::execute() {
             exit(EXIT_FAILURE);
         }
         close(pipe_fds[1]);  // No longer need this after dup2
-		const char* python_path = "./web/cgi/.venv/bin/python3";
-		char* const args[] = {
-			const_cast<char*>(python_path),
+        const char *python_path = scriptPath.c_str();
+        char* const args[] = {
+			// const_cast<char*>(python_path),
 			const_cast<char*>(scriptPath.c_str()),
 			NULL
 		};
