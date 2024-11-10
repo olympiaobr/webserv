@@ -19,6 +19,7 @@ public:
 	CGIHandler(const std::string& path, const Request& req);
     ~CGIHandler();
     std::string execute();
+    std::string getInterpreter(const std::string& scriptPath);
 	void setupEnvironment();
 
 private:
