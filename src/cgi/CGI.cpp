@@ -7,10 +7,13 @@
 #include <sstream>
 #include <cstdlib>
 
+std::string normalizePath(const std::string& path);
+
 CGIHandler::CGIHandler(const std::string& path, const Request& req)
-    : scriptPath(path), serverConfig(req.getConfig()), request(req) {
+    : scriptPath(normalizePath(path)), serverConfig(req.getConfig()), request(req) {
     setupEnvironment();
 }
+
 
 CGIHandler::~CGIHandler() {
     if (envp) {
@@ -21,19 +24,59 @@ CGIHandler::~CGIHandler() {
     }
 }
 
+std::string normalizePath(const std::string& path) {
+    std::string result;
+    bool lastWasSlash = false;
+
+    for (size_t i = 0; i < path.length(); ++i) {
+        char ch = path[i];
+        if (ch == '/') {
+            if (!lastWasSlash) {
+                result += ch;
+                lastWasSlash = true;
+            }
+        } else {
+            result += ch;
+            lastWasSlash = false;
+        }
+    }
+
+    // Ensure no trailing slash unless it’s the root "/"
+    if (result.size() > 1 && result[result.size() - 1] == '/') {
+        result.erase(result.size() - 1);
+    }
+
+    return result;
+}
+
+
+
 void CGIHandler::setupEnvironment() {
     std::string contentLength = utils::toString(request.getBody().length());
+    std::string normalizedScriptPath = normalizePath(scriptPath);
 
     environment["REQUEST_METHOD"] = request.getMethod();
-    environment["SCRIPT_NAME"] = scriptPath;
+    environment["SCRIPT_FILENAME"] = normalizedScriptPath;
     environment["QUERY_STRING"] = request.getQueryString();
     environment["CONTENT_LENGTH"] = contentLength;
-    environment["CONTENT_TYPE"] = request.getHeader("Content-Type");
-	environment["SERVER_PORT"] = utils::toString(serverConfig.port);
-	environment["SERVER_PROTOCOL"] = request.getHttpVersion();
+    environment["CONTENT_TYPE"] = (request.getMethod() == "POST") ? "application/x-www-form-urlencoded" : request.getHeader("Content-Type");
+    std::string serverPort = (serverConfig.port > 0) ? utils::toString(serverConfig.port) : "8000";
+    environment["SERVER_PORT"] = serverPort;
     environment["SERVER_PROTOCOL"] = "HTTP/1.1";
-    environment["PATH_INFO"] = request.getUri();
+
+    std::string uri = request.getUri();
+    size_t pathInfoPos = uri.find(scriptPath);
+    environment["PATH_INFO"] = (pathInfoPos != std::string::npos && pathInfoPos + scriptPath.length() < uri.length())
+                                ? uri.substr(pathInfoPos + scriptPath.length())
+                                : "/";
 	environment["REDIRECT_STATUS"] = "200";
+    environment["GATEWAY_INTERFACE"] = "CGI/1.1";
+    environment["SERVER_SOFTWARE"] = "webserv/1.0";
+
+    std::cerr << "Setting up environment variables for CGI execution:\n";
+    for (std::map<std::string, std::string>::iterator it = environment.begin(); it != environment.end(); ++it) {
+        std::cerr << it->first << "=" << it->second << std::endl;
+    }
 
     std::vector<std::string> envStrings;
     envp = new char*[environment.size() + 1];
@@ -47,6 +90,19 @@ void CGIHandler::setupEnvironment() {
         i++;
     }
     envp[i] = NULL;
+}
+
+std::string CGIHandler::getInterpreter(const std::string& scriptPath) {
+    const std::string pythonInterpreter = "./web/cgi/.venv/bin/python3";
+
+    size_t extPos = scriptPath.find_last_of(".");
+    if (extPos != std::string::npos) {
+        std::string ext = scriptPath.substr(extPos);
+        if (ext == ".py") {
+            return pythonInterpreter;
+        }
+    }
+    return "";
 }
 
 std::string CGIHandler::execute() {
@@ -69,15 +125,24 @@ std::string CGIHandler::execute() {
             exit(EXIT_FAILURE);
         }
         close(pipe_fds[1]);  // No longer need this after dup2
-        const char *python_path = scriptPath.c_str();
-        char* const args[] = {
-			// const_cast<char*>(python_path),
-			const_cast<char*>(scriptPath.c_str()),
-			NULL
-		};
 
-		execve(python_path, args, envp);
-		perror("execve failed");  // Execve doesn't return on success
+        std::string interpreter = getInterpreter(scriptPath);
+        if (interpreter.empty()) {
+            std::cerr << "No interpreter found for script: " << scriptPath << std::endl;
+            exit(EXIT_FAILURE);
+        }
+
+        char* const args[] = {
+            const_cast<char*>(interpreter.c_str()),
+            const_cast<char*>(scriptPath.c_str()),
+            NULL
+        };
+        std::cerr << "Executing CGI with interpreter: " << interpreter << ", script: " << scriptPath << std::endl;
+        for (int i = 0; envp[i] != NULL; ++i) {
+            std::cerr << "envp[" << i << "]: " << envp[i] << std::endl;
+        }
+        execve(interpreter.c_str(), args, envp);
+        perror("execve failed");
         exit(EXIT_FAILURE);
     } else {  // Parent process
         close(pipe_fds[1]);  // Close the write end in the parent
@@ -85,26 +150,17 @@ std::string CGIHandler::execute() {
         char buffer[1024];
         ssize_t bytesRead;
 
-         while ((bytesRead = read(pipe_fds[0], buffer, sizeof(buffer) - 1)) > 0) {
-            if (bytesRead == -1) {
-                std::cerr << "Read error: " << strerror(errno) << std::endl;
-                close(pipe_fds[0]);
-                return "Status code 500 Internal Server Error\r\n";
-            }
+        while ((bytesRead = read(pipe_fds[0], buffer, sizeof(buffer) - 1)) > 0) {
             buffer[bytesRead] = '\0';
             output.append(buffer);
         }
         close(pipe_fds[0]);
-
         int status;
         waitpid(pid, &status, 0);
-
         if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+            std::cerr << "CGI exited with status: " << WEXITSTATUS(status) << std::endl;
             throw std::runtime_error("Failed to run CGI");
         }
         return output;
     }
 }
-
-
-
