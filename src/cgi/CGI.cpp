@@ -7,10 +7,13 @@
 #include <sstream>
 #include <cstdlib>
 
+std::string normalizePath(const std::string& path);
+
 CGIHandler::CGIHandler(const std::string& path, const Request& req)
-    : scriptPath(path), serverConfig(req.getConfig()), request(req) {
+    : scriptPath(normalizePath(path)), serverConfig(req.getConfig()), request(req) {
     setupEnvironment();
 }
+
 
 CGIHandler::~CGIHandler() {
     if (envp) {
@@ -26,19 +29,27 @@ std::string normalizePath(const std::string& path) {
     bool lastWasSlash = false;
 
     for (size_t i = 0; i < path.length(); ++i) {
-        if (path[i] == '/') {
+        char ch = path[i];
+        if (ch == '/') {
             if (!lastWasSlash) {
-                result += path[i];
+                result += ch;
                 lastWasSlash = true;
             }
         } else {
-            result += path[i];
+            result += ch;
             lastWasSlash = false;
         }
     }
 
+    // Ensure no trailing slash unless it’s the root "/"
+    if (result.size() > 1 && result[result.size() - 1] == '/') {
+        result.erase(result.size() - 1);
+    }
+
     return result;
 }
+
+
 
 void CGIHandler::setupEnvironment() {
     std::string contentLength = utils::toString(request.getBody().length());
