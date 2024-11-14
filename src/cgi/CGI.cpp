@@ -10,7 +10,7 @@
 std::string normalizePath(const std::string& path);
 
 CGIHandler::CGIHandler(const std::string& path, const Request& req)
-    : scriptPath(normalizePath(path)), serverConfig(req.getConfig()), request(req) {
+    : scriptPath(normalizePath(path)), serverConfig(*req.getConfig()), request(req) {
     setupEnvironment();
 }
 

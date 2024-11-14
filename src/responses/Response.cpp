@@ -6,17 +6,30 @@
 #include <sys/stat.h>
 #include <cstdio>
 
-Response::Response(const ServerConfig& config, char* buffer, int buffer_size):
-	_config(config), _statusCode(-1), _buffer(buffer), _buffer_size(buffer_size), _content_length(0) {}
-
-Response::Response(const ServerConfig& config, int errorCode, char* buffer, int buffer_size)
-	: _httpVersion("HTTP/1.1"), _config(config), _buffer(buffer), _buffer_size(buffer_size), _content_length(0) {
-	initializeHttpErrors();
-	_setError(errorCode);
+Response::Response()
+{
+    initializeHttpErrors();
+    _buffer = new char(_buffer_size);
 }
 
-Response::Response(const Request& req, const ServerConfig& config, char* buffer, int buffer_size)
-    : _httpVersion("HTTP/1.1"), _config(config), _buffer(buffer), _buffer_size(buffer_size), _content_length(0) {
+Response::Response(ServerConfig *config, int buffer_size) : _config(config), _statusCode(-1), _buffer_size(buffer_size), _content_length(0)
+{
+    initializeHttpErrors();
+    _buffer = new char(_buffer_size);
+}
+
+Response::Response(ServerConfig* config, int errorCode, int buffer_size)
+	: _httpVersion("HTTP/1.1"), _config(config), _buffer_size(buffer_size), _content_length(0) {
+	initializeHttpErrors();
+	_setError(errorCode);
+    _buffer = new char(_buffer_size);
+}
+
+Response::Response(const Request& req, ServerConfig* config, int buffer_size)
+    : _httpVersion("HTTP/1.1"), _config(config), _buffer_size(buffer_size), _content_length(0) {
+
+    _buffer = new char(_buffer_size);
+
     initializeHttpErrors();
 
     if (req.getHttpVersion() != "HTTP/1.1") {
@@ -24,10 +37,10 @@ Response::Response(const Request& req, const ServerConfig& config, char* buffer,
         return;
     }
     if (std::find(
-            config.hostnames.begin(),
-            config.hostnames.end(),
+            config->hostnames.begin(),
+            config->hostnames.end(),
             req.getHost()
-        ) == config.hostnames.end()) {
+        ) == config->hostnames.end()) {
         _setError(400);
         return;
     }
@@ -102,8 +115,14 @@ Response& Response::operator=(const Response& other) {
 		_buffer_size = other._buffer_size;
 		_httpErrors = other._httpErrors;
 		_content_length = other._content_length;
+        _headers_length = other._headers_length;
+        _connection = other._connection;
 	}
 	return *this;
+}
+
+void Response::setConfig(ServerConfig &config) {
+    _config = &config;
 }
 
 void Response::initializeHttpErrors() {
@@ -181,7 +200,7 @@ void Response::_handleGetRequest(const Request& req, const RouteConfig* route_co
 void Response::_handlePostRequest(const Request& req, const RouteConfig* route_config) {
     setStatus(200);
     addHeader("Content-Type", "text/html");
-	std::string directoryPath = _config.root + req.getUri();
+	std::string directoryPath = _config->root + req.getUri();
 	{
 		std::ostringstream listing;
 		DIR* dir = opendir(directoryPath.c_str());
@@ -190,7 +209,7 @@ void Response::_handlePostRequest(const Request& req, const RouteConfig* route_c
 		}
 
 		struct dirent* entry;
-		std::string file = _config.root + "/css/styles.css";
+		std::string file = _config->root + "/css/styles.css";
 		std::ifstream styles(file.c_str());
 		if (!styles)
 			throw FileSystemErrorException("cannot open directory");
@@ -222,7 +241,7 @@ void Response::_handlePostRequest(const Request& req, const RouteConfig* route_c
 void Response::_handleDeleteRequest(const Request& req, const RouteConfig* route_config)
 {
     std::string uri = req.getUri();
-    std::string filePath = _config.root + uri;
+    std::string filePath = _config->root + uri;
 
     // Check if the file exists
     struct stat buffer;
@@ -262,13 +281,15 @@ int Response::getStatusCode() {
 /* We need plan B if original function won't work */
 void Response::_setError(int code) {
 	std::string path;
-	std::map<int, std::string>::const_iterator it = _config.error_pages.find(code);
+	std::map<int, std::string>::const_iterator it = _config->error_pages.find(code);
 
-	if (it != _config.error_pages.end())
+	if (it != _config->error_pages.end())
 		path = it->second;
-	else
+	else {
+        std::cerr << code << std::endl;
 		throw std::logic_error("Error code not found in configuration");
-	std::string filename = _config.root + path;
+    }
+	std::string filename = _config->root + path;
 
 	try
 	{
@@ -346,7 +367,7 @@ void Response::generateDirectoryListing(const std::string& directoryPath) {
     }
 
 	struct dirent* entry;
-	std::string file = _config.root + "/css/styles.css";
+	std::string file = _config->root + "/css/styles.css";
 	std::ifstream styles(file.c_str());
 	if (!styles)
 		throw FileSystemErrorException("cannot open directory");

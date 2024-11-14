@@ -1,12 +1,17 @@
 #include "Request.hpp"
 #include "../server/Server.hpp"
 
-Request::Request(int clientSocket, ServerConfig* config, char *buffer, int buffer_len)
-	: _clientSocket(clientSocket), _config(config), _buffer(buffer), _buffer_length(buffer_len) {}
+Request::Request(int clientSocket, ServerConfig* config, int buffer_len)
+	: _clientSocket(clientSocket), _config(config), _buffer_length(buffer_len) {
+		_buffer = new char(_buffer_length);
+}
 
 Request::Request() {}
 
-Request::~Request() {}
+Request::~Request() {
+	if (_buffer)
+		delete[] _buffer;
+}
 
 void Request::parseHeaders(std::vector<Session>& sessions) {
     std::string request;
@@ -245,7 +250,7 @@ int Request::readBodyFile(char *buffer, ssize_t bytesRead, Server& server) {
 			/* read the rest */
 			else {
 				write(file_fd, start_pos, len);
-				server.addStream(_clientSocket, file_fd, *this, boundary);
+				// server.addStream(_clientSocket, file_fd, *this, boundary);
 				return file_fd;
 			}
 		}
@@ -437,9 +442,9 @@ const RouteConfig* Request::getRouteConfig() const
     return _route_config;
 }
 
-const ServerConfig& Request::getConfig() const
+ServerConfig* Request::getConfig() const
 {
-    return *_config;
+    return _config;
 }
 
 void Request::setBufferLen(size_t len)

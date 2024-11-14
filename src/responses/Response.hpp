@@ -16,9 +16,10 @@ class Request;
 class Response {
 
 public:
-	Response(const ServerConfig& config, char* buffer, int buffer_size);
-	Response(const ServerConfig& config, int errorCode, char* buffer, int buffer_size);
-    Response(const Request& req, const ServerConfig& config, char *buffer, int buffer_size);
+	Response();
+	Response(ServerConfig *config, int buffer_size);
+	Response(ServerConfig *config, int errorCode, int buffer_size);
+    Response(const Request& req, ServerConfig* config, int buffer_size);
 	Response& operator=(const Response& other);
 
     void			initializeHttpErrors();
@@ -26,13 +27,14 @@ public:
 	int				getStatusCode();
     void			addHeader(const std::string& key, const std::string& value);
 
+	void			setConfig(ServerConfig &config);
+
 	void			generateResponse(const std::string& filename);
 	void			generateDirectoryListing(const std::string& directoryPath);
 	void			generateCGIResponse(const std::string &cgi_response);
 
 	const char*		getContent();
 	ssize_t			getContentLength();
-	// const char* toCString();
 
 	/* Exceptions */
 	class FileSystemErrorException: public std::exception {
@@ -52,7 +54,7 @@ public:
 
 private:
     std::string 						_httpVersion;
-	const ServerConfig&					_config;
+	ServerConfig*						_config;
     int									_statusCode;
     std::string							_statusMessage;
     std::map<std::string, std::string>	_headers;
@@ -65,10 +67,8 @@ private:
     ssize_t                             _headers_length;
 	std::string 						_connection;
 
-    // std::string _readFile(const std::string& filename);
     std::string		_getMimeType(const std::string& filename);
     std::string		_toString(size_t num) const;
-	// std::vector<std::string> _chunkFile(const std::string& filename);
 
     void				_handleGetRequest(const Request& req, const RouteConfig* route_config);
     void				_handlePostRequest(const Request& req, const RouteConfig* route_config);

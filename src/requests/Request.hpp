@@ -28,8 +28,8 @@ class Session;
 
 class Request {
 public:
-	Request(int clientSocket, ServerConfig* config, char *buffer, int buffer_len);
 	Request();
+	Request(int clientSocket, ServerConfig* config, int buffer_len);
 	~Request();
 
 	void parseHeaders(std::vector<Session>& sessions);
@@ -48,7 +48,7 @@ public:
 	std::string getScriptPath() const;
 	std::string getSession() const;
     const RouteConfig* getRouteConfig() const;
-	const ServerConfig& getConfig() const;
+	ServerConfig* getConfig() const;
 
 	void		setBufferLen(size_t len);
 

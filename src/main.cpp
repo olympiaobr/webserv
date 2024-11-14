@@ -63,16 +63,9 @@ int	main(int argc, char *argv[])
 		{
 			const short port = portIt->first;
 			const std::vector<ServerConfig>&hostConfigs = portIt->second;
-
-			// for (std::map<std::string, ServerConfig>::const_iterator hostIt = hostConfigs.begin(); hostIt != hostConfigs.end(); ++hostIt) {
-				// const std::string& hostname = "check";
-				// const ServerConfig& serverConfig = hostIt->second;
-
-				Server server;
-				servers[i++].initEndpoint(port, hostConfigs);
-			// }
+			Server server;
+			servers[i++].initEndpoint(port, hostConfigs);
 		}
-
 		Server::RUN(servers);
 		clnTmpDir();
 

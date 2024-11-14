@@ -1,18 +1,12 @@
 #include "Server.hpp"
 
-Server::Server(): _buffer(0), _res_buffer(0) {
+Server::Server() {
 }
 
 Server::~Server() {
 	for (size_t i = 0; i < getSocketsSize(); ++i) {
 		close(_fds[i].fd);
 	}
-	if (_buffer) {
-        delete[] _buffer;
-    }
-    if (_res_buffer) {
-        delete[] _res_buffer;
-    }
 }
 
 void Server::_addNewClient(int client_socket)
@@ -22,32 +16,37 @@ void Server::_addNewClient(int client_socket)
 		return ;
 	fcntl(client_socket, F_SETFL, O_NONBLOCK);
 	addPollfd(new_client_socket, POLLIN | POLLOUT);
-	// _setRequestTime(new_client_socket);
 }
 
 void Server::_requestHandling(Request &req, Response &res)
 {
 	/* Parse request headers */
 	ssize_t bytes_read = recv(req.getSocket(), _buffer, _buffer_size - 1, 0);
+	std::cout << "12" << std::endl;
+	std::cout << bytes_read << std::endl;
 	if (bytes_read == 0) {
 		throw Request::SocketCloseException("connection closed by client");
 	} else if (bytes_read < 0) {
+		// std::cout << "1" << std::endl;
 		throw Request::ParsingErrorException(Request::BAD_REQUEST, "malformed request");
 	}
+	std::cout << "11" << std::endl;
 	req.setBufferLen(bytes_read);
 	if (_streams.find(req.getSocket()) != _streams.end()) {
 		_processStream(_streams.find(req.getSocket())->second);
 		res.setStatus(200);
 		return ;
 	}
-    if (_res_streams.find(req.getSocket()) != _res_streams.end() && _res_streams[req.getSocket()].status >= 400) {
+	if (_res_streams.find(req.getSocket()) != _res_streams.end() && _res_streams[req.getSocket()].status >= 400) {
         return ;
     }
 	req.parseHeaders(_sessions);
 	if (!req.setConfig(_configs))
 		throw Request::ParsingErrorException(Request::BAD_REQUEST, "hostname is not configured");
-	/*************************/
-	if (req.isTargetingCGI()) {
+	res.setConfig(*req.getConfig());
+		/*************************/
+	if (req.isTargetingCGI())
+	{
 		try {
 			std::string scriptPath = req.getScriptPath();
 			if (!utils::fileExists(scriptPath)) {
@@ -58,17 +57,22 @@ void Server::_requestHandling(Request &req, Response &res)
 				if (cgiOutput.empty()) {
 					res = Response(req.getConfig(), 500, _res_buffer, _res_buffer_size);
 				} else {
+					// res = Response(req.getConfig(), 200, _res_buffer, _res_buffer_size);
+					std::cout << "start" << std::endl;
 					res.setStatus(200);
 					res.addHeader("Content-Type", "text/html");
 					res.addHeader("Set-Cookie", req.getSession());
 					res.generateCGIResponse(cgiOutput);
+					std::cout << "end" << std::endl;
 				}
 			}
 		} catch (std::runtime_error& e) {
 			std::cerr << e.what() << std::endl;
 			res = Response(req.getConfig(), 500, _res_buffer, _res_buffer_size);
 		}
-	} else {
+	}
+	else
+	{
 		/* Configure response */
 		res = Response(req, req.getConfig(), _res_buffer, _res_buffer_size);
 		/*********************/
@@ -77,14 +81,14 @@ void Server::_requestHandling(Request &req, Response &res)
 			req.parseBody(*this);
 		/*********************/
 	}
-
 }
 
-void Server::_serveExistingClient(int client_socket, size_t i)
+void Server::_serveExistingClient(Session &client, size_t i)
 {
-	Request req(client_socket, _config, _buffer, _buffer_size);
-	Response res(*_config, _res_buffer, _res_buffer_size);
-	/* Request handling */
+	Request&	req = client.request;
+	Response&	res = client.response;
+	int			client_socket = client.client_id;
+
 	try {
 		_requestHandling(req, res);
 	} catch (Request::SocketCloseException &e) {
@@ -94,16 +98,16 @@ void Server::_serveExistingClient(int client_socket, size_t i)
 		return ;
 	} catch (Request::ParsingErrorException& e) {
 		if (e.type == Request::BAD_REQUEST)
-			res = Response(req.getConfig(), 400, _res_buffer, _res_buffer_size);
+			res.setStatus(400);
 		else if (e.type == Request::CONTENT_LENGTH)
-			res = Response(req.getConfig(), 413, _res_buffer, _res_buffer_size);
+			res.setStatus(413);
 		else if (e.type == Request::FILE_SYSTEM)
-			res = Response(req.getConfig(), 500, _res_buffer, _res_buffer_size);
+			res.setStatus(500);
 		_cleanChunkFiles(client_socket);
 	}
 	/*******************/
 	if (res.getStatusCode() == -1)
-		res = Response(req.getConfig(), 500, _res_buffer, _res_buffer_size);
+		res.setStatus(500);
 
 	Outstream outsteam(res.getContentLength(), res.getContent(), res.getStatusCode());
     if (_res_streams.find(client_socket) == _res_streams.end()) {
@@ -149,6 +153,7 @@ void Server::_processStream(Stream stream)
 void Server::_processResponseStream(int client_socket)
 {
 	Outstream resp = _res_streams.find(client_socket)->second;
+	std::cout << resp.buffer << std::endl;
 	ssize_t bytes_sent = send(client_socket, resp.buffer, resp.bytes_to_send, MSG_DONTWAIT);
 	if (bytes_sent < 0)
 	{
@@ -183,34 +188,9 @@ void Server::_push(pollfd client_pollfd) {
 	_fds.push_back(client_pollfd);
 }
 
-void Server::setBuffer(char *buffer, int buffer_size)
-{
-	_buffer = buffer;
-	_buffer_size = buffer_size;
-}
-
-void Server::setResBuffer(char *buffer, int buffer_size)
-{
-	_res_buffer = buffer;
-	_res_buffer_size = buffer_size;
-}
-
-void Server::addStream(int client_socket, int file_fd, Request &req, std::string& boundary)
-{
-	Stream stream(req, boundary, file_fd);
-	_streams[client_socket] = stream;
-}
-
-void Server::deleteStream(int client_socket)
-{
-	_streams.erase(client_socket);
-}
-
 void Server::initEndpoint(short port, const std::vector<ServerConfig> &configs)
 {
 	_port = port;
-    // _hosts.clear();
-    // _hosts.push_back(hostname);
 	_configs = configs;
 
 	_main_socketfd = socket(PF_INET, SOCK_STREAM, 0);
@@ -239,7 +219,6 @@ void Server::pollfds() {
 	// 		_fds.erase(_fds.begin() + i);
 	// 	}
 	// }
-
 	if (poll_count == -1) {
 		close(_main_socketfd);
 		_fds.erase(_fds.begin());
@@ -262,12 +241,14 @@ void Server::pollLoop() {
 		}
 		int client_socket = _fds[i].fd;
 		if (_fds[i].revents & POLLIN) {
-			// if (client_socket != _main_socketfd)
-				// _setRequestTime(client_socket);
 			if (client_socket == _main_socketfd) {
 				_addNewClient(client_socket);
+				_sessions[client_socket] = Session(client_socket);
+				/*
+					Create new client class
+				*/
 			} else {
-				_serveExistingClient(client_socket, i);
+				_serveExistingClient(_sessions[client_socket], i);
 			}
 		} else if (_fds[i].revents & POLLOUT) {
 			if (_res_streams.find(_fds[i].fd) != _res_streams.end()) {
@@ -343,18 +324,6 @@ const std::vector<pollfd> &Server::getSockets() const {
 
 void Server::RUN(std::vector<Server> servers) {
 	for (size_t i = 0; i < servers.size(); ++i) {
-		{
-			// servers[i]._config = &servers[i]._configs.begin();
-			int buffer_size = 12000000 + 10 * 1024;
-			// int buffer_size = 8000000 + 10 * 1024;
-			char *buffer = new char[buffer_size];
-			servers[i].setBuffer(buffer, buffer_size);
-		}
-		{
-			int buffer_size = RESPONSE_MAX_BODY_SIZE + 10 * 1024;
-			char* buffer = new char[buffer_size];
-			servers[i].setResBuffer(buffer, buffer_size);
-		}
 		servers[i].listenPort(BACKLOG);
 		std::cout << BLUE << "Server " << i + 1 << " is listening on port "
 			<< servers[i].getPort() << RESET << std::endl;
