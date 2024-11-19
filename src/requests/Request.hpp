@@ -13,11 +13,12 @@
 # include <errno.h>
 // # include <cctype>
 
-# include "../responses/Response.hpp"
 # include "../configuration/Config.hpp"
-# include "../cgi/CGI.hpp"
-# include "../utilities/Utils.hpp"
-# include "../server/Session.hpp"
+# include "../Constants.h"
+// # include "../responses/Response.hpp"
+// # include "../cgi/CGI.hpp"
+// # include "../utilities/Utils.hpp"
+// # include "../server/Session.hpp"
 
 
 struct Stream;
@@ -29,10 +30,14 @@ class Session;
 class Request {
 public:
 	Request();
-	Request(int clientSocket, ServerConfig* config, int buffer_len);
+	Request(int clientSocket);
+	// Request(int clientSocket, ServerConfig* config, int buffer_len);
+	Request(const Request& src, size_t extend);
 	~Request();
 
-	void parseHeaders(std::vector<Session>& sessions);
+	Request& operator=(const Request& src);
+
+	void parseHeaders();
 	int parseBody(Server& server);
 	int readBodyFile(char *init_buffer, ssize_t bytesRead, Server& server);
 
@@ -49,6 +54,9 @@ public:
 	std::string getSession() const;
     const RouteConfig* getRouteConfig() const;
 	ServerConfig* getConfig() const;
+
+	const char* getBuffer() const;
+	size_t		getBufferLen() const;
 
 	void		setBufferLen(size_t len);
 
@@ -84,28 +92,27 @@ public:
 			const char* what() const throw();
 	};
 
+	char *buffer;
+	size_t buffer_length;
+	int total_read;
 
-	private:
-		std::string								_session_id;
-		int 									_clientSocket;
-		std::string								_method;
-		std::string								_uri;
-		std::string								_httpVersion;
-		std::map<std::string, std::string>		_headers;
-		std::string								_body;
-		ServerConfig*							_config;
-        RouteConfig*                            _route_config;
+private:
+	std::string _session_id;
+	int _clientSocket;
+	std::string _method;
+	std::string _uri;
+	std::string _httpVersion;
+	std::map<std::string, std::string> _headers;
+	std::string _body;
+	ServerConfig *_config;
+	RouteConfig *_route_config;
 
-		char*									_buffer;
-		size_t									_buffer_length;
+	void _parseRequestLine(const std::string &line);
+	void _parseHeader(const std::string &line);
+	void _readBody(const char *init_buffer, ssize_t bytesRead);
+	void _readBodyChunked(const char *init_buffer, ssize_t bytesRead);
 
-
-		void _parseRequestLine(const std::string& line);
-		void _parseHeader(const std::string& line);
-		void _readBody(const char *init_buffer, ssize_t bytesRead);
-		void _readBodyChunked(const char *init_buffer, ssize_t bytesRead);
-
-        RouteConfig*	_findMostSpecificRouteConfig(const std::string& uri);
+	RouteConfig *_findMostSpecificRouteConfig(const std::string &uri);
 };
 
 #endif

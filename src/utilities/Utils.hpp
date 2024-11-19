@@ -16,8 +16,6 @@
 
 # include "../requests/Request.hpp"
 
-# define TEMP_FILES_DIRECTORY "tmp/"
-
 namespace utils {
 	std::string	&toLowerCase(std::string &string);
 	std::string	buildPath(int socket, const char *folder_name);

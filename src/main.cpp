@@ -1,5 +1,6 @@
-#include "configuration/Config.hpp"
-#include "server/Server.hpp"
+#include "Constants.h"
+#include "./server/Server.hpp"
+#include <dirent.h>
 #include <cstdlib>
 #include <fcntl.h>
 #include <iostream>

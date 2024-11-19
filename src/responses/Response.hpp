@@ -5,21 +5,19 @@
 # include <map>
 # include <algorithm>
 
-# include "../requests/Request.hpp"
-# include "../configuration/Config.hpp"
-# include "../cgi/CGI.hpp"
 # include "../utilities/Utils.hpp"
-// # include "../server/Server.hpp"
+# include "../configuration/Config.hpp"
+# include "../requests/Request.hpp"
 
-class Request;
-
+#define RESPONSE_MAX_BODY_SIZE 8 * 1024 * 1024
 class Response {
 
 public:
 	Response();
-	Response(ServerConfig *config, int buffer_size);
-	Response(ServerConfig *config, int errorCode, int buffer_size);
-    Response(const Request& req, ServerConfig* config, int buffer_size);
+	~Response();
+	// Response(ServerConfig *config, int buffer_size);
+	// Response(ServerConfig *config, int errorCode, int buffer_size);
+    // Response(const Request& req, ServerConfig* config, int buffer_size);
 	Response& operator=(const Response& other);
 
     void			initializeHttpErrors();
@@ -35,6 +33,10 @@ public:
 
 	const char*		getContent();
 	ssize_t			getContentLength();
+	void			setContent(ssize_t move);
+
+	void			initialize(const Request& req);
+
 
 	/* Exceptions */
 	class FileSystemErrorException: public std::exception {

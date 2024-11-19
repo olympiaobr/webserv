@@ -16,85 +16,29 @@ void Server::_addNewClient(int client_socket)
 		return ;
 	fcntl(client_socket, F_SETFL, O_NONBLOCK);
 	addPollfd(new_client_socket, POLLIN | POLLOUT);
-}
-
-void Server::_requestHandling(Request &req, Response &res)
-{
-	/* Parse request headers */
-	ssize_t bytes_read = recv(req.getSocket(), _buffer, _buffer_size - 1, 0);
-	std::cout << "12" << std::endl;
-	std::cout << bytes_read << std::endl;
-	if (bytes_read == 0) {
-		throw Request::SocketCloseException("connection closed by client");
-	} else if (bytes_read < 0) {
-		// std::cout << "1" << std::endl;
-		throw Request::ParsingErrorException(Request::BAD_REQUEST, "malformed request");
-	}
-	std::cout << "11" << std::endl;
-	req.setBufferLen(bytes_read);
-	if (_streams.find(req.getSocket()) != _streams.end()) {
-		_processStream(_streams.find(req.getSocket())->second);
-		res.setStatus(200);
-		return ;
-	}
-	if (_res_streams.find(req.getSocket()) != _res_streams.end() && _res_streams[req.getSocket()].status >= 400) {
-        return ;
-    }
-	req.parseHeaders(_sessions);
-	if (!req.setConfig(_configs))
-		throw Request::ParsingErrorException(Request::BAD_REQUEST, "hostname is not configured");
-	res.setConfig(*req.getConfig());
-		/*************************/
-	if (req.isTargetingCGI())
-	{
-		try {
-			std::string scriptPath = req.getScriptPath();
-			if (!utils::fileExists(scriptPath)) {
-				res = Response(req.getConfig(), 404, _res_buffer, _res_buffer_size);
-			} else {
-				CGIHandler cgiHandler(scriptPath, req);
-				std::string cgiOutput = cgiHandler.execute();
-				if (cgiOutput.empty()) {
-					res = Response(req.getConfig(), 500, _res_buffer, _res_buffer_size);
-				} else {
-					// res = Response(req.getConfig(), 200, _res_buffer, _res_buffer_size);
-					std::cout << "start" << std::endl;
-					res.setStatus(200);
-					res.addHeader("Content-Type", "text/html");
-					res.addHeader("Set-Cookie", req.getSession());
-					res.generateCGIResponse(cgiOutput);
-					std::cout << "end" << std::endl;
-				}
-			}
-		} catch (std::runtime_error& e) {
-			std::cerr << e.what() << std::endl;
-			res = Response(req.getConfig(), 500, _res_buffer, _res_buffer_size);
-		}
-	}
-	else
-	{
-		/* Configure response */
-		res = Response(req, req.getConfig(), _res_buffer, _res_buffer_size);
-		/*********************/
-		/* Parse request body */
-		if (res.getStatusCode() < 300 && req.getMethod() == "POST")
-			req.parseBody(*this);
-		/*********************/
-	}
+	Session new_ses(new_client_socket);
+	_sessions[new_client_socket] = new_ses;
 }
 
 void Server::_serveExistingClient(Session &client, size_t i)
 {
-	Request&	req = client.request;
+	// Request&	req = client.request;
 	Response&	res = client.response;
 	int			client_socket = client.client_id;
 
 	try {
-		_requestHandling(req, res);
+		client.recieveData();
+		if (client.status == client.S_NEW)
+			client.newRequest(_configs);
+		else if (client.status == client.S_REQUEST)
+			std::cout << "recieved more data" << std::endl;
+		else
+			throw Request::ParsingErrorException(Request::BAD_REQUEST, "unexpected error");
 	} catch (Request::SocketCloseException &e) {
 		_cleanChunkFiles(client_socket);
 		close(client_socket);
 		_fds.erase(_fds.begin() + i);
+		_sessions.erase(client_socket);
 		return ;
 	} catch (Request::ParsingErrorException& e) {
 		if (e.type == Request::BAD_REQUEST)
@@ -106,76 +50,85 @@ void Server::_serveExistingClient(Session &client, size_t i)
 		_cleanChunkFiles(client_socket);
 	}
 	/*******************/
-	if (res.getStatusCode() == -1)
-		res.setStatus(500);
-
-	Outstream outsteam(res.getContentLength(), res.getContent(), res.getStatusCode());
-    if (_res_streams.find(client_socket) == _res_streams.end()) {
-        _res_streams[client_socket] = outsteam;
-    }
-	else if (res.getStatusCode() != 200 && _res_streams[client_socket].status == 200) {
-		_res_streams[client_socket] = outsteam;
-	}
 	int response_code = res.getStatusCode();
+	if (response_code <= -1)
+		res.setStatus(500);
 	if (response_code >= 500 || response_code >= 400) {
 		_cleanChunkFiles(client_socket);
 	}
 }
 
-void Server::_processStream(Stream stream)
+void Server::_processRequest(Session &client, size_t i)
 {
-	int file_fd = stream.file_fd;
-	int client_socket = stream.req.getSocket();
-	char* buffer = _buffer;
+	(void)i;
 
-	std::string& boundary = stream.boundary;
-	std::string boundary_end = boundary + "--";
-	char *boundary_pos = utils::strstr(buffer, boundary.c_str(), _buffer_size);
-	char *boundary_end_pos = utils::strstr(buffer, boundary_end.c_str(), _buffer_size);
-	if (boundary_pos && boundary_pos != boundary_end_pos) {
-		write(file_fd, buffer, (boundary_pos - buffer) - 2);
-		close(file_fd);
-		deleteStream(client_socket);
-		int readBodyResult = stream.req.readBodyFile(boundary_pos, _buffer_size - (boundary_pos - buffer), *this);
-		if (readBodyResult != -1) {
-			addStream(client_socket, readBodyResult, stream.req, boundary);
-		}
-	} else if (boundary_end_pos) {
-		_buffer_size = (boundary_end_pos - buffer) + 2;
-		write(file_fd, buffer, _buffer_size);
-		close(file_fd);
-		deleteStream(client_socket);
-	} else {
-		write(file_fd, buffer, _buffer_size);
-	}
-}
+	Request& req = client.request;
+	Response& res = client.response;
 
-void Server::_processResponseStream(int client_socket)
-{
-	Outstream resp = _res_streams.find(client_socket)->second;
-	std::cout << resp.buffer << std::endl;
-	ssize_t bytes_sent = send(client_socket, resp.buffer, resp.bytes_to_send, MSG_DONTWAIT);
-	if (bytes_sent < 0)
+	if (req.isTargetingCGI())
 	{
-		if (resp.counter > MAX_NUBMER_ATTEMPTS) {
-			_res_streams.erase(client_socket);
-			std::cout << "Maximum number of send attempts excided" << std::endl;
-			return;
-		} else {
-			resp.counter++;
+		try
+		{
+			std::string scriptPath = req.getScriptPath();
+			if (!utils::fileExists(scriptPath))
+			{
+				res.setStatus(404);
+			}
+			else
+			{
+				CGIHandler cgiHandler(scriptPath, req);
+				std::string cgiOutput = cgiHandler.execute();
+				if (cgiOutput.empty())
+				{
+					res.setStatus(500);
+				}
+				else
+				{
+					std::cout << "start" << std::endl;
+					res.setStatus(200);
+					res.addHeader("Content-Type", "text/html");
+					res.addHeader("Set-Cookie", req.getSession());
+					res.generateCGIResponse(cgiOutput);
+					std::cout << "end" << std::endl;
+				}
+			}
+		}
+		catch (std::runtime_error &e)
+		{
+			std::cerr << e.what() << std::endl;
+			res.setStatus(500);
 		}
 	}
-	if (resp.bytes_to_send > bytes_sent) {
-		char* buffer_to_save = resp.buffer + bytes_sent;
-		Outstream outsteam(resp.bytes_to_send - bytes_sent, buffer_to_save, resp.status);
-		_res_streams.erase(client_socket);
-		_res_streams[client_socket] = outsteam;
-	} else if (resp.bytes_to_send == bytes_sent) {
-		_res_streams.erase(client_socket);
+	else
+	{
+		/* Configure response */
+		res.initialize(req);
+		/*********************/
+
+		/* Parse request body */
+		if (res.getStatusCode() < 300 && req.getMethod() == "POST")
+			req.parseBody(*this);
+		/*********************/
 	}
+	client.status = client.S_RESPONSE;
+	std::cout << "response processed" << std::endl;
 }
 
-void Server::addPollfd(int socket_fd, short events)
+void Server::_sendResponse(Session &client, size_t i)
+{
+	(void)i;
+
+	client.sendResponse();
+	std::cout << "response sent" << std::endl;
+	// if (client.response.getContentLength() == 0) {
+	// 	_cleanChunkFiles(_fds[i].fd);
+	// 	close(_fds[i].fd);
+	// 	_fds.erase(_fds.begin() + i);
+	// 	_sessions.erase(_fds[i].fd);
+	// }
+}
+
+    void Server::addPollfd(int socket_fd, short events)
 {
     pollfd fd;
 	fd.fd = socket_fd;
@@ -234,8 +187,10 @@ void Server::pollLoop() {
 	for (size_t i = 0; i < getSocketsSize(); ++i) {
 		if (_fds[i].revents & POLLERR) {
 			std::cerr << "Polling error: " << errno << std::endl;
+			_cleanChunkFiles(_fds[i].fd);
 			close(_fds[i].fd);
 			_fds.erase(_fds.begin() + i);
+			_sessions.erase(_fds[i].fd);
 			if (_fds[i].fd == _main_socketfd)
 				throw PollingErrorException("error from poll() function");
 		}
@@ -243,18 +198,15 @@ void Server::pollLoop() {
 		if (_fds[i].revents & POLLIN) {
 			if (client_socket == _main_socketfd) {
 				_addNewClient(client_socket);
-				_sessions[client_socket] = Session(client_socket);
-				/*
-					Create new client class
-				*/
 			} else {
 				_serveExistingClient(_sessions[client_socket], i);
 			}
 		} else if (_fds[i].revents & POLLOUT) {
-			if (_res_streams.find(_fds[i].fd) != _res_streams.end()) {
-				// _setRequestTime(client_socket);
-				_processResponseStream(_fds[i].fd);
-			}
+			Session &client = _sessions[client_socket];
+			if (client.status != Session::S_NEW)
+				_processRequest(client, i);
+			if (client.status == Session::S_RESPONSE)
+				_sendResponse(client, i);
 		}
 	}
 }
@@ -408,38 +360,38 @@ std::ostream &operator<<(std::ostream &os, const Server &server) {
 	return os;
 }
 
-Outstream::Outstream(ssize_t bytes, const char *buffer, int status_code) {
-	counter = 0;
-	bytes_to_send = bytes;
-    status = status_code;
-	this->buffer = new char[bytes_to_send];
-	std::memset(this->buffer, 0, bytes_to_send);
-	memmove(this->buffer, buffer, bytes_to_send);
-}
+// Outstream::Outstream(ssize_t bytes, const char *buffer, int status_code) {
+// 	counter = 0;
+// 	bytes_to_send = bytes;
+//     status = status_code;
+// 	this->buffer = new char[bytes_to_send];
+// 	std::memset(this->buffer, 0, bytes_to_send);
+// 	memmove(this->buffer, buffer, bytes_to_send);
+// }
 
-Outstream::Outstream(const Outstream &src)
-{
-	if (src.bytes_to_send > 0) {
-		buffer = new char[src.bytes_to_send];
-		std::memmove(buffer, src.buffer, src.bytes_to_send);
-	}
-	else
-		buffer = 0;
-	bytes_to_send = src.bytes_to_send;
-	counter = src.counter;
-    status = src.status;
-}
+// Outstream::Outstream(const Outstream &src)
+// {
+// 	if (src.bytes_to_send > 0) {
+// 		buffer = new char[src.bytes_to_send];
+// 		std::memmove(buffer, src.buffer, src.bytes_to_send);
+// 	}
+// 	else
+// 		buffer = 0;
+// 	bytes_to_send = src.bytes_to_send;
+// 	counter = src.counter;
+//     status = src.status;
+// }
 
-Outstream &Outstream::operator=(const Outstream &src)
-{
-	if (this != &src) {
-		if (buffer)
-			delete[] buffer;
-		buffer = new char[src.bytes_to_send];
-		std::memmove(buffer, src.buffer, src.bytes_to_send);
-		bytes_to_send = src.bytes_to_send;
-		counter = src.counter;
-        status = src.status;
-	}
-	return *this;
-}
+// Outstream &Outstream::operator=(const Outstream &src)
+// {
+// 	if (this != &src) {
+// 		if (buffer)
+// 			delete[] buffer;
+// 		buffer = new char[src.bytes_to_send];
+// 		std::memmove(buffer, src.buffer, src.bytes_to_send);
+// 		bytes_to_send = src.bytes_to_send;
+// 		counter = src.counter;
+//         status = src.status;
+// 	}
+// 	return *this;
+// }

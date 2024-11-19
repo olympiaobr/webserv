@@ -1,62 +1,95 @@
 #include "Request.hpp"
 #include "../server/Server.hpp"
 
-Request::Request(int clientSocket, ServerConfig* config, int buffer_len)
-	: _clientSocket(clientSocket), _config(config), _buffer_length(buffer_len) {
-		_buffer = new char(_buffer_length);
+// Request::Request(int clientSocket, ServerConfig *config, int buffer_len)
+// 	: buffer_length(buffer_len), _clientSocket(clientSocket), _config(config)
+// {
+// 	buffer = new char[buffer_length];
+// 	total_read = 0;
+// }
+
+Request::Request(const Request &src, size_t extend)
+{
+	_session_id = src._session_id;
+	_clientSocket = src._clientSocket;
+	_method = src._method;
+	_uri = src._uri;
+	_httpVersion = src._httpVersion;
+	_headers = src._headers;
+	_body = src._body;
+	_config = src._config;
+	_route_config = src._route_config;
+	buffer_length = src.buffer_length + extend;
+	buffer = new char[buffer_length];
+	std::copy(src.buffer, src.buffer + src.buffer_length, buffer);
 }
 
-Request::Request() {}
+Request::Request(): buffer_length(2048) {
+	total_read = 0;
+	buffer = new char[buffer_length];
+}
+
+Request::Request(int clientSocket) : buffer_length(2048)
+{
+	total_read = 0;
+	buffer = new char[buffer_length];
+	_clientSocket = clientSocket;
+}
 
 Request::~Request() {
-	if (_buffer)
-		delete[] _buffer;
+	if (buffer)
+		delete[] buffer;
 }
 
-void Request::parseHeaders(std::vector<Session>& sessions) {
+Request &Request::operator=(const Request &src)
+{
+	_session_id = src._session_id;
+	_clientSocket = src._clientSocket;
+	_method = src._method;
+	_uri = src._uri;
+	_httpVersion = src._httpVersion;
+	_headers = src._headers;
+	_body = src._body;
+	_config = src._config;
+	_route_config = src._route_config;
+	buffer_length = src.buffer_length;
+	delete[] buffer;
+	buffer = new char[buffer_length];
+	std::copy(src.buffer, src.buffer + buffer_length, buffer);
+	return *this;
+}
+
+void Request::parseHeaders() {
     std::string request;
-    bool headersComplete = false;
     size_t headerEnd;
 
-	_buffer[_buffer_length] = 0;
-	request += _buffer;
+	buffer[total_read] = 0;
+	request += buffer;
 	headerEnd = request.find("\r\n\r\n");
 	if (headerEnd != std::string::npos) {
-		headersComplete = true;
-	} else {
-		throw ParsingErrorException(BAD_REQUEST, "malformed request");
-	}
-
-
-    if (headersComplete) {
-        std::istringstream requestStream(request.substr(0, headerEnd));
-        std::string line;
-        if (std::getline(requestStream, line)) {
-            _parseRequestLine(line);
-        }
-        while (std::getline(requestStream, line) && line != "\r") {
-            _parseHeader(line);
-        }
-		std::string id = getHeader("Cookie");
-		std::vector<Session>::const_iterator session_it;
-		session_it = Session::findSession(sessions, id);
-		if (session_it == sessions.end() || id == "") {
-			Session ses(_clientSocket);
-			sessions.push_back(ses);
-			id = ses.getSessionId();
-			session_it = Session::findSession(sessions, id);
-			_session_id = session_it->getSessionId();
+		std::istringstream requestStream(request.substr(0, headerEnd));
+		std::string line;
+		if (std::getline(requestStream, line))
+		{
+			_parseRequestLine(line);
 		}
-    } else {
+		while (std::getline(requestStream, line) && line != "\r")
+		{
+			_parseHeader(line);
+		}
+		// std::string id = getHeader("Cookie");
+		// std::cout << id << std::endl;
+	} else {
 		throw ParsingErrorException(BAD_REQUEST, "malformed request");
 	}
-	size_t left_len = _buffer_length - headerEnd - 4;
-	_buffer_length = left_len;
-	char* body_part = _buffer + headerEnd + 4;
+
+	size_t left_len = buffer_length - headerEnd - 4;
+	total_read = left_len;
+	char* body_part = buffer + headerEnd + 4;
 	if (*body_part) {
-		std::memmove(_buffer, body_part, left_len);
+		std::memmove(buffer, body_part, left_len);
 	} else {
-		std::memset(_buffer, 0, _buffer_length);
+		std::memset(buffer, 0, buffer_length);
 	}
 }
 
@@ -96,19 +129,19 @@ RouteConfig* Request::_findMostSpecificRouteConfig(const std::string& uri)
 }
 
 int Request::parseBody(Server& server) {
-	std::string content_length = getHeader("Content-Length");
-    int contentLength = atoi(content_length.c_str());
+	// std::string content_length = getHeader("Content-Length");
+    // int contentLength = atoi(content_length.c_str());
     std::string content_type = getHeader("Content-Type");
 
-    if (contentLength > _config->body_limit || contentLength > _route_config->body_limit) {
-        throw ParsingErrorException(CONTENT_LENGTH, "content length is above limit");
-	}
+    // if (contentLength > _config->body_limit || contentLength > _route_config->body_limit) {
+    //     throw ParsingErrorException(CONTENT_LENGTH, "content length is above limit");
+	// }
 	if (content_type.find("multipart/form-data") != content_type.npos) {
-		readBodyFile(_buffer, _buffer_length, server);
+		readBodyFile(buffer, buffer_length, server);
 	} else if (getHeader("Transfer-Encoding") == "chunked"){
-		_readBodyChunked(_buffer, _buffer_length);
+		_readBodyChunked(buffer, buffer_length);
 	} else {
-		_readBody(_buffer, _buffer_length);
+		_readBody(buffer, buffer_length);
 	}
 	return -1;
 }
@@ -447,10 +480,19 @@ ServerConfig* Request::getConfig() const
     return _config;
 }
 
+const char *Request::getBuffer() const
+{
+    return buffer;
+}
+
+size_t Request::getBufferLen() const
+{
+    return size_t(buffer_length);
+}
+
 void Request::setBufferLen(size_t len)
 {
-	_buffer[len] = 0;
-	_buffer_length = len;
+	total_read += len;
 }
 
 const char *Request::StreamingData::what() const throw()

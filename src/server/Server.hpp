@@ -12,13 +12,17 @@
 # include <ctime>
 # include <cstdio>
 
-# include "../requests/Request.hpp"
-# include "../responses/Response.hpp"
+// # include "../requests/Request.hpp"
+// # include "../responses/Response.hpp"
 # include "../configuration/Config.hpp"
-# include "../cgi/CGI.hpp"
+# include "./Session.hpp"
 # include "../utilities/Utils.hpp"
+# include "../cgi/CGI.hpp"
+# include "../Constants.h"
 
-# include "../include/debug.hpp"
+// # include "../cgi/CGI.hpp"
+
+// # include "../include/debug.hpp"
 
 class Request;
 class Response;
@@ -27,7 +31,6 @@ class Response;
 # define BACKLOG 3
 // # define TEMP_FILES_DIRECTORY "tmp/"
 # define REQUEST_TIMEOUT 5
-# define RESPONSE_MAX_BODY_SIZE 80000000
 # define MAX_NUBMER_ATTEMPTS 3
 
 // typedef std::map<short, std::map<std::string, ServerConfig>> ConfigList;
@@ -119,7 +122,6 @@ class Server {
 		sockaddr_in					_address;
 		int							_address_len;
 		std::vector<pollfd>			_fds;
-		ServerConfig*				_config;
 		std::vector<ServerConfig>	_configs;
 		std::map<int, std::time_t>	_request_time;
 
@@ -132,12 +134,12 @@ class Server {
 		void _bindSocketName();
 
 		void _cleanChunkFiles(int client_socket);
-		void _addNewClient(int client_socket);
-		void _requestHandling(Request &req, Response &res);
-		void _serveExistingClient(Session &client, size_t i);
 
-		void _processStream(Stream stream);
-		void _processResponseStream(int client_socket);
+		/* Loop methods */
+		void _addNewClient(int client_socket);
+		void _serveExistingClient(Session &client, size_t i);
+		void _processRequest(Session &client, size_t i);
+		void _sendResponse(Session& client, size_t i);
 };
 
 std::ostream &operator<<(std::ostream &os, const Server &server);

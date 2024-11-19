@@ -5,60 +5,71 @@
 #include <iostream>
 #include <sys/stat.h>
 #include <cstdio>
+#include <dirent.h>
 
 Response::Response()
 {
+    _httpVersion = "HTTP/1.1";
+    _statusCode = 0;
     initializeHttpErrors();
-    _buffer = new char(_buffer_size);
+    _buffer_size = RESPONSE_MAX_BODY_SIZE;
+    _buffer = new char[_buffer_size];
 }
 
-Response::Response(ServerConfig *config, int buffer_size) : _config(config), _statusCode(-1), _buffer_size(buffer_size), _content_length(0)
+Response::~Response()
 {
-    initializeHttpErrors();
-    _buffer = new char(_buffer_size);
+    delete[] _buffer;
 }
 
-Response::Response(ServerConfig* config, int errorCode, int buffer_size)
-	: _httpVersion("HTTP/1.1"), _config(config), _buffer_size(buffer_size), _content_length(0) {
-	initializeHttpErrors();
-	_setError(errorCode);
-    _buffer = new char(_buffer_size);
-}
+// Response::Response(ServerConfig *config, int buffer_size) : _config(config), _statusCode(-1), _buffer_size(buffer_size), _content_length(0)
+// {
+//     _statusCode = 0;
+//     initializeHttpErrors();
+//     _buffer = new char[_buffer_size];
+// }
 
-Response::Response(const Request& req, ServerConfig* config, int buffer_size)
-    : _httpVersion("HTTP/1.1"), _config(config), _buffer_size(buffer_size), _content_length(0) {
+// Response::Response(ServerConfig* config, int errorCode, int buffer_size)
+// 	: _httpVersion("HTTP/1.1"), _config(config), _buffer_size(buffer_size), _content_length(0) {
+//     _statusCode = 0;
+//     initializeHttpErrors();
+// 	_setError(errorCode);
+//     _buffer = new char[_buffer_size];
+// }
 
-    _buffer = new char(_buffer_size);
+// Response::Response(const Request& req, ServerConfig* config, int buffer_size)
+//     : _httpVersion("HTTP/1.1"), _config(config), _buffer_size(buffer_size), _content_length(0) {
 
-    initializeHttpErrors();
+//     _buffer = new char[_buffer_size];
 
-    if (req.getHttpVersion() != "HTTP/1.1") {
-        _setError(505);
-        return;
-    }
-    if (std::find(
-            config->hostnames.begin(),
-            config->hostnames.end(),
-            req.getHost()
-        ) == config->hostnames.end()) {
-        _setError(400);
-        return;
-    }
-    // const RouteConfig* route_config = _findMostSpecificRouteConfig(req.getUri());
-    const RouteConfig* route_config = req.getRouteConfig();
-    if (!route_config) {
-        _setError(404);
-        return;
-    }
-	if (this->_handleRedir(route_config->redirect_status_code, route_config->redirect_url)) {
-        return;
-    }
-    if (std::find(route_config->allowed_methods.begin(), route_config->allowed_methods.end(), req.getMethod()) == route_config->allowed_methods.end()) {
-        _setError(405);
-        return;
-    }
-    _dispatchMethodHandler(req, route_config);
-}
+//     initializeHttpErrors();
+
+//     if (req.getHttpVersion() != "HTTP/1.1") {
+//         _setError(505);
+//         return;
+//     }
+//     if (std::find(
+//             config->hostnames.begin(),
+//             config->hostnames.end(),
+//             req.getHost()
+//         ) == config->hostnames.end()) {
+//         _setError(400);
+//         return;
+//     }
+//     // const RouteConfig* route_config = _findMostSpecificRouteConfig(req.getUri());
+//     const RouteConfig* route_config = req.getRouteConfig();
+//     if (!route_config) {
+//         _setError(404);
+//         return;
+//     }
+// 	if (this->_handleRedir(route_config->redirect_status_code, route_config->redirect_url)) {
+//         return;
+//     }
+//     if (std::find(route_config->allowed_methods.begin(), route_config->allowed_methods.end(), req.getMethod()) == route_config->allowed_methods.end()) {
+//         _setError(405);
+//         return;
+//     }
+//     _dispatchMethodHandler(req, route_config);
+// }
 
 bool Response::_handleRedir(int redirect_status_code, const std::string& redirect_url) {
 
@@ -111,13 +122,15 @@ Response& Response::operator=(const Response& other) {
 		_statusMessage = other._statusMessage;
 		_headers = other._headers;
 		_content = other._content;
-		_buffer = other._buffer;
-		_buffer_size = other._buffer_size;
-		_httpErrors = other._httpErrors;
+        _buffer_size = other._buffer_size;
+        delete[] _buffer;
+		_buffer = new char[other._buffer_size];
+        std::copy(other._buffer, other._buffer + _buffer_size, _buffer);
+        _httpErrors = other._httpErrors;
 		_content_length = other._content_length;
         _headers_length = other._headers_length;
         _connection = other._connection;
-	}
+    }
 	return *this;
 }
 
@@ -419,6 +432,46 @@ const char *Response::getContent()
 ssize_t Response::getContentLength()
 {
 	return _content_length;
+}
+
+void Response::setContent(ssize_t move)
+{
+    _content = _content + move;
+    _content_length -= move;
+}
+
+void Response::initialize(const Request &req)
+{
+    if (req.getHttpVersion() != "HTTP/1.1")
+    {
+        _setError(505);
+        return;
+    }
+    if (std::find(
+            _config->hostnames.begin(),
+            _config->hostnames.end(),
+            req.getHost()) == _config->hostnames.end())
+    {
+        _setError(400);
+        return;
+    }
+    // const RouteConfig* route_config = _findMostSpecificRouteConfig(req.getUri());
+    const RouteConfig *route_config = req.getRouteConfig();
+    if (!route_config)
+    {
+        _setError(404);
+        return;
+    }
+    if (this->_handleRedir(route_config->redirect_status_code, route_config->redirect_url))
+    {
+        return;
+    }
+    if (std::find(route_config->allowed_methods.begin(), route_config->allowed_methods.end(), req.getMethod()) == route_config->allowed_methods.end())
+    {
+        _setError(405);
+        return;
+    }
+    _dispatchMethodHandler(req, route_config);
 }
 
 std::string Response::_getMimeType(const std::string& filename) {
