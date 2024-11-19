@@ -56,8 +56,13 @@ Session &Session::operator=(const Session &src)
 
 void Session::recieveData()
 {
-    if (status != S_NEW) {
+    if (status != S_NEW && status != S_DONE)
+    {
         request = Request(request, 1024 * 1024);
+    }
+    else
+    {
+        request.total_read = 0;
     }
     ssize_t bytes_read = recv(request.getSocket(), (void *)(request.buffer + request.total_read), request.getBufferLen(), 0);
     if (bytes_read == 0)

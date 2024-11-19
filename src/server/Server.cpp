@@ -18,6 +18,7 @@ void Server::_addNewClient(int client_socket)
 	addPollfd(new_client_socket, POLLIN | POLLOUT);
 	Session new_ses(new_client_socket);
 	_sessions[new_client_socket] = new_ses;
+	std::cout << "new client added to " << new_client_socket << std::endl;
 }
 
 void Server::_serveExistingClient(Session &client, size_t i)
@@ -28,17 +29,18 @@ void Server::_serveExistingClient(Session &client, size_t i)
 
 	try {
 		client.recieveData();
-		if (client.status == client.S_NEW)
+		if (client.status == client.S_NEW || client.status == client.S_DONE)
 			client.newRequest(_configs);
 		else if (client.status == client.S_REQUEST)
 			std::cout << "recieved more data" << std::endl;
-		else
-			throw Request::ParsingErrorException(Request::BAD_REQUEST, "unexpected error");
+		// else
+		// 	throw Request::ParsingErrorException(Request::BAD_REQUEST, "unexpected error");
 	} catch (Request::SocketCloseException &e) {
 		_cleanChunkFiles(client_socket);
 		close(client_socket);
 		_fds.erase(_fds.begin() + i);
 		_sessions.erase(client_socket);
+		std::cout << "socket closed on " << client_socket << std::endl;
 		return ;
 	} catch (Request::ParsingErrorException& e) {
 		if (e.type == Request::BAD_REQUEST)
@@ -56,6 +58,7 @@ void Server::_serveExistingClient(Session &client, size_t i)
 	if (response_code >= 500 || response_code >= 400) {
 		_cleanChunkFiles(client_socket);
 	}
+	std::cout << "new request recieved on " << client_socket << std::endl;
 }
 
 void Server::_processRequest(Session &client, size_t i)
@@ -111,7 +114,7 @@ void Server::_processRequest(Session &client, size_t i)
 		/*********************/
 	}
 	client.status = client.S_RESPONSE;
-	std::cout << "response processed" << std::endl;
+	std::cout << "response processed on " << client.client_id << std::endl;
 }
 
 void Server::_sendResponse(Session &client, size_t i)
@@ -119,8 +122,9 @@ void Server::_sendResponse(Session &client, size_t i)
 	(void)i;
 
 	client.sendResponse();
-	std::cout << "response sent" << std::endl;
-	// if (client.response.getContentLength() == 0) {
+	std::cout << "response sent on " << client.client_id << std::endl;
+	if (client.response.getContentLength() == 0)
+		client.status = client.S_DONE;
 	// 	_cleanChunkFiles(_fds[i].fd);
 	// 	close(_fds[i].fd);
 	// 	_fds.erase(_fds.begin() + i);
@@ -203,7 +207,7 @@ void Server::pollLoop() {
 			}
 		} else if (_fds[i].revents & POLLOUT) {
 			Session &client = _sessions[client_socket];
-			if (client.status != Session::S_NEW)
+			if (client.status != Session::S_NEW && client.status != Session::S_DONE)
 				_processRequest(client, i);
 			if (client.status == Session::S_RESPONSE)
 				_sendResponse(client, i);
