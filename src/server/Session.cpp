@@ -83,14 +83,14 @@ void Session::newRequest(std::vector<ServerConfig> &configs)
     std::string content_length = request.getHeader("Content-Length");
     int contentLength = atoi(content_length.c_str());
     if (contentLength > request.getRouteConfig()->body_limit)
-        throw Request::ParsingErrorException(Request::CONTENT_LENGTH, "content length is above limit");
+        throw Request::ParsingErrorException(Request::CONTENT_LENGTH, "content length is above the limit");
     response.setStatus(200);
 }
 
 void Session::parseBody()
 {
     if (request.getRouteConfig()->body_limit < request.total_read)
-        throw Request::ParsingErrorException(Request::CONTENT_LENGTH, "content length is above limit");
+        throw Request::ParsingErrorException(Request::CONTENT_LENGTH, "content length is above the limit");
 }
 
 int Session::getSocket() const

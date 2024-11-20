@@ -292,13 +292,13 @@ int Request::readBodyFile(char *buffer, ssize_t bytesRead, Server& server) {
 	return -1;
 }
 
-void Request::addHeader(const std::string& key, const std::string& value) {
-    std::string lowercase_key;
+// void Request::addHeader(const std::string& key, const std::string& value) {
+//     std::string lowercase_key;
 
-    lowercase_key = key;
-    lowercase_key = utils::toLowerCase(lowercase_key);
-    _headers[lowercase_key] = value;
-}
+//     lowercase_key = key;
+//     lowercase_key = utils::toLowerCase(lowercase_key);
+//     _headers[lowercase_key] = value;
+// }
 
 std::string Request::getMethod() const {
     return _method;

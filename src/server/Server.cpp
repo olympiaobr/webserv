@@ -31,8 +31,11 @@ void Server::_serveExistingClient(Session &client, size_t i)
 		client.recieveData();
 		if (client.status == client.S_NEW || client.status == client.S_DONE)
 			client.newRequest(_configs);
-		else if (client.status == client.S_REQUEST)
+		else if (client.status == client.S_REQUEST) {
+			if (client.request.total_read > client.request.getRouteConfig()->body_limit)
+				throw Request::ParsingErrorException(Request::CONTENT_LENGTH, "content length is above the limit");
 			std::cout << "recieved more data" << std::endl;
+		}
 		// else
 		// 	throw Request::ParsingErrorException(Request::BAD_REQUEST, "unexpected error");
 	} catch (Request::SocketCloseException &e) {

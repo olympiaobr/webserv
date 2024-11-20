@@ -54,7 +54,7 @@ public:
 
 	bool isTargetingCGI() const;
 
-	void addHeader(const std::string& key, const std::string& value);
+	// void addHeader(const std::string& key, const std::string& value);
 
 	bool setConfig(std::vector<ServerConfig> &configs);
 
