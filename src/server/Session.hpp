@@ -3,11 +3,6 @@
 
 # include "../requests/Request.hpp"
 # include "../responses/Response.hpp"
-// # include "../utilities/Utils.hpp"
-// # include "./Server.hpp"
-
-// class Request;
-// class Response;
 
 class Session
 {
@@ -31,7 +26,6 @@ class Session
 		Session(int socket_id);
 		Session(const Session& src);
 		Session& operator=(const Session& src);
-		// static std::vector<Session>::const_iterator findSession(std::vector<Session>& sessions, std::string& id);
 
 		void recieveData();
 

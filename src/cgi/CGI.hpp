@@ -7,12 +7,6 @@
 
 # include "../utilities/Utils.hpp"
 # include "../requests/Request.hpp"
-// # include "../responses/Response.hpp"
-// # include "../configuration/Config.hpp"
-// # include "../server/Server.hpp"
-
-
-// class Request;
 
 class CGIHandler {
 public:

@@ -11,27 +11,17 @@
 # include <sys/socket.h>
 # include <fcntl.h>
 # include <errno.h>
-// # include <cctype>
 
 # include "../configuration/Config.hpp"
-# include "../Constants.h"
-// # include "../responses/Response.hpp"
-// # include "../cgi/CGI.hpp"
-// # include "../utilities/Utils.hpp"
-// # include "../server/Session.hpp"
-
 
 struct Stream;
 class Server;
 class Session;
 
-// typedef std::map<std::string, ServerConfig> ConfigList;
-
 class Request {
 public:
 	Request();
 	Request(int clientSocket);
-	// Request(int clientSocket, ServerConfig* config, int buffer_len);
 	Request(const Request& src, size_t extend);
 	~Request();
 

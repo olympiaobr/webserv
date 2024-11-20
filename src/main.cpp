@@ -1,5 +1,5 @@
-#include "Constants.h"
-#include "./server/Server.hpp"
+#include "server/Server.hpp"
+#include "include/debug.hpp"
 #include <dirent.h>
 #include <cstdlib>
 #include <fcntl.h>
@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <vector>
 
+#define TEMP_FILES_DIRECTORY "tmp/"
 #define MAX_CONNECTIONS 100
 #define BACKLOG 3
 

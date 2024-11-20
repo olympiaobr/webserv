@@ -123,11 +123,6 @@ bool utils::fileExists(const std::string& path) {
     return (stat(path.c_str(), &buffer) == 0);
 }
 
-std::time_t utils::getCurrentTime()
-{
-	return std::time(0);
-}
-
 std::string utils::toString(int value) {
         std::ostringstream oss;
         oss << value;

@@ -15,9 +15,6 @@ class Response {
 public:
 	Response();
 	~Response();
-	// Response(ServerConfig *config, int buffer_size);
-	// Response(ServerConfig *config, int errorCode, int buffer_size);
-    // Response(const Request& req, ServerConfig* config, int buffer_size);
 	Response& operator=(const Response& other);
 
     void			initializeHttpErrors();

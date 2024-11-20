@@ -12,55 +12,22 @@
 # include <ctime>
 # include <cstdio>
 
-// # include "../requests/Request.hpp"
-// # include "../responses/Response.hpp"
 # include "../configuration/Config.hpp"
 # include "./Session.hpp"
 # include "../utilities/Utils.hpp"
 # include "../cgi/CGI.hpp"
-# include "../Constants.h"
-
-// # include "../cgi/CGI.hpp"
-
-// # include "../include/debug.hpp"
+# include "../include/debug.hpp"
 
 class Request;
 class Response;
 
 
 # define BACKLOG 3
-// # define TEMP_FILES_DIRECTORY "tmp/"
 # define REQUEST_TIMEOUT 5
 # define MAX_NUBMER_ATTEMPTS 3
+# define TEMP_FILES_DIRECTORY "tmp/"
 
-// typedef std::map<short, std::map<std::string, ServerConfig>> ConfigList;
 typedef std::vector<std::string> HostList;
-// typedef std::map<std::string, ServerConfig> ConfigList;
-
-// 	struct Stream
-// {
-// 	int			counter;
-// 	int			file_fd;
-// 	Request		req;
-// 	std::string	boundary;
-// 	Stream(Request& req, std::string boundary, int file_fd): file_fd(file_fd), req(req), boundary(boundary) {};
-// 	Stream(): req(Request()) {};
-// };
-
-// struct Outstream {
-// 	int			counter;
-// 	char*		buffer;
-// 	ssize_t		bytes_to_send;
-//     int         status;
-// 	Outstream(ssize_t bytes_to_send, const char *buffer, int status_code);
-// 	Outstream(const Outstream& src);
-// 	Outstream(): counter(0), buffer(0), bytes_to_send(-1), status(200) {};
-// 	~Outstream() {
-// 		if (buffer)
-// 			delete[] buffer;
-// 	};
-// 	Outstream& operator=(const Outstream& src);
-// };
 
 class Server {
 	public:

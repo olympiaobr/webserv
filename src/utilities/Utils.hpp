@@ -16,6 +16,8 @@
 
 # include "../requests/Request.hpp"
 
+# define TEMP_FILES_DIRECTORY "tmp/"
+
 namespace utils {
 	std::string	&toLowerCase(std::string &string);
 	std::string	buildPath(int socket, const char *folder_name);
@@ -26,8 +28,6 @@ namespace utils {
 	std::string	chunkFileName(int socket);
 	char		*strstr(const char *haystack, const char *needle, ssize_t len);
 	int			stoi(const std::string &str, int sys);
-	// std::string generateDirectoryListing(const std::string& directoryPath);
-	std::time_t getCurrentTime();
 	std::string toString(int value);
 	bool		fileExists(const std::string& path);
 	std::string decodePercentEncoding(const std::string& encoded);
