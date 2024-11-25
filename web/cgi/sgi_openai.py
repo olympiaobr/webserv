@@ -1,4 +1,4 @@
-#!.venv/bin/python3
+#!./web/cgi/.venv/bin/python3
 import cgi
 import cgitb; cgitb.enable()
 from openai import OpenAI

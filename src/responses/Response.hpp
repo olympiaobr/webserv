@@ -8,6 +8,7 @@
 # include "../utilities/Utils.hpp"
 # include "../configuration/Config.hpp"
 # include "../requests/Request.hpp"
+# include "../cgi/CGI.hpp"
 
 #define RESPONSE_MAX_BODY_SIZE 8 * 1024 * 1024
 class Response {

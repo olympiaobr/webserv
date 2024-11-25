@@ -30,13 +30,23 @@
             <input type="submit" value="Submit">
         </form>
 
-        <!-- Upload files form -->
         <h2>Upload Files</h2>
-        <form action="/upload/" method="post" enctype="multipart/form-data">
-            <label for="files">Choose files:</label>
-            <input type="file" id="files" name="files" multiple>
+        <form id="upload-form" action="/cgi/postdeletescript.php" method="post" enctype="multipart/form-data">
+            <label for="file">Choose file:</label>
+            <input type="file" id="file" name="file" required>
             <input type="submit" value="Upload">
         </form>
+
+        <h2>Delete Files</h2>
+        <form id="delete-form" action="/cgi/postdeletescript.php" method="post">
+            <input type="hidden" name="_method" value="DELETE">
+            <label for="delete-file-name">File to delete:</label>
+            <input type="text" id="delete-file-name" name="file" placeholder="Enter file name" required>
+            <input type="submit" value="Delete">
+        </form>
+
+        <h2>View Uploaded Files</h2>
+        <a href="/cgi/postdeletescript.php?list=1">View all uploaded files</a>
 
         <h1>Contact Us</h1>
         <form action="/upload/" method="post">

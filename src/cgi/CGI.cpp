@@ -59,7 +59,7 @@ void CGIHandler::setupEnvironment() {
     environment["SCRIPT_FILENAME"] = normalizedScriptPath;
     environment["QUERY_STRING"] = request.getQueryString();
     environment["CONTENT_LENGTH"] = contentLength;
-    environment["CONTENT_TYPE"] = (request.getMethod() == "POST") ? "application/x-www-form-urlencoded" : request.getHeader("Content-Type");
+    environment["CONTENT_TYPE"] = request.getHeader("Content-Type");
     std::string serverPort = (serverConfig.port > 0) ? utils::toString(serverConfig.port) : "8000";
     environment["SERVER_PORT"] = serverPort;
     environment["SERVER_PROTOCOL"] = "HTTP/1.1";
@@ -70,7 +70,6 @@ void CGIHandler::setupEnvironment() {
                                 ? uri.substr(pathInfoPos + scriptPath.length())
                                 : "/";
 	environment["REDIRECT_STATUS"] = "200";
-    environment["GATEWAY_INTERFACE"] = "CGI/1.1";
     environment["SERVER_SOFTWARE"] = "webserv/1.0";
 
     std::cerr << "Setting up environment variables for CGI execution:\n";
@@ -93,17 +92,20 @@ void CGIHandler::setupEnvironment() {
 }
 
 std::string CGIHandler::getInterpreter(const std::string& scriptPath) {
-    const std::string pythonInterpreter = "./web/cgi/.venv/bin/python3";
-
     size_t extPos = scriptPath.find_last_of(".");
     if (extPos != std::string::npos) {
         std::string ext = scriptPath.substr(extPos);
         if (ext == ".py") {
-            return pythonInterpreter;
+            return "./web/cgi/.venv/bin/python3";
+        } else if (ext == ".php") {
+            return "/usr/bin/php";
+        } else if (ext == ".sh") {
+            return "/bin/bash";
         }
     }
     return "";
 }
+
 
 std::string CGIHandler::execute() {
     int pipe_fds[2];

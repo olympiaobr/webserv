@@ -99,21 +99,27 @@ bool Response::_handleRedir(int redirect_status_code, const std::string& redirec
 }
 
 void Response::_dispatchMethodHandler(const Request& req, const RouteConfig* route_config) {
-	try {
-		if (req.getMethod() == "GET" || req.getMethod() == "HEAD")
-			_handleGetRequest(req, route_config);
-		else if (req.getMethod() == "POST" || req.getMethod() == "PUT")
-			_handlePostRequest(req, route_config);
-		else if (req.getMethod() == "DELETE")
-			_handleDeleteRequest(req, route_config);
-		else
-			_setError(405);
-	} catch (Response::FileSystemErrorException &e) {
-		_setError(404);
-	} catch (Response::ContentLengthException &e) {
-		_setError(413);
-	}
+    try {
+        if (req.getMethod() == "GET" || req.getMethod() == "HEAD") {
+            _handleGetRequest(req, route_config);
+        } else if (req.getMethod() == "POST" || req.getMethod() == "DELETE") {
+            if (req.isTargetingCGI()) {
+                CGIHandler cgiHandler(req.getScriptPath(), req);
+                std::string cgiOutput = cgiHandler.execute();
+                generateCGIResponse(cgiOutput);
+            } else {
+                _setError(405);
+            }
+        } else {
+            _setError(405);
+        }
+    } catch (Response::FileSystemErrorException &e) {
+        _setError(404);
+    } catch (Response::ContentLengthException &e) {
+        _setError(413);
+    }
 }
+
 
 Response& Response::operator=(const Response& other) {
 	if (this != &other) {
@@ -207,71 +213,6 @@ void Response::_handleGetRequest(const Request& req, const RouteConfig* route_co
             _content_length = _headers_length;
         }
     }
-}
-
-/* send page ? */
-void Response::_handlePostRequest(const Request& req, const RouteConfig* route_config) {
-    setStatus(200);
-    addHeader("Content-Type", "text/html");
-	std::string directoryPath = _config->root + req.getUri();
-	{
-		std::ostringstream listing;
-		DIR* dir = opendir(directoryPath.c_str());
-		if (dir == NULL) {
-			throw FileSystemErrorException("cannot open directory");
-		}
-
-		struct dirent* entry;
-		std::string file = _config->root + "/css/styles.css";
-		std::ifstream styles(file.c_str());
-		if (!styles)
-			throw FileSystemErrorException("cannot open directory");
-		listing << "<html><head><title> File uploaded! " << directoryPath
-				<< "</title> <link rel=\"stylesheet\" href=\"" << styles.rdbuf()
-				<< "\">" << "</head><body><h1>File uploaded!</h2><h2>Index of " << directoryPath
-				<< "</h2><ul>";
-		styles.close();
-		while ((entry = readdir(dir)) != NULL) {
-			listing << "<li><a href=\"" << entry->d_name << "\">" << entry->d_name << "</a></li>";
-		}
-		closedir(dir);
-		listing << "</ul></body></html>";
-		std::memset(_buffer, 0, _buffer_size);
-		std::string list = listing.str();
-		addHeader("Content-Length", utils::toString(list.size()));
-		std::string headers = _headersToString();
-		if (list.size() + headers.size() > _buffer_size)
-			throw ContentLengthException("body is too long");
-		std::memcpy(_buffer, headers.c_str(), headers.size());
-		char *body = _buffer + headers.size();
-		std::memcpy(body, list.c_str(), list.size());
-		_content = _buffer;
-		_content_length = headers.size() + list.size();
-	}
-	(void)route_config;
-}
-
-void Response::_handleDeleteRequest(const Request& req, const RouteConfig* route_config)
-{
-    std::string uri = req.getUri();
-    std::string filePath = _config->root + uri;
-
-    // Check if the file exists
-    struct stat buffer;
-    if (stat(filePath.c_str(), &buffer) != 0) {
-        _setError(404);
-        return;
-    }
-	setStatus(200);
-	addHeader("Content-Type", _getMimeType(filePath));
-	addHeader("Set-Cookie", req.getSession());
-    if (!utils::fileExists(filePath)) {
-        throw FileSystemErrorException("File does not exist");
-    }
-    else if (!utils::deleteFile(filePath)) {
-        throw FileSystemErrorException("Fobidden");
-    }
-	(void)route_config;
 }
 
 void Response::setStatus(int code) {
