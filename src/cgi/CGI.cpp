@@ -52,7 +52,8 @@ std::string normalizePath(const std::string& path) {
 
 
 void CGIHandler::setupEnvironment() {
-    std::string contentLength = utils::toString(request.getBody().length());
+    // std::string contentLength = utils::toString(request.getBody().length());
+    std::string contentLength = utils::toString(request.total_read);
     std::string normalizedScriptPath = normalizePath(scriptPath);
 
     environment["REQUEST_METHOD"] = request.getMethod();
@@ -92,18 +93,18 @@ void CGIHandler::setupEnvironment() {
     envp[i] = NULL;
 }
 
-std::string CGIHandler::getInterpreter(const std::string& scriptPath) {
-    const std::string pythonInterpreter = "./web/cgi/.venv/bin/python3";
+// std::string CGIHandler::getInterpreter(const std::string& scriptPath) {
+//     const std::string pythonInterpreter = "./web/cgi/.venv/bin/python3";
 
-    size_t extPos = scriptPath.find_last_of(".");
-    if (extPos != std::string::npos) {
-        std::string ext = scriptPath.substr(extPos);
-        if (ext == ".py") {
-            return pythonInterpreter;
-        }
-    }
-    return "";
-}
+//     size_t extPos = scriptPath.find_last_of(".");
+//     if (extPos != std::string::npos) {
+//         std::string ext = scriptPath.substr(extPos);
+//         if (ext == ".py") {
+//             return pythonInterpreter;
+//         }
+//     }
+//     return "";
+// }
 
 std::string CGIHandler::execute() {
     int pipe_fds[2];
@@ -119,32 +120,37 @@ std::string CGIHandler::execute() {
     }
 
     if (pid == 0) {  // Child process
-        close(pipe_fds[0]);  // Close the read end in the child
+        // close(pipe_fds[0]);  // Close the read end in the child
         if (dup2(pipe_fds[1], STDOUT_FILENO) == -1) {
             std::cerr << "dup2 failed: " << strerror(errno) << std::endl;
             exit(EXIT_FAILURE);
         }
         close(pipe_fds[1]);  // No longer need this after dup2
 
-        std::string interpreter = getInterpreter(scriptPath);
-        if (interpreter.empty()) {
-            std::cerr << "No interpreter found for script: " << scriptPath << std::endl;
-            exit(EXIT_FAILURE);
-        }
+        // std::string interpreter = getInterpreter(scriptPath);
+        // if (interpreter.empty()) {
+        //     std::cerr << "No interpreter found for script: " << scriptPath << std::endl;
+        //     exit(EXIT_FAILURE);
+        // }
 
         char* const args[] = {
-            const_cast<char*>(interpreter.c_str()),
+            // const_cast<char*>(interpreter.c_str()),
             const_cast<char*>(scriptPath.c_str()),
             NULL
         };
-        std::cerr << "Executing CGI with interpreter: " << interpreter << ", script: " << scriptPath << std::endl;
+        // std::cerr << "Executing CGI with interpreter: " << interpreter << ", script: " << scriptPath << std::endl;
         for (int i = 0; envp[i] != NULL; ++i) {
             std::cerr << "envp[" << i << "]: " << envp[i] << std::endl;
         }
-        execve(interpreter.c_str(), args, envp);
+        std::cerr << "\nscript: " << scriptPath.c_str() << "\n" << std::endl;
+        execve(scriptPath.c_str(), args, envp);
         perror("execve failed");
         exit(EXIT_FAILURE);
     } else {  // Parent process
+        if (request.total_read > 0) {
+            int bytesSent = write(pipe_fds[1], request.getBuffer(), request.total_read);
+            std::cerr << bytesSent << std::endl;
+        }
         close(pipe_fds[1]);  // Close the write end in the parent
         std::string output;
         char buffer[1024];
@@ -157,7 +163,9 @@ std::string CGIHandler::execute() {
         close(pipe_fds[0]);
         int status;
         waitpid(pid, &status, 0);
-        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        std::cerr << status << std::endl;
+        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
+        {
             std::cerr << "CGI exited with status: " << WEXITSTATUS(status) << std::endl;
             throw std::runtime_error("Failed to run CGI");
         }

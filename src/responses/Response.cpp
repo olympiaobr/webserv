@@ -32,7 +32,7 @@ Response::~Response()
 // 	: _httpVersion("HTTP/1.1"), _config(config), _buffer_size(buffer_size), _content_length(0) {
 //     _statusCode = 0;
 //     initializeHttpErrors();
-// 	_setError(errorCode);
+// 	setError(errorCode);
 //     _buffer = new char[_buffer_size];
 // }
 
@@ -44,7 +44,7 @@ Response::~Response()
 //     initializeHttpErrors();
 
 //     if (req.getHttpVersion() != "HTTP/1.1") {
-//         _setError(505);
+//         setError(505);
 //         return;
 //     }
 //     if (std::find(
@@ -52,20 +52,20 @@ Response::~Response()
 //             config->hostnames.end(),
 //             req.getHost()
 //         ) == config->hostnames.end()) {
-//         _setError(400);
+//         setError(400);
 //         return;
 //     }
 //     // const RouteConfig* route_config = _findMostSpecificRouteConfig(req.getUri());
 //     const RouteConfig* route_config = req.getRouteConfig();
 //     if (!route_config) {
-//         _setError(404);
+//         setError(404);
 //         return;
 //     }
 // 	if (this->_handleRedir(route_config->redirect_status_code, route_config->redirect_url)) {
 //         return;
 //     }
 //     if (std::find(route_config->allowed_methods.begin(), route_config->allowed_methods.end(), req.getMethod()) == route_config->allowed_methods.end()) {
-//         _setError(405);
+//         setError(405);
 //         return;
 //     }
 //     _dispatchMethodHandler(req, route_config);
@@ -107,11 +107,11 @@ void Response::_dispatchMethodHandler(const Request& req, const RouteConfig* rou
 		else if (req.getMethod() == "DELETE")
 			_handleDeleteRequest(req, route_config);
 		else
-			_setError(405);
+			setError(405);
 	} catch (Response::FileSystemErrorException &e) {
-		_setError(404);
+		setError(404);
 	} catch (Response::ContentLengthException &e) {
-		_setError(413);
+		setError(413);
 	}
 }
 
@@ -186,7 +186,7 @@ void Response::_handleGetRequest(const Request& req, const RouteConfig* route_co
                 generateDirectoryListing(path);
             } else {
                 // std::cout << "No index file found, and autoindex is off, returning 404." << std::endl;
-                _setError(404);
+                setError(404);
             }
         } else {
             // std::cout << "Serving regular file: " << path << std::endl;
@@ -201,7 +201,7 @@ void Response::_handleGetRequest(const Request& req, const RouteConfig* route_co
     }
     else {
         // std::cout << "File or directory not found: " << path << std::endl;
-        _setError(404);
+        setError(404);
 
         if (req.getMethod() == "HEAD") {
             _content_length = _headers_length;
@@ -259,7 +259,7 @@ void Response::_handleDeleteRequest(const Request& req, const RouteConfig* route
     // Check if the file exists
     struct stat buffer;
     if (stat(filePath.c_str(), &buffer) != 0) {
-        _setError(404);
+        setError(404);
         return;
     }
 	setStatus(200);
@@ -292,7 +292,7 @@ int Response::getStatusCode() {
 }
 
 /* We need plan B if original function won't work */
-void Response::_setError(int code) {
+void Response::setError(int code) {
 	std::string path;
 	std::map<int, std::string>::const_iterator it = _config->error_pages.find(code);
 
@@ -310,9 +310,9 @@ void Response::_setError(int code) {
         addHeader("Content-Type", _getMimeType(filename));
 		generateResponse(filename);
 	} catch (Response::FileSystemErrorException &e) {
-		_setError(404);
+		setError(404);
 	} catch (Response::ContentLengthException &e) {
-		_setError(413);
+		setError(413);
 	}
 }
 
@@ -444,7 +444,7 @@ void Response::initialize(const Request &req)
 {
     if (req.getHttpVersion() != "HTTP/1.1")
     {
-        _setError(505);
+        setError(505);
         return;
     }
     if (std::find(
@@ -452,14 +452,14 @@ void Response::initialize(const Request &req)
             _config->hostnames.end(),
             req.getHost()) == _config->hostnames.end())
     {
-        _setError(400);
+        setError(400);
         return;
     }
     // const RouteConfig* route_config = _findMostSpecificRouteConfig(req.getUri());
     const RouteConfig *route_config = req.getRouteConfig();
     if (!route_config)
     {
-        _setError(404);
+        setError(404);
         return;
     }
     if (this->_handleRedir(route_config->redirect_status_code, route_config->redirect_url))
@@ -468,7 +468,7 @@ void Response::initialize(const Request &req)
     }
     if (std::find(route_config->allowed_methods.begin(), route_config->allowed_methods.end(), req.getMethod()) == route_config->allowed_methods.end())
     {
-        _setError(405);
+        setError(405);
         return;
     }
     _dispatchMethodHandler(req, route_config);

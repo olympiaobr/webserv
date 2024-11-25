@@ -34,6 +34,7 @@ public:
 
 	void			initialize(const Request& req);
 
+	void			setError(int code);
 
 	/* Exceptions */
 	class FileSystemErrorException: public std::exception {
@@ -72,7 +73,6 @@ private:
     void				_handleGetRequest(const Request& req, const RouteConfig* route_config);
     void				_handlePostRequest(const Request& req, const RouteConfig* route_config);
     void				_handleDeleteRequest(const Request& req, const RouteConfig* route_config);
-	void				_setError(int code);
     void				_dispatchMethodHandler(const Request& req, const RouteConfig* route_config);
     std::string			_headersToString() const;
 	bool _handleRedir(int redirect_status_code, const std::string& redirect_url);

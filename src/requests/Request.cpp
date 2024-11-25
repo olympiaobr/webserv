@@ -117,11 +117,6 @@ RouteConfig* Request::_findMostSpecificRouteConfig(const std::string& uri)
             longestMatchLength = basePath.length();
         }
     }
-    // if (bestMatch) {
-    //     std::cout << "Matched route: " << uri << " to " << bestMatch->root << std::endl;
-    // } else {
-    //     std::cout << "No matching route found for URI: " << uri << std::endl;
-    // }
 	if (_uri.length() > 1) {
     	_uri = _uri.substr(longestMatchLength - 1);
 	}
@@ -129,13 +124,8 @@ RouteConfig* Request::_findMostSpecificRouteConfig(const std::string& uri)
 }
 
 int Request::parseBody(Server& server) {
-	// std::string content_length = getHeader("Content-Length");
-    // int contentLength = atoi(content_length.c_str());
     std::string content_type = getHeader("Content-Type");
 
-    // if (contentLength > _config->body_limit || contentLength > _route_config->body_limit) {
-    //     throw ParsingErrorException(CONTENT_LENGTH, "content length is above limit");
-	// }
 	if (content_type.find("multipart/form-data") != content_type.npos) {
 		readBodyFile(buffer, buffer_length, server);
 	} else if (getHeader("Transfer-Encoding") == "chunked"){
@@ -440,6 +430,8 @@ bool Request::isTargetingCGI() const {
 	if (lowerPath.length() >= 4) {
 		result = lowerPath.rfind(".py") == lowerPath.length() - 3;
 	}
+	if (getMethod() != "GET")
+		return true;
 	return result;
 }
 

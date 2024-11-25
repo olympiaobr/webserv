@@ -18,7 +18,7 @@ void Server::_addNewClient(int client_socket)
 	addPollfd(new_client_socket, POLLIN | POLLOUT);
 	Session new_ses(new_client_socket);
 	_sessions[new_client_socket] = new_ses;
-	std::cout << "new client added to " << new_client_socket << std::endl;
+	// std::cout << "new client added to " << new_client_socket << std::endl;
 }
 
 void Server::_serveExistingClient(Session &client, size_t i)
@@ -43,25 +43,25 @@ void Server::_serveExistingClient(Session &client, size_t i)
 		close(client_socket);
 		_fds.erase(_fds.begin() + i);
 		_sessions.erase(client_socket);
-		std::cout << "socket closed on " << client_socket << std::endl;
+		// std::cout << "socket closed on " << client_socket << std::endl;
 		return ;
 	} catch (Request::ParsingErrorException& e) {
 		if (e.type == Request::BAD_REQUEST)
-			res.setStatus(400);
+			res.setError(400);
 		else if (e.type == Request::CONTENT_LENGTH)
-			res.setStatus(413);
+			res.setError(413);
 		else if (e.type == Request::FILE_SYSTEM)
-			res.setStatus(500);
+			res.setError(500);
 		_cleanChunkFiles(client_socket);
 	}
 	/*******************/
 	int response_code = res.getStatusCode();
 	if (response_code <= -1)
-		res.setStatus(500);
+		res.setError(500);
 	if (response_code >= 500 || response_code >= 400) {
 		_cleanChunkFiles(client_socket);
 	}
-	std::cout << "new request recieved on " << client_socket << std::endl;
+	// std::cout << "new request recieved on " << client_socket << std::endl;
 }
 
 void Server::_processRequest(Session &client, size_t i)
@@ -78,7 +78,7 @@ void Server::_processRequest(Session &client, size_t i)
 			std::string scriptPath = req.getScriptPath();
 			if (!utils::fileExists(scriptPath))
 			{
-				res.setStatus(404);
+				res.setError(404);
 			}
 			else
 			{
@@ -86,23 +86,23 @@ void Server::_processRequest(Session &client, size_t i)
 				std::string cgiOutput = cgiHandler.execute();
 				if (cgiOutput.empty())
 				{
-					res.setStatus(500);
+					res.setError(500);
 				}
 				else
 				{
-					std::cout << "start" << std::endl;
+					// std::cout << "start" << std::endl;
 					res.setStatus(200);
 					res.addHeader("Content-Type", "text/html");
 					res.addHeader("Set-Cookie", req.getSession());
 					res.generateCGIResponse(cgiOutput);
-					std::cout << "end" << std::endl;
+					// std::cout << "end" << std::endl;
 				}
 			}
 		}
 		catch (std::runtime_error &e)
 		{
 			std::cerr << e.what() << std::endl;
-			res.setStatus(500);
+			res.setError(500);
 		}
 	}
 	else
@@ -117,7 +117,6 @@ void Server::_processRequest(Session &client, size_t i)
 		/*********************/
 	}
 	client.status = client.S_RESPONSE;
-	std::cout << "response processed on " << client.client_id << std::endl;
 }
 
 void Server::_sendResponse(Session &client, size_t i)
@@ -125,7 +124,6 @@ void Server::_sendResponse(Session &client, size_t i)
 	(void)i;
 
 	client.sendResponse();
-	std::cout << "response sent on " << client.client_id << std::endl;
 	if (client.response.getContentLength() == 0)
 		client.status = client.S_DONE;
 }
