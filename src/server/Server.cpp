@@ -76,12 +76,12 @@ void Server::_processRequest(Session &client, size_t i)
 		try
 		{
 			std::string scriptPath = req.getScriptPath();
+			std::regex validPathRegex("^[a-zA-Z0-9_/\\.]+$");
 			if (!utils::fileExists(scriptPath))
 			{
 				res.setError(404);
 			}
-			std::regex validPathRegex("^[a-zA-Z0-9_/\\.]+$");
-			if (!std::regex_match(scriptPath, validPathRegex))
+			else if (!std::regex_match(scriptPath, validPathRegex))
 			{
 				res.setError(404);
 			}

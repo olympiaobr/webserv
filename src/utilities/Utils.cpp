@@ -175,14 +175,14 @@ std::string utils::sanitizeInput(const std::string &input, size_t maxLength)
 	}
 
 	std::string sanitized;
-	for (char ch : input)
+	for (size_t i = 0; i < input.size(); ++i)
 	{
 		// Allow alphanumeric and safe symbols only
-		if (isalnum(ch) || ch == '_' || ch == '-' || ch == '.' || ch == '/')
+		if (isalnum(input[i]) || input[i] == '_' || input[i] == '-' || input[i] == '.' || input[i] == '/')
 		{
-			sanitized += ch;
+			sanitized += input[i];
 		}
-		else if (ch == ' ')
+		else if (input[i] == ' ')
 		{
 			sanitized += "%20"; // Encode spaces as %20
 		}
