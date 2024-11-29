@@ -3,9 +3,10 @@
 import cgi
 import os
 import sys
+import html
 
 # Directory where uploaded files will be saved
-UPLOAD_DIR = "../uploads"
+UPLOAD_DIR = "./web/uploads"
 
 # Ensure the upload directory exists
 if not os.path.exists(UPLOAD_DIR):
@@ -16,9 +17,12 @@ def main():
 
     try:
         # Parse the form data
-        # content_length = int(os.environ.get("CONTENT_LENGTH", 0))
+        content_length = int(os.environ.get("CONTENT_LENGTH", 0))
+        if content_length == 0:
+            print("No content to read.")
+            return
         # body = sys.stdin.read(content_length)
-        form = cgi.FieldStorage(fp=sys.stdin, environ=os.environ, keep_blank_values=True)
+        form = cgi.FieldStorage()
 
         # Check if the form contains files
         if "uploaded_files" not in form:
@@ -50,7 +54,7 @@ def main():
             MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
             file_size = os.fstat(file_item.file.fileno()).st_size
             if file_size > MAX_FILE_SIZE:
-                errors.append(f"File '{file_name}' exceeds the maximum allowed size of 5MB.")
+                errors.append(f"File '{file_name}' exceeds the maximum allowed size of 100MB.")
                 continue
 
             # Save the uploaded file
@@ -72,7 +76,7 @@ def main():
             print("<h2>Uploaded Files:</h2>")
             print("<ul>")
             for file_name in uploaded_files:
-                print(f"<li>{cgi.escape(file_name)}</li>")
+                print(f"<li>{html.escape(file_name)}</li>")
             print("</ul>")
 
         if errors:

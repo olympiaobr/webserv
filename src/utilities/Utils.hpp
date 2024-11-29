@@ -13,6 +13,7 @@
 # include <sys/types.h>
 # include <sys/stat.h>
 # include <ctime>
+# include <regex>
 
 # include "../requests/Request.hpp"
 
@@ -31,6 +32,8 @@ namespace utils {
 	std::string toString(int value);
 	bool		fileExists(const std::string& path);
 	std::string decodePercentEncoding(const std::string& encoded);
+	bool isValidEnvironmentVariable(const std::string &key, const std::string &value);
+	std::string sanitizeInput(const std::string &input, size_t maxLength);
 }
 
 #endif

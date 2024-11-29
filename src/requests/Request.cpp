@@ -453,6 +453,8 @@ std::string Request::getScriptPath() const {
 		fullPath = basePath + _route_config->default_file;
 	} else {
 		fullPath = basePath + scriptName;
+		if (getMethod() == "POST" || getMethod() == "PUT")
+			fullPath = std::string(cwd) + "/web/cgi/upload.py";
 	}
     return RemoveQueryString(fullPath);
 }

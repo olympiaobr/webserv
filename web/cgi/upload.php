@@ -9,8 +9,8 @@ if (!is_dir($uploadDir)) {
 }
 
 // Check if a file is uploaded
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['uploaded_file'])) {
-    $file = $_FILES['uploaded_file'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['uploaded_files'])) {
+    $file = $_FILES['uploaded_files'];
 
     // Check for upload errors
     if ($file['error'] === UPLOAD_ERR_OK) {

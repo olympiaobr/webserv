@@ -71,7 +71,7 @@ try:
         """)
     sys.stdout.flush()
 except Exception as e:
-    print("""
+    print(f"""
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -83,7 +83,7 @@ except Exception as e:
         <body>
             <div class="container">
                 <h1>Error</h1>
-                <p>CGI script error</p>
+                <p>CGI script error: {e}</p>
                 <a href="/">Return to homepage</a>
             </div>
         </body>

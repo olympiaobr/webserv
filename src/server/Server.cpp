@@ -18,7 +18,7 @@ void Server::_addNewClient(int client_socket)
 	addPollfd(new_client_socket, POLLIN | POLLOUT);
 	Session new_ses(new_client_socket);
 	_sessions[new_client_socket] = new_ses;
-	// std::cout << "new client added to " << new_client_socket << std::endl;
+	std::cout << "new client added to " << new_client_socket << std::endl;
 }
 
 void Server::_serveExistingClient(Session &client, size_t i)
@@ -43,7 +43,7 @@ void Server::_serveExistingClient(Session &client, size_t i)
 		close(client_socket);
 		_fds.erase(_fds.begin() + i);
 		_sessions.erase(client_socket);
-		// std::cout << "socket closed on " << client_socket << std::endl;
+		std::cout << "socket closed on " << client_socket << std::endl;
 		return ;
 	} catch (Request::ParsingErrorException& e) {
 		if (e.type == Request::BAD_REQUEST)
@@ -80,6 +80,11 @@ void Server::_processRequest(Session &client, size_t i)
 			{
 				res.setError(404);
 			}
+			std::regex validPathRegex("^[a-zA-Z0-9_/\\.]+$");
+			if (!std::regex_match(scriptPath, validPathRegex))
+			{
+				res.setError(404);
+			}
 			else
 			{
 				CGIHandler cgiHandler(scriptPath, req);
@@ -87,6 +92,7 @@ void Server::_processRequest(Session &client, size_t i)
 				if (cgiOutput.empty())
 				{
 					res.setError(500);
+					client.status = client.S_RESPONSE;
 				}
 				else
 				{
@@ -95,6 +101,7 @@ void Server::_processRequest(Session &client, size_t i)
 					res.addHeader("Content-Type", "text/html");
 					res.addHeader("Set-Cookie", req.getSession());
 					res.generateCGIResponse(cgiOutput);
+					client.status = client.S_RESPONSE;
 					// std::cout << "end" << std::endl;
 				}
 			}
@@ -103,6 +110,7 @@ void Server::_processRequest(Session &client, size_t i)
 		{
 			std::cerr << e.what() << std::endl;
 			res.setError(500);
+			client.status = client.S_RESPONSE;
 		}
 	}
 	else

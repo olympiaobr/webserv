@@ -58,9 +58,10 @@ void CGIHandler::setupEnvironment() {
 
     environment["REQUEST_METHOD"] = request.getMethod();
     environment["SCRIPT_FILENAME"] = normalizedScriptPath;
+    environment["QUERY_STRING"] = utils::sanitizeInput(request.getQueryString(), 2048);
     environment["QUERY_STRING"] = request.getQueryString();
     environment["CONTENT_LENGTH"] = contentLength;
-    environment["CONTENT_TYPE"] = (request.getMethod() == "POST") ? "application/x-www-form-urlencoded" : request.getHeader("Content-Type");
+    environment["CONTENT_TYPE"] = request.getHeader("Content-Type");
     std::string serverPort = (serverConfig.port > 0) ? utils::toString(serverConfig.port) : "8000";
     environment["SERVER_PORT"] = serverPort;
     environment["SERVER_PROTOCOL"] = "HTTP/1.1";
@@ -79,12 +80,14 @@ void CGIHandler::setupEnvironment() {
         std::cerr << it->first << "=" << it->second << std::endl;
     }
 
-    std::vector<std::string> envStrings;
+    // std::vector<std::string> envStrings;
     envp = new char*[environment.size() + 1];
     int i = 0;
     for (std::map<std::string, std::string>::const_iterator it = environment.begin(); it != environment.end(); ++it) {
         std::string env = it->first + "=" + it->second;
-        envStrings.push_back(env);
+        // envStrings.push_back(env);
+        if (!utils::isValidEnvironmentVariable(it->first, it->second))
+            throw std::runtime_error("Environment variable failed validation.");
         envp[i] = new char[env.size() + 1];
         std::copy(env.begin(), env.end(), envp[i]);
         envp[i][env.size()] = '\0';
@@ -107,38 +110,38 @@ void CGIHandler::setupEnvironment() {
 // }
 
 std::string CGIHandler::execute() {
-    int pipe_fds[2];
-    if (pipe(pipe_fds) != 0) {
+    int pipe_child_to_parent[2];
+    int pipe_parent_to_child[2];
+    if (pipe(pipe_child_to_parent) != 0) {
         std::cerr << "Failed to create pipe: " << strerror(errno) << std::endl;
         throw std::runtime_error("Failed to create pipe");
     }
-
+    if (pipe(pipe_parent_to_child) != 0)
+    {
+        std::cerr << "Failed to create pipe: " << strerror(errno) << std::endl;
+        throw std::runtime_error("Failed to create pipe");
+    }
     pid_t pid = fork();
     if (pid < 0) {
         std::cerr << "Failed to fork process: " << strerror(errno) << std::endl;
         throw std::runtime_error("Failed to fork process");
     }
-
     if (pid == 0) {  // Child process
-        // close(pipe_fds[0]);  // Close the read end in the child
-        if (dup2(pipe_fds[1], STDOUT_FILENO) == -1) {
-            std::cerr << "dup2 failed: " << strerror(errno) << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        close(pipe_fds[1]);  // No longer need this after dup2
+        // Redirect stdin to read from the pipe
+        dup2(pipe_parent_to_child[0], STDIN_FILENO);
+        close(pipe_parent_to_child[0]); // Close original pipe fd after redirection
 
-        // std::string interpreter = getInterpreter(scriptPath);
-        // if (interpreter.empty()) {
-        //     std::cerr << "No interpreter found for script: " << scriptPath << std::endl;
-        //     exit(EXIT_FAILURE);
-        // }
+        // Redirect stdout to write to the pipe
+        dup2(pipe_child_to_parent[1], STDOUT_FILENO);
+        close(pipe_child_to_parent[1]); // Close original pipe fd after redirection
+        // Close unused ends of the pipes
+        close(pipe_parent_to_child[1]); // Close writing end of Pipe 1
+        close(pipe_child_to_parent[0]); // Close reading end of Pipe 2
 
         char* const args[] = {
-            // const_cast<char*>(interpreter.c_str()),
             const_cast<char*>(scriptPath.c_str()),
             NULL
         };
-        // std::cerr << "Executing CGI with interpreter: " << interpreter << ", script: " << scriptPath << std::endl;
         for (int i = 0; envp[i] != NULL; ++i) {
             std::cerr << "envp[" << i << "]: " << envp[i] << std::endl;
         }
@@ -147,22 +150,20 @@ std::string CGIHandler::execute() {
         perror("execve failed");
         exit(EXIT_FAILURE);
     } else {  // Parent process
-        if (request.total_read > 0) {
-            int bytesSent = write(pipe_fds[1], request.getBuffer(), request.total_read);
-            std::cerr << bytesSent << std::endl;
-        }
-        close(pipe_fds[1]);  // Close the write end in the parent
+        close(pipe_parent_to_child[0]); // Close reading end of Pipe 1
+        close(pipe_child_to_parent[1]); // Close writing end of Pipe 2
+        write(pipe_parent_to_child[1], request.getBuffer(), request.total_read);
         std::string output;
         char buffer[1024];
         ssize_t bytesRead;
 
-        while ((bytesRead = read(pipe_fds[0], buffer, sizeof(buffer) - 1)) > 0) {
+        while ((bytesRead = read(pipe_child_to_parent[0], buffer, sizeof(buffer) - 1)) > 0) {
             buffer[bytesRead] = '\0';
             output.append(buffer);
         }
-        close(pipe_fds[0]);
+        close(pipe_child_to_parent[0]);
         int status;
-        waitpid(pid, &status, 0);
+        waitpid(pid, &status, 0); // fix infinite waiting
         std::cerr << status << std::endl;
         if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
         {

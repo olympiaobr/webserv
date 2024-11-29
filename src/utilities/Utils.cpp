@@ -143,3 +143,54 @@ std::string utils::decodePercentEncoding(const std::string& encoded) {
     }
     return decoded.str();
 }
+
+bool utils::isValidEnvironmentVariable(const std::string &key, const std::string &value)
+{
+	// Check key and value length
+	const size_t maxLength = 1024;
+	if (key.length() > maxLength || value.length() > maxLength)
+	{
+		std::cerr << "Environment variable too long.\n";
+		return false;
+	}
+
+	// Ensure key and value only contain valid characters
+	std::regex validKeyValueRegex("^[a-zA-Z_][a-zA-Z0-9_]*$");
+	std::regex validValueRegex("^[ -~]*$"); // Printable ASCII characters
+
+	if (!std::regex_match(key, validKeyValueRegex) || !std::regex_match(value, validValueRegex))
+	{
+		std::cerr << "Invalid environment variable format.\n";
+		return false;
+	}
+
+	return true;
+}
+
+std::string utils::sanitizeInput(const std::string &input, size_t maxLength)
+{
+	if (input.length() > maxLength)
+	{
+		throw std::runtime_error("Input exceeds maximum allowed length.");
+	}
+
+	std::string sanitized;
+	for (char ch : input)
+	{
+		// Allow alphanumeric and safe symbols only
+		if (isalnum(ch) || ch == '_' || ch == '-' || ch == '.' || ch == '/')
+		{
+			sanitized += ch;
+		}
+		else if (ch == ' ')
+		{
+			sanitized += "%20"; // Encode spaces as %20
+		}
+		else
+		{
+			throw std::runtime_error("Invalid character in input.");
+		}
+	}
+	return sanitized;
+}
+
