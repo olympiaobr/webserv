@@ -64,7 +64,7 @@ void Session::recieveData()
     {
         request.total_read = 0;
     }
-    ssize_t bytes_read = recv(request.getSocket(), (void *)(request.buffer + request.total_read), request.getBufferLen(), 0);
+    ssize_t bytes_read = recv(request.getSocket(), (void *)(request.buffer + request.total_read), request.getBufferLen() - request.total_read, 0);
     if (bytes_read == 0)
         throw Request::SocketCloseException("connection closed by client");
     else if (bytes_read < 0)
@@ -84,6 +84,8 @@ void Session::newRequest(std::vector<ServerConfig> &configs)
     int contentLength = atoi(content_length.c_str());
     if (contentLength > request.getRouteConfig()->body_limit)
         throw Request::ParsingErrorException(Request::CONTENT_LENGTH, "content length is above the limit");
+    if (contentLength == 0)
+        status = S_PROCESS;
     response.setStatus(200);
 }
 

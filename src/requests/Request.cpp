@@ -126,12 +126,10 @@ RouteConfig* Request::_findMostSpecificRouteConfig(const std::string& uri)
 int Request::parseBody(Server& server) {
     std::string content_type = getHeader("Content-Type");
 
-	if (content_type.find("multipart/form-data") != content_type.npos) {
-		readBodyFile(buffer, buffer_length, server);
-	} else if (getHeader("Transfer-Encoding") == "chunked"){
+	// if (content_type.find("multipart/form-data") != content_type.npos) {
+	// 	readBodyFile(buffer, buffer_length, server);
+	if (getHeader("Transfer-Encoding") == "chunked"){
 		_readBodyChunked(buffer, buffer_length);
-	} else {
-		_readBody(buffer, buffer_length);
 	}
 	return -1;
 }
@@ -159,12 +157,6 @@ void Request::_parseHeader(const std::string& line) {
 		}
         _headers[key] = value;
     }
-}
-
-
-void Request::_readBody(const char *buffer, ssize_t bytesRead) {
-	_body += buffer;
-	(void)bytesRead;
 }
 
 void Request::_readBodyChunked(const char *buffer, ssize_t bytesRead) {
@@ -197,90 +189,90 @@ void Request::_readBodyChunked(const char *buffer, ssize_t bytesRead) {
 	close(file_fd);
 }
 
-int Request::readBodyFile(char *buffer, ssize_t bytesRead, Server& server) {
-	char *start_pos;
-	std::string stream;
+// int Request::readBodyFile(char *buffer, ssize_t bytesRead, Server& server) {
+// 	char *start_pos;
+// 	std::string stream;
 
-	std::string boundary = getHeader("Content-Type");
-	int pos = boundary.find("boundary=");
-	boundary = boundary.substr(pos + 9);
-	boundary = "--" + boundary;
-	std::string boundary_end = boundary + "--";
+// 	std::string boundary = getHeader("Content-Type");
+// 	int pos = boundary.find("boundary=");
+// 	boundary = boundary.substr(pos + 9);
+// 	boundary = "--" + boundary;
+// 	std::string boundary_end = boundary + "--";
 
-	start_pos = utils::strstr(buffer, (char *)boundary.c_str(), bytesRead);
-	if (start_pos) {
-		/* Find start of data */
-		start_pos += boundary.length() + 2;
+// 	start_pos = utils::strstr(buffer, (char *)boundary.c_str(), bytesRead);
+// 	if (start_pos) {
+// 		/* Find start of data */
+// 		start_pos += boundary.length() + 2;
 
-		/* Start parsing data header */
-		std::string unique_filename;
-		{
-			const char *header_pos = start_pos;
-			start_pos = utils::strstr(start_pos, (const char *)"\r\n\r\n", bytesRead - (start_pos - buffer)) + 4;
-			char *boundary_end_pos = utils::strstr(start_pos, boundary_end.c_str(), bytesRead - (start_pos - buffer)) - 2;
-			if (start_pos == boundary_end_pos) {
-				return -1;
-			}
-			std::string headers = header_pos;
-			headers = headers.substr(0, start_pos - header_pos);
+// 		/* Start parsing data header */
+// 		std::string unique_filename;
+// 		{
+// 			const char *header_pos = start_pos;
+// 			start_pos = utils::strstr(start_pos, (const char *)"\r\n\r\n", bytesRead - (start_pos - buffer)) + 4;
+// 			char *boundary_end_pos = utils::strstr(start_pos, boundary_end.c_str(), bytesRead - (start_pos - buffer)) - 2;
+// 			if (start_pos == boundary_end_pos) {
+// 				return -1;
+// 			}
+// 			std::string headers = header_pos;
+// 			headers = headers.substr(0, start_pos - header_pos);
 
-			/* Does it alway have filename in header? */
-			std::string new_file_name = headers.substr(headers.find("filename=") + 9);
-			if (headers.substr(8) == new_file_name)
-				new_file_name = headers.substr(headers.find("name=") + 5);
-			new_file_name = new_file_name.substr(0, new_file_name.find('\r'));
-			new_file_name.erase(new_file_name.begin());
-			new_file_name.erase(new_file_name.end() - 1);
-			if (new_file_name == "")
-				new_file_name = "file";
-			unique_filename = _route_config->root + getUri() + new_file_name;
-			new_file_name = unique_filename;
-			int i = 1;
-			while (access(unique_filename.c_str(), F_OK) == 0) {
-				std::stringstream ss;
-				ss << i;
-				std::string value;
-				ss >> value;
-				std::string extension = utils::getFileExtension(unique_filename);
-				if (extension == unique_filename.substr(1))
-					unique_filename = new_file_name.substr(0) + " (" + value + ")";
-				else
-					unique_filename = new_file_name.substr(0, new_file_name.find(extension) - 1) + " (" + value + ")." + extension;
-				i++;
-			}
-		}
-		int file_fd = open(unique_filename.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
-		if (file_fd < 0)
-			throw ParsingErrorException(FILE_SYSTEM, strerror(errno));
-		/* ******************************************** */
+// 			/* Does it alway have filename in header? */
+// 			std::string new_file_name = headers.substr(headers.find("filename=") + 9);
+// 			if (headers.substr(8) == new_file_name)
+// 				new_file_name = headers.substr(headers.find("name=") + 5);
+// 			new_file_name = new_file_name.substr(0, new_file_name.find('\r'));
+// 			new_file_name.erase(new_file_name.begin());
+// 			new_file_name.erase(new_file_name.end() - 1);
+// 			if (new_file_name == "")
+// 				new_file_name = "file";
+// 			unique_filename = _route_config->root + getUri() + new_file_name;
+// 			new_file_name = unique_filename;
+// 			int i = 1;
+// 			while (access(unique_filename.c_str(), F_OK) == 0) {
+// 				std::stringstream ss;
+// 				ss << i;
+// 				std::string value;
+// 				ss >> value;
+// 				std::string extension = utils::getFileExtension(unique_filename);
+// 				if (extension == unique_filename.substr(1))
+// 					unique_filename = new_file_name.substr(0) + " (" + value + ")";
+// 				else
+// 					unique_filename = new_file_name.substr(0, new_file_name.find(extension) - 1) + " (" + value + ")." + extension;
+// 				i++;
+// 			}
+// 		}
+// 		int file_fd = open(unique_filename.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
+// 		if (file_fd < 0)
+// 			throw ParsingErrorException(FILE_SYSTEM, strerror(errno));
+// 		/* ******************************************** */
 
-		/* Take data body length */
-		/* Checking boundaries */
-		{
-			size_t len = bytesRead - (start_pos - buffer);
-			char *boundary_pos = utils::strstr(start_pos, boundary.c_str(), len);
-			char *boundary_end_pos = utils::strstr(start_pos, boundary_end.c_str(), len);
-			/* Check if this chunk contains another data */
-			if (boundary_pos && boundary_pos != boundary_end_pos) {
-				write(file_fd, start_pos, len - (bytesRead - (boundary_pos - buffer)) - 2);
-				readBodyFile(boundary_pos, bytesRead - (boundary_pos - buffer), server);
-			}
-			/* Check if this chunk contains EOF */
-			else if (boundary_end_pos) {
-				len -= bytesRead - (boundary_end_pos - buffer) + 2;
-				write(file_fd, start_pos, len);
-			}
-			/* read the rest */
-			else {
-				write(file_fd, start_pos, len);
-				// server.addStream(_clientSocket, file_fd, *this, boundary);
-				return file_fd;
-			}
-		}
-		close (file_fd);
-	}
-	return -1;
-}
+// 		/* Take data body length */
+// 		/* Checking boundaries */
+// 		{
+// 			size_t len = bytesRead - (start_pos - buffer);
+// 			char *boundary_pos = utils::strstr(start_pos, boundary.c_str(), len);
+// 			char *boundary_end_pos = utils::strstr(start_pos, boundary_end.c_str(), len);
+// 			/* Check if this chunk contains another data */
+// 			if (boundary_pos && boundary_pos != boundary_end_pos) {
+// 				write(file_fd, start_pos, len - (bytesRead - (boundary_pos - buffer)) - 2);
+// 				readBodyFile(boundary_pos, bytesRead - (boundary_pos - buffer), server);
+// 			}
+// 			/* Check if this chunk contains EOF */
+// 			else if (boundary_end_pos) {
+// 				len -= bytesRead - (boundary_end_pos - buffer) + 2;
+// 				write(file_fd, start_pos, len);
+// 			}
+// 			/* read the rest */
+// 			else {
+// 				write(file_fd, start_pos, len);
+// 				// server.addStream(_clientSocket, file_fd, *this, boundary);
+// 				return file_fd;
+// 			}
+// 		}
+// 		close (file_fd);
+// 	}
+// 	return -1;
+// }
 
 // void Request::addHeader(const std::string& key, const std::string& value) {
 //     std::string lowercase_key;

@@ -11,13 +11,13 @@ print("\r\n\r\n")
 # Set up your OpenAI API key
 load_dotenv()
 
-try:
-    client = OpenAI (
-        organization='org-EUar1yTRIuR2dsQUPNZFKQGK',
-        project='proj_SmXXIFVlpK2HcgrsYVMTgQSV',
-        api_key = os.getenv("OPENAI_API_KEY"),
-    )
+client = OpenAI (
+    organization='org-EUar1yTRIuR2dsQUPNZFKQGK',
+    project='proj_SmXXIFVlpK2HcgrsYVMTgQSV',
+    api_key = os.getenv("OPENAI_API_KEY"),
+)
 
+try:
 
     form = cgi.FieldStorage()
 

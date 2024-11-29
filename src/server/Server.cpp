@@ -34,6 +34,9 @@ void Server::_serveExistingClient(Session &client, size_t i)
 		else if (client.status == client.S_REQUEST) {
 			if (client.request.total_read > client.request.getRouteConfig()->body_limit)
 				throw Request::ParsingErrorException(Request::CONTENT_LENGTH, "content length is above the limit");
+			if (client.request.total_read == atoi(client.request.getHeader("content-length").c_str()))
+				client.status = client.S_PROCESS;
+			// if file is chunked --> unchunkf
 			std::cout << "recieved more data" << std::endl;
 		}
 		// else
@@ -46,6 +49,7 @@ void Server::_serveExistingClient(Session &client, size_t i)
 		std::cout << "socket closed on " << client_socket << std::endl;
 		return ;
 	} catch (Request::ParsingErrorException& e) {
+		client.status = client.S_RESPONSE;
 		if (e.type == Request::BAD_REQUEST)
 			res.setError(400);
 		else if (e.type == Request::CONTENT_LENGTH)
@@ -61,7 +65,6 @@ void Server::_serveExistingClient(Session &client, size_t i)
 	if (response_code >= 500 || response_code >= 400) {
 		_cleanChunkFiles(client_socket);
 	}
-	// std::cout << "new request recieved on " << client_socket << std::endl;
 }
 
 void Server::_processRequest(Session &client, size_t i)
@@ -80,10 +83,12 @@ void Server::_processRequest(Session &client, size_t i)
 			if (!utils::fileExists(scriptPath))
 			{
 				res.setError(404);
+				client.status = client.S_RESPONSE;
 			}
 			else if (!std::regex_match(scriptPath, validPathRegex))
 			{
 				res.setError(404);
+				client.status = client.S_RESPONSE;
 			}
 			else
 			{
@@ -203,9 +208,9 @@ void Server::pollLoop() {
 			}
 		} else if (_fds[i].revents & POLLOUT) {
 			Session &client = _sessions[client_socket];
-			if (client.status != Session::S_NEW && client.status != Session::S_DONE)
+			if (client.status == client.S_PROCESS)
 				_processRequest(client, i);
-			if (client.status == Session::S_RESPONSE)
+			if (client.status == client.S_RESPONSE)
 				_sendResponse(client, i);
 		}
 	}

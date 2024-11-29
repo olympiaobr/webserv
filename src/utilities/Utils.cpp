@@ -174,23 +174,23 @@ std::string utils::sanitizeInput(const std::string &input, size_t maxLength)
 		throw std::runtime_error("Input exceeds maximum allowed length.");
 	}
 
-	std::string sanitized;
-	for (size_t i = 0; i < input.size(); ++i)
-	{
-		// Allow alphanumeric and safe symbols only
-		if (isalnum(input[i]) || input[i] == '_' || input[i] == '-' || input[i] == '.' || input[i] == '/')
-		{
-			sanitized += input[i];
-		}
-		else if (input[i] == ' ')
-		{
-			sanitized += "%20"; // Encode spaces as %20
-		}
-		else
-		{
-			throw std::runtime_error("Invalid character in input.");
-		}
-	}
+	std::string sanitized = input;
+	// for (size_t i = 0; i < input.size(); ++i)
+	// {
+	// 	// Allow alphanumeric and safe symbols only
+	// 	if (isalnum(input[i]) || input[i] == '_' || input[i] == '-' || input[i] == '.' || input[i] == '/')
+	// 	{
+	// 		sanitized += input[i];
+	// 	}
+	// 	else if (input[i] == ' ')
+	// 	{
+	// 		sanitized += "%20"; // Encode spaces as %20
+	// 	}
+	// 	else
+	// 	{
+	// 		throw std::runtime_error("Invalid character in input.");
+	// 	}
+	// }
 	return sanitized;
 }
 

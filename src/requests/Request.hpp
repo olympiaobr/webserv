@@ -29,7 +29,7 @@ public:
 
 	void parseHeaders();
 	int parseBody(Server& server);
-	int readBodyFile(char *init_buffer, ssize_t bytesRead, Server& server);
+	// int readBodyFile(char *init_buffer, ssize_t bytesRead, Server& server);
 
 	std::string getMethod() const;
 	std::string getUri() const;
@@ -99,7 +99,6 @@ private:
 
 	void _parseRequestLine(const std::string &line);
 	void _parseHeader(const std::string &line);
-	void _readBody(const char *init_buffer, ssize_t bytesRead);
 	void _readBodyChunked(const char *init_buffer, ssize_t bytesRead);
 
 	RouteConfig *_findMostSpecificRouteConfig(const std::string &uri);

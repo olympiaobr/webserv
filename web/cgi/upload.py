@@ -6,7 +6,7 @@ import sys
 import html
 
 # Directory where uploaded files will be saved
-UPLOAD_DIR = "./web/uploads"
+UPLOAD_DIR = os.getenv("UPLOAD_DIR")
 
 # Ensure the upload directory exists
 if not os.path.exists(UPLOAD_DIR):

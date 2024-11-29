@@ -65,7 +65,7 @@ void CGIHandler::setupEnvironment() {
     std::string serverPort = (serverConfig.port > 0) ? utils::toString(serverConfig.port) : "8000";
     environment["SERVER_PORT"] = serverPort;
     environment["SERVER_PROTOCOL"] = "HTTP/1.1";
-
+    environment["UPLOAD_DIR"] = request.getRouteConfig()->root;
     std::string uri = request.getUri();
     size_t pathInfoPos = uri.find(scriptPath);
     environment["PATH_INFO"] = (pathInfoPos != std::string::npos && pathInfoPos + scriptPath.length() < uri.length())
@@ -152,6 +152,7 @@ std::string CGIHandler::execute() {
     } else {  // Parent process
         close(pipe_parent_to_child[0]); // Close reading end of Pipe 1
         close(pipe_child_to_parent[1]); // Close writing end of Pipe 2
+        std::cerr << "bytes to save: " << request.total_read << std::endl;
         write(pipe_parent_to_child[1], request.getBuffer(), request.total_read);
         std::string output;
         char buffer[1024];
