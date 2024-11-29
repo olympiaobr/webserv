@@ -447,6 +447,10 @@ std::string Request::getScriptPath() const {
 		fullPath = basePath + scriptName;
 		if (getMethod() == "POST" || getMethod() == "PUT")
 			fullPath = std::string(cwd) + "/web/cgi/upload.py";
+		else if (getMethod() == "DELETE")
+			fullPath = std::string(cwd) + "/web/cgi/delete.py";
+		else if (getMethod() == "PUT")
+			fullPath = std::string(cwd) + "/web/cgi/put.py";
 	}
     return RemoveQueryString(fullPath);
 }

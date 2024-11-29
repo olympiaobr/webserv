@@ -12,6 +12,15 @@ UPLOAD_DIR = os.getenv("UPLOAD_DIR")
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR, mode=0o755, exist_ok=True)
 
+def generate_unique_filename(base_name):
+    name, ext = os.path.splitext(base_name)
+    counter = 1
+    new_name = f"{name} ({counter}){ext}"
+    while os.path.exists(os.path.join(UPLOAD_DIR, new_name)):
+        counter += 1
+        new_name = f"{name} ({counter}){ext}"
+    return new_name
+
 def main():
     print("Content-Type: text/html\n")  # HTTP header
 
@@ -60,8 +69,9 @@ def main():
             # Save the uploaded file
             upload_file_path = os.path.join(UPLOAD_DIR, file_name)
             if os.path.exists(upload_file_path):
-                errors.append(f"File '{file_name}' already exists.")
-                continue
+                # Generate a unique file name
+                file_name = generate_unique_filename(file_name)
+                upload_file_path = os.path.join(UPLOAD_DIR, file_name)
 
             try:
                 with open(upload_file_path, "wb") as output_file:
