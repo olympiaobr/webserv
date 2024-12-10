@@ -13,7 +13,7 @@ if not os.path.exists(UPLOAD_DIR):
 def main():
     print("Content-Type: text/plain\n")
 
-	try:
+    try:
 		# parse the query string to get filename
         query_string = os.environ.get("QUERY_STRING", "")
         filename = query_string.split("=")[1] if "=" in query_string else None

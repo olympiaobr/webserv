@@ -15,6 +15,7 @@
 #define TEMP_FILES_DIRECTORY "tmp/"
 #define MAX_CONNECTIONS 100
 #define BACKLOG 3
+#define DEFAULT_CONFIG "config/c_file.conf"
 
 void	clnTmpDir() {
 	DIR* dir = opendir(TEMP_FILES_DIRECTORY);
@@ -36,13 +37,16 @@ void	clnTmpDir() {
 
 int	main(int argc, char *argv[])
 {
-	if (argc != 2)
+	if (argc > 2)
 	{
 		std::cerr << "Usage: " << argv[0] << " <config_file>" << std::endl;
 		return (EXIT_FAILURE);
 	}
-	const std::string configFile = argv[1];
-
+	std::string configFile;
+	if (argc == 2)
+		configFile = argv[1];
+	else
+		configFile = DEFAULT_CONFIG;
 	Config config(configFile);
 	try {
 		config.loadConfig();
