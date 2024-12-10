@@ -96,6 +96,12 @@ void CGIHandler::setupEnvironment() {
         i++;
     }
     envp[i] = NULL;
+
+    // Add HTTP_COOKIE environment variable
+    std::string cookies = request.getHeader("cookie");
+    if (!cookies.empty()) {
+        environment["HTTP_COOKIE"] = cookies;
+    }
 }
 
 // std::string CGIHandler::getInterpreter(const std::string& scriptPath) {

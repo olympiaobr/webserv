@@ -52,6 +52,8 @@ public:
 
 	std::string RemoveQueryString(std::string uri) const;
 
+	void setSessionId(std::string sessionid);
+
 	bool isTargetingCGI() const;
 
 	// void addHeader(const std::string& key, const std::string& value);

@@ -1,5 +1,6 @@
 #include "Session.hpp"
 #include <iostream>
+#include <cstdlib>
 
 Session::Session()
 {
@@ -146,4 +147,23 @@ Response& Session::createErrorResponse(const std::string& error_msg, const Serve
     response.setContent(content.size());
     response.setRawContent(content);
     return response;
+}
+
+std::string Session::generateSessionId() {
+    const std::string chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    std::string sessionId;
+
+    // Seed the random number generator if not already done
+    static bool seeded = false;
+    if (!seeded) {
+        srand(time(NULL));
+        seeded = true;
+    }
+
+    // Generate a random 32-character string
+    for (int i = 0; i < 32; ++i) {
+        sessionId += chars[rand() % chars.length()];
+    }
+
+    return sessionId;
 }

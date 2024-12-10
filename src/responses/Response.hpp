@@ -43,6 +43,18 @@ public:
 		_content = strdup(content.c_str());
 	}
 
+	void addCookie(const std::string& name, const std::string& value) {
+		std::string cookie = name + "=" + value;
+		cookie += "; Path=/";
+		cookie += "; HttpOnly";
+		// Add Secure flag if using HTTPS
+		// cookie += "; Secure";
+		// Add SameSite attribute
+		cookie += "; SameSite=Strict";
+
+		addHeader("Set-Cookie", cookie);
+	}
+
 	/* Exceptions */
 	class FileSystemErrorException: public std::exception {
 		public:

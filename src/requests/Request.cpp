@@ -154,6 +154,18 @@ void Request::_parseHeader(const std::string& line) {
 		if (key == "host") {
 			value = value.substr(0, value.find(':'));
 		}
+        if (key == "cookie") {
+            // Parse cookie header to extract session ID
+            size_t sessionStart = value.find("session=");
+            if (sessionStart != std::string::npos) {
+                sessionStart += 8; // length of "session="
+                size_t sessionEnd = value.find(';', sessionStart);
+                if (sessionEnd == std::string::npos) {
+                    sessionEnd = value.length();
+                }
+                _session_id = value.substr(sessionStart, sessionEnd - sessionStart);
+            }
+        }
         _headers[key] = value;
     }
 }
@@ -394,4 +406,8 @@ void Request::setBufferLen(size_t len)
 const char *Request::StreamingData::what() const throw()
 {
     return "Part of data recieved";
+}
+
+void Request::setSessionId(std::string sessionid) {
+    _session_id = sessionid;
 }
