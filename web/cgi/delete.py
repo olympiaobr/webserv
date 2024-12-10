@@ -4,8 +4,13 @@ import cgi
 import os
 import sys
 import html
+from urllib.parse import parse_qs
 
 UPLOAD_DIR = os.getenv("UPLOAD_DIR")
+if UPLOAD_DIR is None:
+    print("Content-Type: text/plain\n")
+    print("Error: UPLOAD_DIR environment variable not set")
+    sys.exit(1)
 
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR, mode=0o755, exist_ok=True)
