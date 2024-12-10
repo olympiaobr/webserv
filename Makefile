@@ -32,10 +32,14 @@ $(TMPDIR):
 	mkdir -p $(TMPDIR)
 
 $(CGI_ENV):
-	# pip3 install virtualenv
-	python3 -m venv web/cgi/.venv
-	web/cgi/.venv/bin/python -m pip install --upgrade pip setuptools wheel
-	web/cgi/.venv/bin/pip install --use-pep517 -r web/cgi/requirements.txt
+	@if python3 -m venv $(CGI_ENV) 2>/dev/null; then \
+		echo "Virtual environment created using venv"; \
+	else \
+		echo "venv failed, trying virtualenv"; \
+		/usr/local/bin/virtualenv $(CGI_ENV); \
+	fi
+	$(CGI_ENV)/bin/python -m pip install --upgrade pip setuptools wheel
+	$(CGI_ENV)/bin/pip install --use-pep517 -r web/cgi/requirements.txt
 
 $(TARGET): $(OBJ)
 	$(CC) $(CPPFLAGS) $(OBJ) -o $(TARGET)

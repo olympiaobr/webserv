@@ -67,68 +67,73 @@ void Server::_serveExistingClient(Session &client, size_t i)
 	}
 }
 
+bool isValidPath(const std::string& path)
+{
+    for (size_t i = 0; i < path.size(); ++i) {
+        char c = path[i];
+        if (!isalnum(c) && c != '_' && c != '/' && c != '.') {
+            return false;
+        }
+    }
+    return true;
+}
+
 void Server::_processRequest(Session &client, size_t i)
 {
-	(void)i;
+    (void)i;
 
-	Request& req = client.request;
-	Response& res = client.response;
+    Request& req = client.request;
+    Response& res = client.response;
 
-	if (req.isTargetingCGI())
-	{
-		try
-		{
-			std::string scriptPath = req.getScriptPath();
-			std::regex validPathRegex("^[a-zA-Z0-9_/\\.]+$");
-			if (!utils::fileExists(scriptPath))
-			{
-				res.setError(404);
-				client.status = client.S_RESPONSE;
-			}
-			else if (!std::regex_match(scriptPath, validPathRegex))
-			{
-				res.setError(404);
-				client.status = client.S_RESPONSE;
-			}
-			else
-			{
-				CGIHandler cgiHandler(scriptPath, req);
-				std::string cgiOutput = cgiHandler.execute();
-				if (cgiOutput.empty())
-				{
-					res.setError(500);
-					client.status = client.S_RESPONSE;
-				}
-				else
-				{
-					res.setStatus(200);
-					res.addHeader("Content-Type", "text/html");
-					res.addHeader("Set-Cookie", req.getSession());
-					res.generateCGIResponse(cgiOutput);
-					client.status = client.S_RESPONSE;
-				}
-			}
-		}
-		catch (std::runtime_error &e)
-		{
-			std::cerr << e.what() << std::endl;
-			res.setError(500);
-			client.status = client.S_RESPONSE;
-		}
-	}
-	else
-	{
-		/* Configure response */
-		res.initialize(req);
-		/*********************/
+    if (req.isTargetingCGI())
+    {
+        try
+        {
+            std::string scriptPath = req.getScriptPath();
+            if (!utils::fileExists(scriptPath)) {
+                res.setError(404);
+                client.status = client.S_RESPONSE;
+            }
+			else if (!isValidPath(scriptPath)) {
+                res.setError(404);
+                client.status = client.S_RESPONSE;
+            }
+			else {
+                CGIHandler cgiHandler(scriptPath, req);
+                std::string cgiOutput = cgiHandler.execute();
+                if (cgiOutput.empty()) {
+                    res.setError(500);
+                    client.status = client.S_RESPONSE;
+                } else {
+                    res.setStatus(200);
+                    res.addHeader("Content-Type", "text/html");
+                    res.addHeader("Set-Cookie", req.getSession());
+                    res.generateCGIResponse(cgiOutput);
+                    client.status = client.S_RESPONSE;
+                }
+            }
+        }
+        catch (std::runtime_error &e)
+        {
+            std::cerr << e.what() << std::endl;
+            res.setError(500);
+            client.status = client.S_RESPONSE;
+        }
+    }
+    else
+    {
+        /* Configure response */
+        res.initialize(req);
+        /*********************/
 
-		/* Parse request body */
-		if (res.getStatusCode() < 300)
-			req.parseBody(*this);
-		/*********************/
-	}
-	client.status = client.S_RESPONSE;
+        /* Parse request body */
+        if (res.getStatusCode() < 300)
+            req.parseBody(*this);
+        /*********************/
+    }
+    client.status = client.S_RESPONSE;
 }
+
 
 void Server::_sendResponse(Session &client, size_t i)
 {

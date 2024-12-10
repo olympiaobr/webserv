@@ -146,26 +146,36 @@ std::string utils::decodePercentEncoding(const std::string& encoded) {
 
 bool utils::isValidEnvironmentVariable(const std::string &key, const std::string &value)
 {
-	// Check key and value length
-	const size_t maxLength = 1024;
-	if (key.length() > maxLength || value.length() > maxLength)
-	{
-		std::cerr << "Environment variable too long.\n";
-		return false;
-	}
-
-	// Ensure key and value only contain valid characters
-	std::regex validKeyValueRegex("^[a-zA-Z_][a-zA-Z0-9_]*$");
-	std::regex validValueRegex("^[ -~]*$"); // Printable ASCII characters
-
-	if (!std::regex_match(key, validKeyValueRegex) || !std::regex_match(value, validValueRegex))
-	{
-		std::cerr << "Invalid environment variable format.\n";
-		return false;
-	}
-
-	return true;
+    const size_t maxLength = 1024;
+    if (key.length() > maxLength || value.length() > maxLength)
+    {
+        std::cerr << "Environment variable too long.\n";
+        return false;
+    }
+    if (key.empty() || !(isalpha(key[0]) || key[0] == '_'))
+    {
+        std::cerr << "Invalid environment variable key format.\n";
+        return false;
+    }
+    for (size_t i = 1; i < key.length(); ++i)
+    {
+        if (!(isalnum(key[i]) || key[i] == '_'))
+        {
+            std::cerr << "Invalid environment variable key format.\n";
+            return false;
+        }
+    }
+    for (size_t i = 0; i < value.length(); ++i)
+    {
+        if (value[i] < 32 || value[i] > 126)
+        {
+            std::cerr << "Invalid environment variable value format.\n";
+            return false;
+        }
+    }
+    return true;
 }
+
 
 std::string utils::sanitizeInput(const std::string &input, size_t maxLength)
 {

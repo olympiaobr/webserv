@@ -11,7 +11,6 @@
 # include <sstream>
 # include <ctime>
 # include <cstdio>
-# include <regex>
 
 # include "../configuration/Config.hpp"
 # include "./Session.hpp"

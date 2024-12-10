@@ -13,7 +13,6 @@
 # include <sys/types.h>
 # include <sys/stat.h>
 # include <ctime>
-# include <regex>
 
 # include "../requests/Request.hpp"
 
