@@ -111,27 +111,26 @@ void Session::handleCGI(const std::string& script_path) {
     try {
         CGIHandler cgi(script_path, request);
         std::string cgi_output = cgi.execute();
-        response.setContent(cgi_output);
+        response.setContent(cgi_output.size());
+        response.setRawContent(cgi_output);
     } catch (const std::exception& e) {
         std::string error_msg = e.what();
         if (request.getConfig() != NULL) {
-            // Use custom error page if configuration is available
             createErrorResponse(error_msg, request.getConfig());
         } else {
-            // Basic error response if no configuration is available
             std::string basic_error = "HTTP/1.1 500 Internal Server Error\r\n"
                                     "Content-Type: text/plain\r\n"
                                     "Connection: close\r\n"
                                     "\r\n"
                                     "500 Internal Server Error: CGI Processing Failed";
-            response.setContent(basic_error);
+            response.setContent(basic_error.size());
+            response.setRawContent(basic_error);
         }
     }
 }
 
-Response& Session::createErrorResponse(const std::string& error_msg, const ServerConfig* config) {
-    // Extract error code from error message (assuming format "500 CGI Error: ...")
-    int error_code = 500; // Default error code
+Response& Session::createErrorResponse(const std::string& error_msg, const ServerConfig* /* config */) {
+    int error_code = 500;
     size_t pos = error_msg.find(" ");
     if (pos != std::string::npos) {
         error_code = std::atoi(error_msg.substr(0, pos).c_str());
@@ -139,19 +138,12 @@ Response& Session::createErrorResponse(const std::string& error_msg, const Serve
 
     response.setStatus(error_code);
 
-    // Use custom error page if available
-    if (config && config->error_pages.find(error_code) != config->error_pages.end()) {
-        std::string error_page_path = config->error_pages[error_code];
-        // Read and set error page content
-        // You might want to implement this based on your needs
-    } else {
-        // Basic error response
-        response.setContent("HTTP/1.1 " + utils::toString(error_code) + " Error\r\n"
-                          "Content-Type: text/plain\r\n"
-                          "Connection: close\r\n"
-                          "\r\n"
-                          + error_msg);
-    }
+    std::string content = "HTTP/1.1 " + utils::toString(error_code) + " Error\r\n"
+                         "Content-Type: text/plain\r\n"
+                         "Connection: close\r\n"
+                         "\r\n" + error_msg;
 
+    response.setContent(content.size());
+    response.setRawContent(content);
     return response;
 }

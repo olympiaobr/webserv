@@ -36,6 +36,10 @@ public:
 
 	void			setError(int code);
 
+	void setRawContent(const std::string& content) {
+		_content = strdup(content.c_str());
+	}
+
 	/* Exceptions */
 	class FileSystemErrorException: public std::exception {
 		public:

@@ -126,7 +126,7 @@ void CGIHandler::cleanupProcess(pid_t pid, int* pipes) {
 }
 
 std::string CGIHandler::execute() {
-    int pipes[4] = {-1, -1, -1, -1}; // Store all pipe fds
+    int pipes[4] = {-1, -1, -1, -1};
     pid_t pid = -1;
 
     try {
