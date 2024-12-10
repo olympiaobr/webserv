@@ -411,7 +411,6 @@ void Response::generateDirectoryListing(const std::string& directoryPath) {
 
 void Response::generateCGIResponse(const std::string &cgi_response)
 {
-	// addHeader("Content-Type", "??");
 	std::string cgi_body = cgi_response.substr(cgi_response.find("\r\n\r\n") + 4);
 	addHeader("Content-Length", _toString(cgi_body.length()));
 	std::string headers = _headersToString();

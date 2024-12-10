@@ -101,13 +101,11 @@ void Server::_processRequest(Session &client, size_t i)
 				}
 				else
 				{
-					// std::cout << "start" << std::endl;
 					res.setStatus(200);
 					res.addHeader("Content-Type", "text/html");
 					res.addHeader("Set-Cookie", req.getSession());
 					res.generateCGIResponse(cgiOutput);
 					client.status = client.S_RESPONSE;
-					// std::cout << "end" << std::endl;
 				}
 			}
 		}
@@ -125,7 +123,7 @@ void Server::_processRequest(Session &client, size_t i)
 		/*********************/
 
 		/* Parse request body */
-		if (res.getStatusCode() < 300 && req.getMethod() == "POST")
+		if (res.getStatusCode() < 300)
 			req.parseBody(*this);
 		/*********************/
 	}
