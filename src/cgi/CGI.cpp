@@ -249,14 +249,19 @@ std::string CGIHandler::execute() {
         }
 
         if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-            throw std::runtime_error("CGI script failed");
+            cleanupProcess(pid, pipes);
+            if (!output.empty()) {
+                throw std::runtime_error(output);
+            } else {
+                throw std::runtime_error("CGI script failed with no output");
+            }
         }
 
         return output;
 
     } catch (const std::exception& e) {
         cleanupProcess(pid, pipes);
-        throw std::runtime_error("500 CGI Error: " + std::string(e.what()));
+        throw;
     }
 
     return ""; // Should never reach here
