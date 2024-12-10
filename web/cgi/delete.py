@@ -8,7 +8,7 @@ from urllib.parse import parse_qs
 
 UPLOAD_DIR = os.getenv("UPLOAD_DIR")
 if UPLOAD_DIR is None:
-    print("Content-Type: text/plain\n")
+    print("Content-Type: text/plain\r\n\r\n")
     print("Error: UPLOAD_DIR environment variable not set")
     sys.exit(1)
 
@@ -17,7 +17,7 @@ if not os.path.exists(UPLOAD_DIR):
 
 
 def main():
-    print("Content-Type: text/plain\n")
+    print("Content-Type: text/plain\r\n\r\n")
 
     try:
         # Parse the query string to get the filename
