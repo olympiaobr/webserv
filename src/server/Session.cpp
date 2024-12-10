@@ -105,7 +105,19 @@ void Session::sendResponse()
 {
     ssize_t bytes_sent = send(getSocket(), response.getContent(), response.getContentLength(), MSG_DONTWAIT);
 
-    response.setContent(bytes_sent);
+    if (bytes_sent < 0) {
+        if (errno != EAGAIN && errno != EWOULDBLOCK) {
+            status = S_DONE;
+            return;
+        }
+    } else {
+        response.setContent(bytes_sent);
+
+        if (response.getContentLength() == 0) {
+            status = S_DONE;
+            response.addHeader("Connection", "close");
+        }
+    }
 }
 
 void Session::handleCGI(const std::string& script_path) {

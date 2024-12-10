@@ -61,7 +61,12 @@ void CGIHandler::setupEnvironment() {
     environment["REQUEST_METHOD"] = request.getMethod();
     environment["SCRIPT_FILENAME"] = normalizedScriptPath;
     environment["QUERY_STRING"] = utils::sanitizeInput(request.getQueryString(), 2048);
-    environment["QUERY_STRING"] = request.getQueryString();
+    if (request.getMethod() == "DELETE") {
+        size_t lastSlash = request.getUri().rfind('/');
+        if (lastSlash != std::string::npos && lastSlash + 1 < request.getUri().length()) {
+            environment["QUERY_STRING"] = "file=" + request.getUri().substr(lastSlash + 1);
+        }
+    }
     environment["CONTENT_LENGTH"] = contentLength;
     environment["CONTENT_TYPE"] = request.getHeader("Content-Type");
     std::string serverPort = (serverConfig.port > 0) ? utils::toString(serverConfig.port) : "8000";
