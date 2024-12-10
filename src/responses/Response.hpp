@@ -37,6 +37,9 @@ public:
 	void			setError(int code);
 
 	void setRawContent(const std::string& content) {
+		if (_content != NULL) {
+			free((void*)_content);
+		}
 		_content = strdup(content.c_str());
 	}
 
