@@ -13,3 +13,4 @@ web/cgi/.env
 .venv
 .idea
 .env
+uploads

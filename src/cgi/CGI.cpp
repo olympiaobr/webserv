@@ -6,6 +6,8 @@
 #include <fstream>
 #include <sstream>
 #include <cstdlib>
+#include <signal.h>
+#include <sys/select.h>
 
 std::string normalizePath(const std::string& path);
 
@@ -109,68 +111,147 @@ void CGIHandler::setupEnvironment() {
 //     return "";
 // }
 
+void CGIHandler::cleanupProcess(pid_t pid, int* pipes) {
+    if (pipes[0] != -1) close(pipes[0]);
+    if (pipes[1] != -1) close(pipes[1]);
+    if (pipes[2] != -1) close(pipes[2]);
+    if (pipes[3] != -1) close(pipes[3]);
+
+    if (pid > 0) {
+        kill(pid, SIGTERM);
+        usleep(100000);
+        kill(pid, SIGKILL);
+        waitpid(pid, NULL, 0);
+    }
+}
+
 std::string CGIHandler::execute() {
-    int pipe_child_to_parent[2];
-    int pipe_parent_to_child[2];
-    if (pipe(pipe_child_to_parent) != 0) {
-        std::cerr << "Failed to create pipe: " << strerror(errno) << std::endl;
-        throw std::runtime_error("Failed to create pipe");
-    }
-    if (pipe(pipe_parent_to_child) != 0)
-    {
-        std::cerr << "Failed to create pipe: " << strerror(errno) << std::endl;
-        throw std::runtime_error("Failed to create pipe");
-    }
-    pid_t pid = fork();
-    if (pid < 0) {
-        std::cerr << "Failed to fork process: " << strerror(errno) << std::endl;
-        throw std::runtime_error("Failed to fork process");
-    }
-    if (pid == 0) {  // Child process
-        // Redirect stdin to read from the pipe
-        dup2(pipe_parent_to_child[0], STDIN_FILENO);
-        close(pipe_parent_to_child[0]); // Close original pipe fd after redirection
+    int pipes[4] = {-1, -1, -1, -1}; // Store all pipe fds
+    pid_t pid = -1;
 
-        // Redirect stdout to write to the pipe
-        dup2(pipe_child_to_parent[1], STDOUT_FILENO);
-        close(pipe_child_to_parent[1]); // Close original pipe fd after redirection
-        // Close unused ends of the pipes
-        close(pipe_parent_to_child[1]); // Close writing end of Pipe 1
-        close(pipe_child_to_parent[0]); // Close reading end of Pipe 2
-
-        char* const args[] = {
-            const_cast<char*>(scriptPath.c_str()),
-            NULL
-        };
-        for (int i = 0; envp[i] != NULL; ++i) {
-            std::cerr << "envp[" << i << "]: " << envp[i] << std::endl;
+    try {
+        if (pipe((int*)&pipes[0]) != 0) { // pipe_child_to_parent
+            throw std::runtime_error("Failed to create pipe: " + std::string(strerror(errno)));
         }
-        std::cerr << "\nscript: " << scriptPath.c_str() << "\n" << std::endl;
-        execve(scriptPath.c_str(), args, envp);
-        perror("execve failed");
-        exit(EXIT_FAILURE);
-    } else {  // Parent process
-        close(pipe_parent_to_child[0]); // Close reading end of Pipe 1
-        close(pipe_child_to_parent[1]); // Close writing end of Pipe 2
-        std::cerr << "bytes to save: " << request.total_read << std::endl;
-        write(pipe_parent_to_child[1], request.getBuffer(), request.total_read);
+        if (pipe((int*)&pipes[2]) != 0) { // pipe_parent_to_child
+            throw std::runtime_error("Failed to create pipe");
+        }
+
+        pid = fork();
+        if (pid < 0) {
+            throw std::runtime_error("Failed to fork process");
+        }
+
+        if (pid == 0) {  // Child process
+            dup2(pipes[2], STDIN_FILENO);  // Read from parent
+            dup2(pipes[1], STDOUT_FILENO); // Write to parent
+
+            // Close all pipe ends in child
+            close(pipes[0]);
+            close(pipes[1]);
+            close(pipes[2]);
+            close(pipes[3]);
+
+            char* const args[] = {
+                const_cast<char*>(scriptPath.c_str()),
+                NULL
+            };
+
+            execve(scriptPath.c_str(), args, envp);
+            perror("execve failed");
+            exit(EXIT_FAILURE);
+        }
+
+        // Parent process
+        close(pipes[1]); // Close write end of child_to_parent
+        close(pipes[2]); // Close read end of parent_to_child
+        pipes[1] = -1;
+        pipes[2] = -1;
+
+        // Write request body
+        write(pipes[3], request.getBuffer(), request.total_read);
+        close(pipes[3]); // Close write end after writing
+        pipes[3] = -1;
+
         std::string output;
         char buffer[1024];
-        ssize_t bytesRead;
+        fd_set readfds;
+        struct timeval timeout;
+        bool hasTimedOut = false;
 
-        while ((bytesRead = read(pipe_child_to_parent[0], buffer, sizeof(buffer) - 1)) > 0) {
+        while (!hasTimedOut) {
+            FD_ZERO(&readfds);
+            FD_SET(pipes[0], &readfds);
+
+            timeout.tv_sec = 5;
+            timeout.tv_usec = 0;
+
+            int ready = select(pipes[0] + 1, &readfds, NULL, NULL, &timeout);
+
+            if (ready == -1) {
+                if (errno == EINTR) continue;
+                throw std::runtime_error("Select failed");
+            }
+
+            if (ready == 0) {
+                hasTimedOut = true;
+                break;
+            }
+
+            ssize_t bytesRead = read(pipes[0], buffer, sizeof(buffer) - 1);
+            if (bytesRead <= 0) break;
+
             buffer[bytesRead] = '\0';
             output.append(buffer);
+
+            // Basic output size check
+            if (output.length() > 1048576) { // 1MB limit
+                throw std::runtime_error("CGI output too large");
+            }
         }
-        close(pipe_child_to_parent[0]);
+
+        // Close remaining pipe
+        close(pipes[0]);
+        pipes[0] = -1;
+
+        if (hasTimedOut) {
+            cleanupProcess(pid, pipes);
+            throw std::runtime_error("CGI script execution timed out");
+        }
+
+        // Wait for process with timeout
         int status;
-        waitpid(pid, &status, 0); // fix infinite waiting
-        std::cerr << status << std::endl;
-        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
-        {
-            std::cerr << "CGI exited with status: " << WEXITSTATUS(status) << std::endl;
-            throw std::runtime_error("Failed to run CGI");
+        int waitAttempts = 0;
+        bool processExited = false;
+
+        while (waitAttempts < 50) { // 5 seconds total (50 * 100000 microseconds)
+            pid_t result = waitpid(pid, &status, WNOHANG);
+            if (result == pid) {
+                processExited = true;
+                break;
+            }
+            if (result == -1) {
+                throw std::runtime_error("Wait for child process failed");
+            }
+            usleep(100000); // 100ms sleep
+            ++waitAttempts;
         }
+
+        if (!processExited) {
+            cleanupProcess(pid, pipes);
+            throw std::runtime_error("CGI script did not exit properly");
+        }
+
+        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+            throw std::runtime_error("CGI script failed");
+        }
+
         return output;
+
+    } catch (const std::exception& e) {
+        cleanupProcess(pid, pipes);
+        throw std::runtime_error("500 CGI Error: " + std::string(e.what()));
     }
+
+    return ""; // Should never reach here
 }

@@ -3,6 +3,7 @@
 
 # include "../requests/Request.hpp"
 # include "../responses/Response.hpp"
+# include "../cgi/CGI.hpp"
 
 class Session
 {
@@ -35,6 +36,9 @@ class Session
 		void sendResponse();
 
 		int getSocket() const;
+
+		void handleCGI(const std::string& script_path);
+		Response& createErrorResponse(const std::string& error_msg, const ServerConfig* config);
 
 	private:
 

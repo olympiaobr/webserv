@@ -22,6 +22,7 @@ private:
     std::map<std::string, std::string> environment;
 	const Request& request;
     char** envp;
+    void cleanupProcess(pid_t pid, int* pipes);
 };
 
 #endif
