@@ -7,7 +7,7 @@ import html
 cgitb.enable()
 
 # Print necessary HTTP headers
-print("Content-Type: text/html\n")
+print("Content-Type: text/html\r\n\r\n")
 
 # Create instance of FieldStorage
 form = cgi.FieldStorage()

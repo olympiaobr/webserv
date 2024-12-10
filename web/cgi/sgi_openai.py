@@ -6,7 +6,7 @@ import sys
 from dotenv import load_dotenv
 import os
 
-print("\r\n\r\n")
+print("Content-Type: text/html\r\n\r\n")  # HTTP header
 
 # Set up your OpenAI API key
 load_dotenv()

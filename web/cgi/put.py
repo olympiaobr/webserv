@@ -11,7 +11,7 @@ if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR, mode=0o755, exist_ok=True)
 
 def main():
-    print("Content-Type: text/plain\n")
+    print("Content-Type: text/html\r\n\r\n")  # HTTP header
 
     try:
 		# parse the query string to get filename

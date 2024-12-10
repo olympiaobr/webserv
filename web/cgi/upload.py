@@ -22,7 +22,7 @@ def generate_unique_filename(base_name):
     return new_name
 
 def main():
-    print("Content-Type: text/html\n")  # HTTP header
+    print("Content-Type: text/html\r\n\r\n")  # HTTP header
 
     try:
         # Parse the form data
