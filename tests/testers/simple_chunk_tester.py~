@@ -2,7 +2,7 @@ import http.client
 import time
 
 # Connect to localhost on port 8080
-conn = http.client.HTTPConnection('localhost', 8000)
+conn = http.client.HTTPConnection('localhost', 8080)
 
 # Define chunks
 chunks = [

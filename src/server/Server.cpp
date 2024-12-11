@@ -34,13 +34,21 @@ void Server::_serveExistingClient(Session &client, size_t i)
 		else if (client.status == client.S_REQUEST) {
 			if (client.request.total_read > client.request.getRouteConfig()->body_limit)
 				throw Request::ParsingErrorException(Request::CONTENT_LENGTH, "content length is above the limit");
-			if (client.request.total_read == atoi(client.request.getHeader("content-length").c_str()))
+			if (client.request.getHeader("Transfer-Encoding") == "chunked") {
+				try {
+					client.request.readBodyChunked(client.request.getBuffer(), client.request.total_read);
+					// If we get here and found a zero chunk, we're done
+					if (client.request.total_read == 0) {
+						client.status = client.S_PROCESS;
+					}
+				} catch (const Request::ParsingErrorException& e) {
+					throw;
+				}
+			} else if (client.request.total_read == atoi(client.request.getHeader("content-length").c_str())) {
 				client.status = client.S_PROCESS;
-			// if file is chunked --> unchunkf
+			}
 			std::cout << "recieved more data" << std::endl;
 		}
-		// else
-		// 	throw Request::ParsingErrorException(Request::BAD_REQUEST, "unexpected error");
 	} catch (Request::SocketCloseException &e) {
 		_cleanChunkFiles(client_socket);
 		close(client_socket);
@@ -81,7 +89,6 @@ bool isValidPath(const std::string& path)
 void Server::_processRequest(Session &client, size_t i)
 {
     (void)i;
-
     Request& req = client.request;
     Response& res = client.response;
 
@@ -119,17 +126,8 @@ void Server::_processRequest(Session &client, size_t i)
             res.setError(500);
             client.status = client.S_RESPONSE;
         }
-    }
-    else
-    {
-        /* Configure response */
+    } else {
         res.initialize(req);
-        /*********************/
-
-        /* Parse request body */
-        if (res.getStatusCode() < 300)
-            req.parseBody(*this);
-        /*********************/
     }
     client.status = client.S_RESPONSE;
 }

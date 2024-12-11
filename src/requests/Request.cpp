@@ -123,16 +123,6 @@ RouteConfig* Request::_findMostSpecificRouteConfig(const std::string& uri)
     return bestMatch;
 }
 
-int Request::parseBody(Server& server) {
-    std::string content_type = getHeader("Content-Type");
-
-	(void) server;
-	if (getHeader("Transfer-Encoding") == "chunked"){
-		_readBodyChunked(buffer, buffer_length);
-	}
-	return -1;
-}
-
 void Request::_parseRequestLine(const std::string& line) {
     std::istringstream iss(line);
     iss >> _method >> _uri >> _httpVersion;
@@ -170,34 +160,78 @@ void Request::_parseHeader(const std::string& line) {
     }
 }
 
-void Request::_readBodyChunked(const char *buffer, ssize_t bytesRead) {
-	int read_len;
-	char *stream;
+void Request::readBodyChunked(char *buffer, ssize_t bytesRead) {
+    char *stream = buffer;
+    char *write_ptr = buffer;
+    ssize_t remaining = bytesRead;
+    size_t total_unchunked = 0;
 
-	stream = (char *)buffer;
-	std::string	file_name = utils::chunkFileName(getSocket());
-	if (!access(file_name.c_str(), W_OK | R_OK))
-		std::cout << BLACK << "File exists with permissions" << RESET << std::endl;
-	int file_fd = open(file_name.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
-	if (file_fd < 0)
-		throw ParsingErrorException(FILE_SYSTEM, "chunk temp file open failed");
-	while (*stream) {
-		if (!std::isdigit(*stream))
-			break ;
-		read_len = atoi(stream);
-		if (read_len == 0) {
-			close(file_fd);
-			utils::saveFile(file_name, *_config, getUri());
-			return ;
-		}
-		stream = utils::strstr(stream, "\r\n", bytesRead) + 2;
-		bytesRead -= stream - buffer;
-		buffer = stream;
-		write(file_fd, stream, read_len);
-		stream = utils::strstr(stream, "\r\n", bytesRead) + 2;
-		bytesRead -= stream - buffer;
-	}
-	close(file_fd);
+    while (remaining > 0) {
+        // Skip any leading CRLF
+        while (remaining > 0 && (*stream == '\r' || *stream == '\n')) {
+            stream++;
+            remaining--;
+        }
+
+        if (remaining <= 0) break;
+
+        // Find the end of chunk size line
+        char *chunk_end = utils::strstr(stream, "\r\n", remaining);
+        if (!chunk_end) {
+            // Incomplete chunk header, wait for more data
+            std::memmove(buffer, stream, remaining);
+            total_read = remaining;
+            return;
+        }
+
+        // Parse chunk size (in hex)
+        char chunk_size_str[32] = {0};
+        std::strncpy(chunk_size_str, stream, std::min(size_t(chunk_end - stream), size_t(31)));
+        char *endptr;
+        long chunk_size = std::strtol(chunk_size_str, &endptr, 16);
+
+        if (endptr == chunk_size_str || chunk_size < 0) {
+            throw ParsingErrorException(BAD_REQUEST, "invalid chunk size");
+        }
+
+        // Move past chunk size line
+        stream = chunk_end + 2;
+        remaining -= (chunk_end - buffer + 2);
+
+        if (chunk_size == 0) {
+            // Final chunk
+            if (remaining >= 2 && stream[0] == '\r' && stream[1] == '\n') {
+                // Valid end of chunked data
+                *write_ptr = '\0';
+                total_read = total_unchunked;
+                return;
+            }
+            throw ParsingErrorException(BAD_REQUEST, "invalid chunked ending");
+        }
+
+        // Check if we have the full chunk data plus CRLF
+        if (remaining < chunk_size + 2) {
+            // Incomplete chunk, wait for more data
+            std::memmove(buffer, stream - 2, remaining + 2); // Keep chunk header
+            total_read = remaining + 2;
+            return;
+        }
+
+        // Copy chunk data
+        std::memmove(write_ptr, stream, chunk_size);
+        write_ptr += chunk_size;
+        total_unchunked += chunk_size;
+
+        // Move past chunk data and its CRLF
+        stream += chunk_size + 2;
+        remaining -= (chunk_size + 2);
+    }
+
+    // If we get here, we need more data
+    total_read = remaining;
+    if (remaining > 0) {
+        std::memmove(buffer, stream, remaining);
+    }
 }
 
 std::string Request::getMethod() const {
@@ -388,7 +422,7 @@ ServerConfig* Request::getConfig() const
     return _config;
 }
 
-const char *Request::getBuffer() const
+char *Request::getBuffer() const
 {
     return buffer;
 }

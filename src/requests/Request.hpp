@@ -28,8 +28,6 @@ public:
 	Request& operator=(const Request& src);
 
 	void parseHeaders();
-	int parseBody(Server& server);
-	// int readBodyFile(char *init_buffer, ssize_t bytesRead, Server& server);
 
 	std::string getMethod() const;
 	std::string getUri() const;
@@ -45,7 +43,7 @@ public:
     const RouteConfig* getRouteConfig() const;
 	ServerConfig* getConfig() const;
 
-	const char* getBuffer() const;
+	char* 		getBuffer() const;
 	size_t		getBufferLen() const;
 
 	void		setBufferLen(size_t len);
@@ -53,6 +51,8 @@ public:
 	std::string RemoveQueryString(std::string uri) const;
 
 	void setSessionId(std::string sessionid);
+
+	void readBodyChunked(char *init_buffer, ssize_t bytesRead);
 
 	bool isTargetingCGI() const;
 
@@ -101,7 +101,6 @@ private:
 
 	void _parseRequestLine(const std::string &line);
 	void _parseHeader(const std::string &line);
-	void _readBodyChunked(const char *init_buffer, ssize_t bytesRead);
 
 	RouteConfig *_findMostSpecificRouteConfig(const std::string &uri);
 };

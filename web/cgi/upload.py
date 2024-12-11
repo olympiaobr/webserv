@@ -35,9 +35,7 @@ def main():
 
         # Check if the form contains files
         if "uploaded_files" not in form:
-            print(form)
-            # print(body)
-            print("No files uploaded.")
+            print("No 'uploaded_files' in form data. No files uploaded.")
             return
 
         files = form["uploaded_files"]
