@@ -20,9 +20,8 @@ def main():
         if not os.path.exists(UPLOAD_DIR):
             os.makedirs(UPLOAD_DIR, mode=0o755, exist_ok=True)
 
-        # Read raw data from stdin
-        content_length = int(os.environ.get('CONTENT_LENGTH', 0))
-        raw_data = sys.stdin.buffer.read(content_length)
+        # Read raw data from stdin until EOF
+        raw_data = sys.stdin.buffer.read()
 
         # Get filename from environment variable or use default
         filename = os.environ.get('HTTP_X_FILENAME', 'chunked_file')

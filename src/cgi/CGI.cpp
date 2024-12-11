@@ -68,7 +68,9 @@ void CGIHandler::setupEnvironment() {
             environment["QUERY_STRING"] = "file=" + request.getUri().substr(lastSlash + 1);
         }
     }
-    environment["CONTENT_LENGTH"] = contentLength;
+    if (scriptPath.find("save_chunks.py") == std::string::npos) {
+        environment["CONTENT_LENGTH"] = utils::toString(request.total_read);
+    }
     environment["CONTENT_TYPE"] = request.getHeader("Content-Type");
     std::string serverPort = (serverConfig.port > 0) ? utils::toString(serverConfig.port) : "8000";
     environment["SERVER_PORT"] = serverPort;

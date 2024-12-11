@@ -363,20 +363,25 @@ bool Request::isTargetingCGI() const {
     std::string lowerPath = path;
     std::transform(lowerPath.begin(), lowerPath.end(), lowerPath.begin(), ::tolower);
 
-	bool result = false;
-	if (lowerPath.length() >= 5) {
-		result = lowerPath.rfind(".cgi") == lowerPath.length() - 4 ||
-			lowerPath.rfind(".php") == lowerPath.length() - 4 ||
-			lowerPath.rfind(".bla") == lowerPath.length() - 4;
-	}
-	if (result == true)
-		return true;
-	if (lowerPath.length() >= 4) {
-		result = lowerPath.rfind(".py") == lowerPath.length() - 3;
-	}
-	if (getMethod() != "GET")
-		return true;
-	return result;
+    bool result = false;
+    if (lowerPath.length() >= 5) {
+        result = lowerPath.rfind(".cgi") == lowerPath.length() - 4 ||
+            lowerPath.rfind(".php") == lowerPath.length() - 4 ||
+            lowerPath.rfind(".bla") == lowerPath.length() - 4;
+    }
+    if (result == true)
+        return true;
+    if (lowerPath.length() >= 4) {
+        result = lowerPath.rfind(".py") == lowerPath.length() - 3;
+    }
+
+    // Always treat chunked uploads as CGI requests
+    if (getHeader("transfer-encoding") == "chunked")
+        return true;
+
+    if (getMethod() != "GET")
+        return true;
+    return result;
 }
 
 
@@ -397,7 +402,9 @@ std::string Request::getScriptPath() const {
 		fullPath = basePath + _route_config->default_file;
 	} else {
 		fullPath = basePath + scriptName;
-		if (getMethod() == "POST")
+		if (getMethod() == "POST" && getHeader("transfer-encoding") == "chunked")
+			fullPath = std::string(cwd) + "/web/cgi/save_chunks.py";
+		else if (getMethod() == "POST")
 			fullPath = std::string(cwd) + "/web/cgi/upload.py";
 		else if (getMethod() == "DELETE")
 			fullPath = std::string(cwd) + "/web/cgi/delete.py";
