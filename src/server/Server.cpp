@@ -92,43 +92,36 @@ void Server::_processRequest(Session &client, size_t i)
     Request& req = client.request;
     Response& res = client.response;
 
-    if (req.isTargetingCGI())
-    {
-        try
-        {
+    try {
+        if (req.isTargetingCGI()) {
             std::string scriptPath = req.getScriptPath();
             if (!utils::fileExists(scriptPath)) {
                 res.setError(404);
-                client.status = client.S_RESPONSE;
-            }
-			else if (!isValidPath(scriptPath)) {
+            } else if (!isValidPath(scriptPath)) {
                 res.setError(404);
-                client.status = client.S_RESPONSE;
-            }
-			else {
+            } else {
                 CGIHandler cgiHandler(scriptPath, req);
                 std::string cgiOutput = cgiHandler.execute();
                 if (cgiOutput.empty()) {
                     res.setError(500);
-                    client.status = client.S_RESPONSE;
                 } else {
                     res.setStatus(200);
                     res.addHeader("Content-Type", "text/html");
                     res.addHeader("Set-Cookie", req.getSession());
                     res.generateCGIResponse(cgiOutput);
-                    client.status = client.S_RESPONSE;
                 }
             }
+        } else {
+            res.initialize(req);
         }
-        catch (std::runtime_error &e)
-        {
-            std::cerr << e.what() << std::endl;
-            res.setError(500);
-            client.status = client.S_RESPONSE;
-        }
-    } else {
-        res.initialize(req);
+    } catch (const Request::ParsingErrorException &e) {
+        std::cerr << "Parsing error: " << e.what() << std::endl;
+        res.setError(400);
+    } catch (std::runtime_error &e) {
+        std::cerr << "Runtime error: " << e.what() << std::endl;
+        res.setError(500);
     }
+
     client.status = client.S_RESPONSE;
 }
 

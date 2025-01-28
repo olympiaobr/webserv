@@ -17,6 +17,7 @@
 # include "../utilities/Utils.hpp"
 # include "../cgi/CGI.hpp"
 # include "../include/debug.hpp"
+# include "../requests/Request.hpp"
 
 class Request;
 class Response;

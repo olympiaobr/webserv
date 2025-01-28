@@ -63,34 +63,35 @@ void Request::parseHeaders() {
     std::string request;
     size_t headerEnd;
 
-	buffer[total_read] = 0;
-	request += buffer;
-	headerEnd = request.find("\r\n\r\n");
-	if (headerEnd != std::string::npos) {
-		std::istringstream requestStream(request.substr(0, headerEnd));
-		std::string line;
-		if (std::getline(requestStream, line))
-		{
-			_parseRequestLine(line);
-		}
-		while (std::getline(requestStream, line) && line != "\r")
-		{
-			_parseHeader(line);
-		}
-		// std::string id = getHeader("Cookie");
-		// std::cout << id << std::endl;
-	} else {
-		throw ParsingErrorException(BAD_REQUEST, "malformed request");
-	}
+    buffer[total_read] = 0;
+    request += buffer;
 
-	size_t left_len = buffer_length - headerEnd - 4;
-	total_read = left_len;
-	char* body_part = buffer + headerEnd + 4;
-	if (*body_part) {
-		std::memmove(buffer, body_part, left_len);
-	} else {
-		std::memset(buffer, 0, buffer_length);
-	}
+    if (request.size() > buffer_length) {
+        throw ParsingErrorException(BAD_REQUEST, "Header size exceeds buffer limit");
+    }
+
+    headerEnd = request.find("\r\n\r\n");
+    if (headerEnd != std::string::npos) {
+        std::istringstream requestStream(request.substr(0, headerEnd));
+        std::string line;
+        if (std::getline(requestStream, line)) {
+            _parseRequestLine(line);
+        }
+        while (std::getline(requestStream, line) && line != "\r") {
+            _parseHeader(line);
+        }
+    } else {
+        throw ParsingErrorException(BAD_REQUEST, "Malformed request");
+    }
+
+    size_t left_len = buffer_length - headerEnd - 4;
+    total_read = left_len;
+    char* body_part = buffer + headerEnd + 4;
+    if (*body_part) {
+        std::memmove(buffer, body_part, left_len);
+    } else {
+        std::memset(buffer, 0, buffer_length);
+    }
 }
 
 RouteConfig* Request::_findMostSpecificRouteConfig(const std::string& uri)
