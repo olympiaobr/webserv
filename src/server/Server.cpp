@@ -336,10 +336,6 @@ std::ostream &operator<<(std::ostream &os, const Server &server) {
 	os << "Server data: " << std::endl;
 	os << "Server port: " << server.getPort() << std::endl;
 	os << "Server hostnames:";
-	// if (server.getHostList().size() == 0)
-	// 	os << "empty" << std::endl;
-	// for (size_t i = 0; i < server.getHostList().size(); ++i)
-	// 	os << " " << server.getHostList()[i] << std::endl;
 	os << "Server sockets:";
 	if (server.getSocketsSize() == 0)
 		os << "empty" << std::endl;
