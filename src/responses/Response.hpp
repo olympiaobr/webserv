@@ -30,7 +30,8 @@ public:
 
 	const char*		getContent();
 	ssize_t			getContentLength();
-	void			setContent(ssize_t move);
+	ServerConfig* 	getConfig();
+	void setContent(ssize_t move);
 
 	void			initialize(const Request& req);
 

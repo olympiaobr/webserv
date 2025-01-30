@@ -75,13 +75,8 @@ void Session::recieveData()
 
 void Session::newRequest(std::vector<ServerConfig> &configs)
 {
-    try {
-        request.parseHeaders();
-    }
-    catch (Request::ParsingErrorException &e) {
-        response.setConfig(*request.getConfig());
-        throw e;
-    }
+    request.parseHeaders();
+    response.setConfig(*request.getConfig());
     if (!request.setConfig(configs)) throw Request::ParsingErrorException(Request::BAD_REQUEST, "hostname is not configured");
     response.setConfig(*request.getConfig());
     status = S_REQUEST;

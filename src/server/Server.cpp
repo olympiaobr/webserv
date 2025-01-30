@@ -58,8 +58,17 @@ void Server::_serveExistingClient(Session &client, size_t i)
 		return ;
 	} catch (Request::ParsingErrorException& e) {
 		client.status = client.S_RESPONSE;
-		if (e.type == Request::BAD_REQUEST)
+		if (e.type == Request::BAD_REQUEST) {
+			if (res.getConfig() == NULL) {
+				_cleanChunkFiles(client_socket);
+				close(client_socket);
+				_fds.erase(_fds.begin() + i);
+				_sessions.erase(client_socket);
+				std::cout << "socket closed on " << client_socket << std::endl;
+				return;
+			}
 			res.setError(400);
+		}
 		else if (e.type == Request::CONTENT_LENGTH)
 			res.setError(413);
 		else if (e.type == Request::FILE_SYSTEM)

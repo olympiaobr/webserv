@@ -433,6 +433,12 @@ ssize_t Response::getContentLength()
 	return _content_length;
 }
 
+ServerConfig *Response::getConfig()
+{
+    return _config;
+    // TODO: insert return statement here
+}
+
 void Response::setContent(ssize_t move)
 {
     _content = _content + move;
