@@ -28,7 +28,7 @@ Session::Session(const Session &src)
 {
     request = src.request;
     response = src.response;
-
+    status = src.status;
     std::time_t now = std::time(0);
     std::srand(now);
     std::memset(_sessionId, 0, 100);
@@ -43,7 +43,7 @@ Session &Session::operator=(const Session &src)
 {
     request = src.request;
     response = src.response;
-
+    status = src.status;
     std::time_t now = std::time(0);
     std::srand(now);
     std::memset(_sessionId, 0, 100);

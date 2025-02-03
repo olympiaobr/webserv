@@ -1,5 +1,5 @@
-CC := c++
-CPPFLAGS := -Wall -Wextra -Werror -std=c++98 -g -fno-limit-debug-info # -fsanitize=address
+CXX := c++
+CXXFLAGS := -Wall -Wextra -Werror -std=c++98 -g3 # -fsanitize=address
 TARGET := ./webserv
 INCLUDES :=	-I./src/server \
  			-I./src/responses \
@@ -42,11 +42,11 @@ $(CGI_ENV):
 	$(CGI_ENV)/bin/pip install --use-pep517 -r web/cgi/requirements.txt
 
 $(TARGET): $(OBJ)
-	$(CC) $(CPPFLAGS) $(OBJ) -o $(TARGET)
+	$(CXX) $(CXXFLAGS) $(OBJ) -o $(TARGET)
 
 $(OBJ_DIR)%.o: $(SRC_DIR)%.cpp
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) $(INCLUDES) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 clean:
 	$(RM) $(OBJ_DIR)
