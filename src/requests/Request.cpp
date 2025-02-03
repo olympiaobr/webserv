@@ -1,29 +1,77 @@
 #include "Request.hpp"
 #include "../server/Server.hpp"
 
-Request::Request(int clientSocket, ServerConfig &config, char *buffer, int buffer_len)
-	: _clientSocket(clientSocket), _config(config), _buffer(buffer), _buffer_length(buffer_len) {}
+// Request::Request(int clientSocket, ServerConfig *config, int buffer_len)
+// 	: buffer_length(buffer_len), _clientSocket(clientSocket), _config(config)
+// {
+// 	buffer = new char[buffer_length];
+// 	total_read = 0;
+// }
 
-Request::Request() {}
+Request::Request(const Request &src, size_t extend)
+{
+	_session_id = src._session_id;
+	_clientSocket = src._clientSocket;
+	_method = src._method;
+	_uri = src._uri;
+	_httpVersion = src._httpVersion;
+	_headers = src._headers;
+	_body = src._body;
+	_config = src._config;
+	_route_config = src._route_config;
+	buffer_length = src.buffer_length + extend;
+	buffer = new char[buffer_length];
+	std::copy(src.buffer, src.buffer + src.buffer_length, buffer);
+}
 
-Request::~Request() {}
+Request::Request(): buffer_length(2048) {
+	total_read = 0;
+	buffer = new char[buffer_length];
+}
 
-void Request::parseHeaders(std::vector<Session>& sessions) {
+Request::Request(int clientSocket) : buffer_length(2048)
+{
+	total_read = 0;
+	buffer = new char[buffer_length];
+	_clientSocket = clientSocket;
+}
+
+Request::~Request() {
+	if (buffer)
+		delete[] buffer;
+}
+
+Request &Request::operator=(const Request &src)
+{
+	_session_id = src._session_id;
+	_clientSocket = src._clientSocket;
+	_method = src._method;
+	_uri = src._uri;
+	_httpVersion = src._httpVersion;
+	_headers = src._headers;
+	_body = src._body;
+	_config = src._config;
+	_route_config = src._route_config;
+	buffer_length = src.buffer_length;
+	delete[] buffer;
+	buffer = new char[buffer_length];
+	std::copy(src.buffer, src.buffer + buffer_length, buffer);
+	return *this;
+}
+
+void Request::parseHeaders() {
     std::string request;
-    bool headersComplete = false;
     size_t headerEnd;
 
-	_buffer[_buffer_length] = 0;
-	request += _buffer;
-	headerEnd = request.find("\r\n\r\n");
-	if (headerEnd != std::string::npos) {
-		headersComplete = true;
-	} else {
-		throw ParsingErrorException(BAD_REQUEST, "malformed request");
-	}
+    buffer[total_read] = 0;
+    request += buffer;
 
+    if (request.size() > buffer_length) {
+        throw ParsingErrorException(BAD_REQUEST, "Header size exceeds buffer limit");
+    }
 
-    if (headersComplete) {
+    headerEnd = request.find("\r\n\r\n");
+    if (headerEnd != std::string::npos) {
         std::istringstream requestStream(request.substr(0, headerEnd));
         std::string line;
         if (std::getline(requestStream, line)) {
@@ -32,35 +80,25 @@ void Request::parseHeaders(std::vector<Session>& sessions) {
         while (std::getline(requestStream, line) && line != "\r") {
             _parseHeader(line);
         }
-		std::string id = getHeader("Cookie");
-		std::vector<Session>::const_iterator session_it;
-		session_it = Session::findSession(sessions, id);
-		if (session_it == sessions.end() || id == "") {
-			Session ses(_clientSocket);
-			sessions.push_back(ses);
-			id = ses.getSessionId();
-			session_it = Session::findSession(sessions, id);
-			_session_id = session_it->getSessionId();
-		}
     } else {
-		throw ParsingErrorException(BAD_REQUEST, "malformed request");
-	}
-	size_t left_len = _buffer_length - headerEnd - 4;
-	_buffer_length = left_len;
-	char* body_part = _buffer + headerEnd + 4;
-	if (*body_part) {
-		std::memmove(_buffer, body_part, left_len);
-	} else {
-		std::memset(_buffer, 0, _buffer_length);
-	}
-    _route_config = _findMostSpecificRouteConfig(getUri());
+        throw ParsingErrorException(BAD_REQUEST, "Malformed request");
+    }
+
+    size_t left_len = buffer_length - headerEnd - 4;
+    total_read = left_len;
+    char* body_part = buffer + headerEnd + 4;
+    if (*body_part) {
+        std::memmove(buffer, body_part, left_len);
+    } else {
+        std::memset(buffer, 0, buffer_length);
+    }
 }
 
 RouteConfig* Request::_findMostSpecificRouteConfig(const std::string& uri)
 {
     RouteConfig* bestMatch = NULL;
     size_t longestMatchLength = 0;
-    for (std::map<std::string, RouteConfig>::iterator it = _config.routes.begin(); it != _config.routes.end(); ++it) {
+    for (std::map<std::string, RouteConfig>::iterator it = _config->routes.begin(); it != _config->routes.end(); ++it) {
         std::string basePath = it->first;
 		if (*basePath.begin() == '~' && *(basePath.end() - 1) == '$')
 		{
@@ -80,31 +118,10 @@ RouteConfig* Request::_findMostSpecificRouteConfig(const std::string& uri)
             longestMatchLength = basePath.length();
         }
     }
-    // if (bestMatch) {
-    //     std::cout << "Matched route: " << uri << " to " << bestMatch->root << std::endl;
-    // } else {
-    //     std::cout << "No matching route found for URI: " << uri << std::endl;
-    // }
-     _uri = _uri.substr(longestMatchLength - 1);
+	if (_uri.length() > 1) {
+    	_uri = _uri.substr(longestMatchLength - 1);
+	}
     return bestMatch;
-}
-
-int Request::parseBody(Server& server) {
-	std::string content_length = getHeader("Content-Length");
-    int contentLength = atoi(content_length.c_str());
-    std::string content_type = getHeader("Content-Type");
-
-    if (contentLength > _config.body_limit || contentLength > _route_config->body_limit) {
-        throw ParsingErrorException(CONTENT_LENGTH, "content length is above limit");
-	}
-	if (content_type.find("multipart/form-data") != content_type.npos) {
-		readBodyFile(_buffer, _buffer_length, server);
-	} else if (getHeader("Transfer-Encoding") == "chunked"){
-		_readBodyChunked(_buffer, _buffer_length);
-	} else {
-		_readBody(_buffer, _buffer_length);
-	}
-	return -1;
 }
 
 void Request::_parseRequestLine(const std::string& line) {
@@ -125,137 +142,97 @@ void Request::_parseHeader(const std::string& line) {
             value = value.substr(first, last - first + 1);
         }
         key = utils::toLowerCase(key);
+		if (key == "host") {
+			value = value.substr(0, value.find(':'));
+		}
+        if (key == "cookie") {
+            // Parse cookie header to extract session ID
+            size_t sessionStart = value.find("session=");
+            if (sessionStart != std::string::npos) {
+                sessionStart += 8; // length of "session="
+                size_t sessionEnd = value.find(';', sessionStart);
+                if (sessionEnd == std::string::npos) {
+                    sessionEnd = value.length();
+                }
+                _session_id = value.substr(sessionStart, sessionEnd - sessionStart);
+            }
+        }
         _headers[key] = value;
     }
 }
 
+void Request::readBodyChunked(char *buffer, ssize_t bytesRead) {
+    char *stream = buffer;
+    char *write_ptr = buffer;
+    ssize_t remaining = bytesRead;
+    size_t total_unchunked = 0;
 
-void Request::_readBody(const char *buffer, ssize_t bytesRead) {
-	_body += buffer;
-	(void)bytesRead;
-}
+    while (remaining > 0) {
+        // Skip any leading CRLF
+        while (remaining > 0 && (*stream == '\r' || *stream == '\n')) {
+            stream++;
+            remaining--;
+        }
 
-void Request::_readBodyChunked(const char *buffer, ssize_t bytesRead) {
-	int read_len;
-	char *stream;
+        if (remaining <= 0) break;
 
-	stream = (char *)buffer;
-	std::string	file_name = utils::chunkFileName(getSocket());
-	if (!access(file_name.c_str(), W_OK | R_OK))
-		std::cout << BLACK << "File exists with permissions" << RESET << std::endl;
-	int file_fd = open(file_name.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
-	if (file_fd < 0)
-		throw ParsingErrorException(FILE_SYSTEM, "chunk temp file open failed");
-	while (*stream) {
-		if (!std::isdigit(*stream))
-			break ;
-		read_len = atoi(stream);
-		if (read_len == 0) {
-			close(file_fd);
-			utils::saveFile(file_name, _config, getUri());
-			return ;
-		}
-		stream = utils::strstr(stream, "\r\n", bytesRead) + 2;
-		bytesRead -= stream - buffer;
-		buffer = stream;
-		write(file_fd, stream, read_len);
-		stream = utils::strstr(stream, "\r\n", bytesRead) + 2;
-		bytesRead -= stream - buffer;
-	}
-	close(file_fd);
-}
+        // Find the end of chunk size line
+        char *chunk_end = utils::strstr(stream, "\r\n", remaining);
+        if (!chunk_end) {
+            // Incomplete chunk header, wait for more data
+            std::memmove(buffer, stream, remaining);
+            total_read = remaining;
+            return;
+        }
 
-int Request::readBodyFile(char *buffer, ssize_t bytesRead, Server& server) {
-	char *start_pos;
-	std::string stream;
+        // Parse chunk size (in hex)
+        char chunk_size_str[32] = {0};
+        std::strncpy(chunk_size_str, stream, std::min(size_t(chunk_end - stream), size_t(31)));
+        char *endptr;
+        long chunk_size = std::strtol(chunk_size_str, &endptr, 16);
 
-	std::string boundary = getHeader("Content-Type");
-	int pos = boundary.find("boundary=");
-	boundary = boundary.substr(pos + 9);
-	boundary = "--" + boundary;
-	std::string boundary_end = boundary + "--";
+        if (endptr == chunk_size_str || chunk_size < 0) {
+            throw ParsingErrorException(BAD_REQUEST, "invalid chunk size");
+        }
 
-	start_pos = utils::strstr(buffer, (char *)boundary.c_str(), bytesRead);
-	if (start_pos) {
-		/* Find start of data */
-		start_pos += boundary.length() + 2;
+        // Move past chunk size line
+        stream = chunk_end + 2;
+        remaining -= (chunk_end - buffer + 2);
 
-		/* Start parsing data header */
-		std::string unique_filename;
-		{
-			const char *header_pos = start_pos;
-			start_pos = utils::strstr(start_pos, (const char *)"\r\n\r\n", bytesRead - (start_pos - buffer)) + 4;
-			char *boundary_end_pos = utils::strstr(start_pos, boundary_end.c_str(), bytesRead - (start_pos - buffer)) - 2;
-			if (start_pos == boundary_end_pos) {
-				return -1;
-			}
-			std::string headers = header_pos;
-			headers = headers.substr(0, start_pos - header_pos);
+        if (chunk_size == 0) {
+            // Final chunk
+            if (remaining >= 2 && stream[0] == '\r' && stream[1] == '\n') {
+                // Valid end of chunked data
+                *write_ptr = '\0';
+                total_read = total_unchunked;
+                return;
+            }
+            throw ParsingErrorException(BAD_REQUEST, "invalid chunked ending");
+        }
 
-			/* Does it alway have filename in header? */
-			std::string new_file_name = headers.substr(headers.find("filename=") + 9);
-			if (headers.substr(8) == new_file_name)
-				new_file_name = headers.substr(headers.find("name=") + 5);
-			new_file_name = new_file_name.substr(0, new_file_name.find('\r'));
-			new_file_name.erase(new_file_name.begin());
-			new_file_name.erase(new_file_name.end() - 1);
-			if (new_file_name == "")
-				new_file_name = "file";
-			unique_filename = _route_config->root + getUri() + new_file_name;
-			new_file_name = unique_filename;
-			int i = 1;
-			while (access(unique_filename.c_str(), F_OK) == 0) {
-				std::stringstream ss;
-				ss << i;
-				std::string value;
-				ss >> value;
-				std::string extension = utils::getFileExtension(unique_filename);
-				if (extension == unique_filename.substr(1))
-					unique_filename = new_file_name.substr(0) + " (" + value + ")";
-				else
-					unique_filename = new_file_name.substr(0, new_file_name.find(extension) - 1) + " (" + value + ")." + extension;
-				i++;
-			}
-		}
-		int file_fd = open(unique_filename.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK | O_APPEND, 0600);
-		if (file_fd < 0)
-			throw ParsingErrorException(FILE_SYSTEM, strerror(errno));
-		/* ******************************************** */
+        // Check if we have the full chunk data plus CRLF
+        if (remaining < chunk_size + 2) {
+            // Incomplete chunk, wait for more data
+            std::memmove(buffer, stream - 2, remaining + 2); // Keep chunk header
+            total_read = remaining + 2;
+            return;
+        }
 
-		/* Take data body length */
-		/* Checking boundaries */
-		{
-			size_t len = bytesRead - (start_pos - buffer);
-			char *boundary_pos = utils::strstr(start_pos, boundary.c_str(), len);
-			char *boundary_end_pos = utils::strstr(start_pos, boundary_end.c_str(), len);
-			/* Check if this chunk contains another data */
-			if (boundary_pos && boundary_pos != boundary_end_pos) {
-				write(file_fd, start_pos, len - (bytesRead - (boundary_pos - buffer)) - 2);
-				readBodyFile(boundary_pos, bytesRead - (boundary_pos - buffer), server);
-			}
-			/* Check if this chunk contains EOF */
-			else if (boundary_end_pos) {
-				len -= bytesRead - (boundary_end_pos - buffer) + 2;
-				write(file_fd, start_pos, len);
-			}
-			/* read the rest */
-			else {
-				write(file_fd, start_pos, len);
-				server.addStream(_clientSocket, file_fd, *this, boundary);
-				return file_fd;
-			}
-		}
-		close (file_fd);
-	}
-	return -1;
-}
+        // Copy chunk data
+        std::memmove(write_ptr, stream, chunk_size);
+        write_ptr += chunk_size;
+        total_unchunked += chunk_size;
 
-void Request::addHeader(const std::string& key, const std::string& value) {
-    std::string lowercase_key;
+        // Move past chunk data and its CRLF
+        stream += chunk_size + 2;
+        remaining -= (chunk_size + 2);
+    }
 
-    lowercase_key = key;
-    lowercase_key = utils::toLowerCase(lowercase_key);
-    _headers[lowercase_key] = value;
+    // If we get here, we need more data
+    total_read = remaining;
+    if (remaining > 0) {
+        std::memmove(buffer, stream, remaining);
+    }
 }
 
 std::string Request::getMethod() const {
@@ -280,6 +257,22 @@ std::string Request::getHeader(const std::string& key) const {
         return it->second;
     }
     return "";
+}
+
+bool Request::setConfig(std::vector<ServerConfig> &configs)
+{
+	for (std::vector<ServerConfig>::iterator configIt = configs.begin();
+		 configIt != configs.end(); configIt++) {
+		for (HostList::iterator hostIt = configIt->hostnames.begin();
+			 hostIt != configIt->hostnames.end(); hostIt++) {
+				if (*hostIt == getHost()) {
+					_config = &*configIt;
+					_route_config = _findMostSpecificRouteConfig(getUri());
+					return true;
+				}
+		}
+	}
+	return false;
 }
 
 std::string Request::getHost() const {
@@ -371,18 +364,25 @@ bool Request::isTargetingCGI() const {
     std::string lowerPath = path;
     std::transform(lowerPath.begin(), lowerPath.end(), lowerPath.begin(), ::tolower);
 
-	bool result = false;
-	if (lowerPath.length() >= 5) {
-		result = lowerPath.rfind(".cgi") == lowerPath.length() - 4 ||
-			lowerPath.rfind(".php") == lowerPath.length() - 4 ||
-			lowerPath.rfind(".bla") == lowerPath.length() - 4;
-	}
-	if (result == true)
-		return true;
-	if (lowerPath.length() >= 4) {
-		result = lowerPath.rfind(".py") == lowerPath.length() - 3;
-	}
-	return result;
+    bool result = false;
+    if (lowerPath.length() >= 5) {
+        result = lowerPath.rfind(".cgi") == lowerPath.length() - 4 ||
+            lowerPath.rfind(".php") == lowerPath.length() - 4 ||
+            lowerPath.rfind(".bla") == lowerPath.length() - 4;
+    }
+    if (result == true)
+        return true;
+    if (lowerPath.length() >= 4) {
+        result = lowerPath.rfind(".py") == lowerPath.length() - 3;
+    }
+
+    // Always treat chunked uploads as CGI requests
+    if (getHeader("transfer-encoding") == "chunked")
+        return true;
+
+    if (getMethod() != "GET")
+        return true;
+    return result;
 }
 
 
@@ -403,6 +403,14 @@ std::string Request::getScriptPath() const {
 		fullPath = basePath + _route_config->default_file;
 	} else {
 		fullPath = basePath + scriptName;
+		if (getMethod() == "POST" && getHeader("transfer-encoding") == "chunked")
+			fullPath = std::string(cwd) + "/web/cgi/save_chunks.py";
+		else if (getMethod() == "POST")
+			fullPath = std::string(cwd) + "/web/cgi/upload.py";
+		else if (getMethod() == "DELETE")
+			fullPath = std::string(cwd) + "/web/cgi/delete.py";
+		else if (getMethod() == "PUT")
+			fullPath = std::string(cwd) + "/web/cgi/put.py";
 	}
     return RemoveQueryString(fullPath);
 }
@@ -417,13 +425,31 @@ const RouteConfig* Request::getRouteConfig() const
     return _route_config;
 }
 
+ServerConfig* Request::getConfig() const
+{
+    return _config;
+}
+
+char *Request::getBuffer() const
+{
+    return buffer;
+}
+
+size_t Request::getBufferLen() const
+{
+    return size_t(buffer_length);
+}
+
 void Request::setBufferLen(size_t len)
 {
-	_buffer[len] = 0;
-	_buffer_length = len;
+	total_read += len;
 }
 
 const char *Request::StreamingData::what() const throw()
 {
     return "Part of data recieved";
+}
+
+void Request::setSessionId(std::string sessionid) {
+    _session_id = sessionid;
 }

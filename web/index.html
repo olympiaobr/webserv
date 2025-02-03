@@ -32,16 +32,23 @@
 
         <!-- Upload files form -->
         <h2>Upload Files</h2>
-        <form action="/upload/" method="post" enctype="multipart/form-data">
-            <label for="files">Choose files:</label>
-            <input type="file" id="files" name="files" multiple>
+        <form action="/uploads/" method="post" enctype="multipart/form-data">
+            <label for="uploaded_files">Choose files:</label>
+            <input type="file" id="uploaded_files" name="uploaded_files" multiple>
             <input type="submit" value="Upload">
         </form>
+        <!-- Delete files form -->
+        <h2>Delete Files</h2>
+        <form id="deleteForm" onsubmit="handleDelete(event)">
+            <label for="filename">Filename to delete:</label>
+            <input type="text" id="filename" name="filename" required>
+            <input type="submit" value="Delete">
+        </form>
 
-        <h1>Contact Us</h1>
-        <form action="/upload/" method="post">
-            <label for="files">Choose your photo:</label>
-            <input type="file" id="files" name="file">
+        <!-- <h1>Contact Us</h1>
+        <form action="/uploads/" method="post">
+            <label for="uploaded_files">Choose your photo:</label>
+            <input type="file" id="uploaded_files" name="uploaded_files">
             <label for="name">Name:</label>
             <input type="text" id="name" name="name" required>
             <label for="email">Email:</label>
@@ -49,8 +56,8 @@
             <label for="message">Message:</label>
             <textarea id="message" name="message" rows="4" cols="50" required></textarea>
             <input type="submit" value="Submit">
-        </form>
-		<h1>Test x-www-form-urlencoded Form</h1>
+        </form> -->
+        <!-- <h1>Test x-www-form-urlencoded Form</h1>
         <form action="/submit-form/" method="post">
             <label for="firstName">First Name:</label>
             <input type="text" id="firstName" name="firstName" required><br><br>
@@ -59,7 +66,7 @@
             <label for="email">Email:</label>
             <input type="email" id="email" name="email" required><br><br>
             <input type="submit" value="Submit">
-        </form>
+        </form> -->
     </main>
     <footer>
         <p>&copy; 2024 My Web Server. All rights reserved.</p>

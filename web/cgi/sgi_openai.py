@@ -1,4 +1,4 @@
-#!.venv/bin/python3
+#!./web/cgi/.venv/bin/python3
 import cgi
 import cgitb; cgitb.enable()
 from openai import OpenAI
@@ -6,18 +6,18 @@ import sys
 from dotenv import load_dotenv
 import os
 
-print("\r\n\r\n")
+print("Content-Type: text/html\r\n\r\n")  # HTTP header
 
 # Set up your OpenAI API key
 load_dotenv()
 
-try:
-    client = OpenAI (
-        organization='org-EUar1yTRIuR2dsQUPNZFKQGK',
-        project='proj_SmXXIFVlpK2HcgrsYVMTgQSV',
-        api_key = os.getenv("OPENAI_API_KEY"),
-    )
+client = OpenAI (
+    organization='org-EUar1yTRIuR2dsQUPNZFKQGK',
+    project='proj_SmXXIFVlpK2HcgrsYVMTgQSV',
+    api_key = os.getenv("OPENAI_API_KEY"),
+)
 
+try:
 
     form = cgi.FieldStorage()
 
@@ -71,7 +71,7 @@ try:
         """)
     sys.stdout.flush()
 except Exception as e:
-    print("""
+    print(f"""
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -83,7 +83,7 @@ except Exception as e:
         <body>
             <div class="container">
                 <h1>Error</h1>
-                <p>CGI script error</p>
+                <p>CGI script error: {e}</p>
                 <a href="/">Return to homepage</a>
             </div>
         </body>

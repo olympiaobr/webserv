@@ -123,11 +123,6 @@ bool utils::fileExists(const std::string& path) {
     return (stat(path.c_str(), &buffer) == 0);
 }
 
-std::time_t utils::getCurrentTime()
-{
-	return std::time(0);
-}
-
 std::string utils::toString(int value) {
         std::ostringstream oss;
         oss << value;
@@ -148,3 +143,64 @@ std::string utils::decodePercentEncoding(const std::string& encoded) {
     }
     return decoded.str();
 }
+
+bool utils::isValidEnvironmentVariable(const std::string &key, const std::string &value)
+{
+    const size_t maxLength = 1024;
+    if (key.length() > maxLength || value.length() > maxLength)
+    {
+        std::cerr << "Environment variable too long.\n";
+        return false;
+    }
+    if (key.empty() || !(isalpha(key[0]) || key[0] == '_'))
+    {
+        std::cerr << "Invalid environment variable key format.\n";
+        return false;
+    }
+    for (size_t i = 1; i < key.length(); ++i)
+    {
+        if (!(isalnum(key[i]) || key[i] == '_'))
+        {
+            std::cerr << "Invalid environment variable key format.\n";
+            return false;
+        }
+    }
+    for (size_t i = 0; i < value.length(); ++i)
+    {
+        if (value[i] < 32 || value[i] > 126)
+        {
+            std::cerr << "Invalid environment variable value format.\n";
+            return false;
+        }
+    }
+    return true;
+}
+
+
+std::string utils::sanitizeInput(const std::string &input, size_t maxLength)
+{
+	if (input.length() > maxLength)
+	{
+		throw std::runtime_error("Input exceeds maximum allowed length.");
+	}
+
+	std::string sanitized = input;
+	// for (size_t i = 0; i < input.size(); ++i)
+	// {
+	// 	// Allow alphanumeric and safe symbols only
+	// 	if (isalnum(input[i]) || input[i] == '_' || input[i] == '-' || input[i] == '.' || input[i] == '/')
+	// 	{
+	// 		sanitized += input[i];
+	// 	}
+	// 	else if (input[i] == ' ')
+	// 	{
+	// 		sanitized += "%20"; // Encode spaces as %20
+	// 	}
+	// 	else
+	// 	{
+	// 		throw std::runtime_error("Invalid character in input.");
+	// 	}
+	// }
+	return sanitized;
+}
+

@@ -11,14 +11,8 @@
 # include <sys/socket.h>
 # include <fcntl.h>
 # include <errno.h>
-// # include <cctype>
 
-# include "../responses/Response.hpp"
 # include "../configuration/Config.hpp"
-# include "../cgi/CGI.hpp"
-# include "../utilities/Utils.hpp"
-# include "../server/Session.hpp"
-
 
 struct Stream;
 class Server;
@@ -26,13 +20,14 @@ class Session;
 
 class Request {
 public:
-	Request(int clientSocket, ServerConfig &config, char *buffer, int buffer_len);
 	Request();
+	Request(int clientSocket);
+	Request(const Request& src, size_t extend);
 	~Request();
 
-	void parseHeaders(std::vector<Session>& sessions);
-	int parseBody(Server& server);
-	int readBodyFile(char *init_buffer, ssize_t bytesRead, Server& server);
+	Request& operator=(const Request& src);
+
+	void parseHeaders();
 
 	std::string getMethod() const;
 	std::string getUri() const;
@@ -46,16 +41,26 @@ public:
 	std::string getScriptPath() const;
 	std::string getSession() const;
     const RouteConfig* getRouteConfig() const;
+	ServerConfig* getConfig() const;
+
+	char* 		getBuffer() const;
+	size_t		getBufferLen() const;
 
 	void		setBufferLen(size_t len);
 
 	std::string RemoveQueryString(std::string uri) const;
 
+	void setSessionId(std::string sessionid);
+
+	void readBodyChunked(char *init_buffer, ssize_t bytesRead);
+
 	bool isTargetingCGI() const;
 
-	void addHeader(const std::string& key, const std::string& value);
+	// void addHeader(const std::string& key, const std::string& value);
 
-	friend std::ostream& operator<<(std::ostream& os, const Request& request);
+	bool setConfig(std::vector<ServerConfig> &configs);
+
+	friend std::ostream &operator<<(std::ostream &os, const Request &request);
 
 	/* Exceptions */
 	enum ErrorType {CONTENT_LENGTH, BAD_REQUEST, FILE_SYSTEM, INTERRUPT};
@@ -79,28 +84,25 @@ public:
 			const char* what() const throw();
 	};
 
+	char *buffer;
+	size_t buffer_length;
+	int total_read;
 
-	private:
-		std::string								_session_id;
-		int 									_clientSocket;
-		std::string								_method;
-		std::string								_uri;
-		std::string								_httpVersion;
-		std::map<std::string, std::string>		_headers;
-		std::string								_body;
-		ServerConfig							_config;
-        RouteConfig*                            _route_config;
+private:
+	std::string _session_id;
+	int _clientSocket;
+	std::string _method;
+	std::string _uri;
+	std::string _httpVersion;
+	std::map<std::string, std::string> _headers;
+	std::string _body;
+	ServerConfig *_config;
+	RouteConfig *_route_config;
 
-		char*									_buffer;
-		size_t									_buffer_length;
+	void _parseRequestLine(const std::string &line);
+	void _parseHeader(const std::string &line);
 
-
-		void _parseRequestLine(const std::string& line);
-		void _parseHeader(const std::string& line);
-		void _readBody(const char *init_buffer, ssize_t bytesRead);
-		void _readBodyChunked(const char *init_buffer, ssize_t bytesRead);
-
-        RouteConfig*	_findMostSpecificRouteConfig(const std::string& uri);
+	RouteConfig *_findMostSpecificRouteConfig(const std::string &uri);
 };
 
 #endif

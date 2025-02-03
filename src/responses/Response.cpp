@@ -5,47 +5,71 @@
 #include <iostream>
 #include <sys/stat.h>
 #include <cstdio>
+#include <dirent.h>
 
-Response::Response(const ServerConfig& config, char* buffer, int buffer_size):
-	_config(config), _statusCode(-1), _buffer(buffer), _buffer_size(buffer_size), _content_length(0) {}
-
-Response::Response(const ServerConfig& config, int errorCode, char* buffer, int buffer_size)
-	: _httpVersion("HTTP/1.1"), _config(config), _buffer(buffer), _buffer_size(buffer_size), _content_length(0) {
-	initializeHttpErrors();
-	_setError(errorCode);
-}
-
-Response::Response(const Request& req, const ServerConfig& config, char* buffer, int buffer_size)
-    : _httpVersion("HTTP/1.1"), _config(config), _buffer(buffer), _buffer_size(buffer_size), _content_length(0) {
+Response::Response()
+{
+    _httpVersion = "HTTP/1.1";
+    _statusCode = 0;
     initializeHttpErrors();
-
-    if (req.getHttpVersion() != "HTTP/1.1") {
-        _setError(505);
-        return;
-    }
-    if (std::find(
-            config.hostnames.begin(),
-            config.hostnames.end(),
-            req.getHost()
-        ) == config.hostnames.end()) {
-        _setError(400);
-        return;
-    }
-    // const RouteConfig* route_config = _findMostSpecificRouteConfig(req.getUri());
-    const RouteConfig* route_config = req.getRouteConfig();
-    if (!route_config) {
-        _setError(404);
-        return;
-    }
-	if (this->_handleRedir(route_config->redirect_status_code, route_config->redirect_url)) {
-        return;
-    }
-    if (std::find(route_config->allowed_methods.begin(), route_config->allowed_methods.end(), req.getMethod()) == route_config->allowed_methods.end()) {
-        _setError(405);
-        return;
-    }
-    _dispatchMethodHandler(req, route_config);
+    _buffer_size = RESPONSE_MAX_BODY_SIZE;
+    _buffer = new char[_buffer_size];
 }
+
+Response::~Response()
+{
+    delete[] _buffer;
+}
+
+// Response::Response(ServerConfig *config, int buffer_size) : _config(config), _statusCode(-1), _buffer_size(buffer_size), _content_length(0)
+// {
+//     _statusCode = 0;
+//     initializeHttpErrors();
+//     _buffer = new char[_buffer_size];
+// }
+
+// Response::Response(ServerConfig* config, int errorCode, int buffer_size)
+// 	: _httpVersion("HTTP/1.1"), _config(config), _buffer_size(buffer_size), _content_length(0) {
+//     _statusCode = 0;
+//     initializeHttpErrors();
+// 	setError(errorCode);
+//     _buffer = new char[_buffer_size];
+// }
+
+// Response::Response(const Request& req, ServerConfig* config, int buffer_size)
+//     : _httpVersion("HTTP/1.1"), _config(config), _buffer_size(buffer_size), _content_length(0) {
+
+//     _buffer = new char[_buffer_size];
+
+//     initializeHttpErrors();
+
+//     if (req.getHttpVersion() != "HTTP/1.1") {
+//         setError(505);
+//         return;
+//     }
+//     if (std::find(
+//             config->hostnames.begin(),
+//             config->hostnames.end(),
+//             req.getHost()
+//         ) == config->hostnames.end()) {
+//         setError(400);
+//         return;
+//     }
+//     // const RouteConfig* route_config = _findMostSpecificRouteConfig(req.getUri());
+//     const RouteConfig* route_config = req.getRouteConfig();
+//     if (!route_config) {
+//         setError(404);
+//         return;
+//     }
+// 	if (this->_handleRedir(route_config->redirect_status_code, route_config->redirect_url)) {
+//         return;
+//     }
+//     if (std::find(route_config->allowed_methods.begin(), route_config->allowed_methods.end(), req.getMethod()) == route_config->allowed_methods.end()) {
+//         setError(405);
+//         return;
+//     }
+//     _dispatchMethodHandler(req, route_config);
+// }
 
 bool Response::_handleRedir(int redirect_status_code, const std::string& redirect_url) {
 
@@ -83,11 +107,11 @@ void Response::_dispatchMethodHandler(const Request& req, const RouteConfig* rou
 		else if (req.getMethod() == "DELETE")
 			_handleDeleteRequest(req, route_config);
 		else
-			_setError(405);
+			setError(405);
 	} catch (Response::FileSystemErrorException &e) {
-		_setError(404);
+		setError(404);
 	} catch (Response::ContentLengthException &e) {
-		_setError(413);
+		setError(413);
 	}
 }
 
@@ -98,12 +122,20 @@ Response& Response::operator=(const Response& other) {
 		_statusMessage = other._statusMessage;
 		_headers = other._headers;
 		_content = other._content;
-		_buffer = other._buffer;
-		_buffer_size = other._buffer_size;
-		_httpErrors = other._httpErrors;
+        _buffer_size = other._buffer_size;
+        delete[] _buffer;
+		_buffer = new char[other._buffer_size];
+        std::copy(other._buffer, other._buffer + _buffer_size, _buffer);
+        _httpErrors = other._httpErrors;
 		_content_length = other._content_length;
-	}
+        _headers_length = other._headers_length;
+        _connection = other._connection;
+    }
 	return *this;
+}
+
+void Response::setConfig(ServerConfig &config) {
+    _config = &config;
 }
 
 void Response::initializeHttpErrors() {
@@ -154,7 +186,7 @@ void Response::_handleGetRequest(const Request& req, const RouteConfig* route_co
                 generateDirectoryListing(path);
             } else {
                 // std::cout << "No index file found, and autoindex is off, returning 404." << std::endl;
-                _setError(404);
+                setError(404);
             }
         } else {
             // std::cout << "Serving regular file: " << path << std::endl;
@@ -169,7 +201,7 @@ void Response::_handleGetRequest(const Request& req, const RouteConfig* route_co
     }
     else {
         // std::cout << "File or directory not found: " << path << std::endl;
-        _setError(404);
+        setError(404);
 
         if (req.getMethod() == "HEAD") {
             _content_length = _headers_length;
@@ -181,7 +213,7 @@ void Response::_handleGetRequest(const Request& req, const RouteConfig* route_co
 void Response::_handlePostRequest(const Request& req, const RouteConfig* route_config) {
     setStatus(200);
     addHeader("Content-Type", "text/html");
-	std::string directoryPath = _config.root + req.getUri();
+	std::string directoryPath = _config->root + req.getUri();
 	{
 		std::ostringstream listing;
 		DIR* dir = opendir(directoryPath.c_str());
@@ -190,7 +222,7 @@ void Response::_handlePostRequest(const Request& req, const RouteConfig* route_c
 		}
 
 		struct dirent* entry;
-		std::string file = _config.root + "/css/styles.css";
+		std::string file = _config->root + "/css/styles.css";
 		std::ifstream styles(file.c_str());
 		if (!styles)
 			throw FileSystemErrorException("cannot open directory");
@@ -222,12 +254,12 @@ void Response::_handlePostRequest(const Request& req, const RouteConfig* route_c
 void Response::_handleDeleteRequest(const Request& req, const RouteConfig* route_config)
 {
     std::string uri = req.getUri();
-    std::string filePath = _config.root + uri;
+    std::string filePath = _config->root + uri;
 
     // Check if the file exists
     struct stat buffer;
     if (stat(filePath.c_str(), &buffer) != 0) {
-        _setError(404);
+        setError(404);
         return;
     }
 	setStatus(200);
@@ -260,15 +292,17 @@ int Response::getStatusCode() {
 }
 
 /* We need plan B if original function won't work */
-void Response::_setError(int code) {
+void Response::setError(int code) {
 	std::string path;
-	std::map<int, std::string>::const_iterator it = _config.error_pages.find(code);
+	std::map<int, std::string>::const_iterator it = _config->error_pages.find(code);
 
-	if (it != _config.error_pages.end())
+	if (it != _config->error_pages.end())
 		path = it->second;
-	else
+	else {
+        std::cerr << code << std::endl;
 		throw std::logic_error("Error code not found in configuration");
-	std::string filename = _config.root + path;
+    }
+	std::string filename = _config->root + path;
 
 	try
 	{
@@ -276,9 +310,9 @@ void Response::_setError(int code) {
         addHeader("Content-Type", _getMimeType(filename));
 		generateResponse(filename);
 	} catch (Response::FileSystemErrorException &e) {
-		_setError(404);
+		setError(404);
 	} catch (Response::ContentLengthException &e) {
-		_setError(413);
+		setError(413);
 	}
 }
 
@@ -346,7 +380,7 @@ void Response::generateDirectoryListing(const std::string& directoryPath) {
     }
 
 	struct dirent* entry;
-	std::string file = _config.root + "/css/styles.css";
+	std::string file = _config->root + "/css/styles.css";
 	std::ifstream styles(file.c_str());
 	if (!styles)
 		throw FileSystemErrorException("cannot open directory");
@@ -377,7 +411,6 @@ void Response::generateDirectoryListing(const std::string& directoryPath) {
 
 void Response::generateCGIResponse(const std::string &cgi_response)
 {
-	// addHeader("Content-Type", "??");
 	std::string cgi_body = cgi_response.substr(cgi_response.find("\r\n\r\n") + 4);
 	addHeader("Content-Length", _toString(cgi_body.length()));
 	std::string headers = _headersToString();
@@ -398,6 +431,52 @@ const char *Response::getContent()
 ssize_t Response::getContentLength()
 {
 	return _content_length;
+}
+
+ServerConfig *Response::getConfig()
+{
+    return _config;
+    // TODO: insert return statement here
+}
+
+void Response::setContent(ssize_t move)
+{
+    _content = _content + move;
+    _content_length -= move;
+}
+
+void Response::initialize(const Request &req)
+{
+    if (req.getHttpVersion() != "HTTP/1.1")
+    {
+        setError(505);
+        return;
+    }
+    if (std::find(
+            _config->hostnames.begin(),
+            _config->hostnames.end(),
+            req.getHost()) == _config->hostnames.end())
+    {
+        setError(400);
+        return;
+    }
+    // const RouteConfig* route_config = _findMostSpecificRouteConfig(req.getUri());
+    const RouteConfig *route_config = req.getRouteConfig();
+    if (!route_config)
+    {
+        setError(404);
+        return;
+    }
+    if (this->_handleRedir(route_config->redirect_status_code, route_config->redirect_url))
+    {
+        return;
+    }
+    if (std::find(route_config->allowed_methods.begin(), route_config->allowed_methods.end(), req.getMethod()) == route_config->allowed_methods.end())
+    {
+        setError(405);
+        return;
+    }
+    _dispatchMethodHandler(req, route_config);
 }
 
 std::string Response::_getMimeType(const std::string& filename) {

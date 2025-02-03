@@ -1,5 +1,6 @@
-#include "configuration/Config.hpp"
 #include "server/Server.hpp"
+#include "include/debug.hpp"
+#include <dirent.h>
 #include <cstdlib>
 #include <fcntl.h>
 #include <iostream>
@@ -11,8 +12,10 @@
 #include <unistd.h>
 #include <vector>
 
+#define TEMP_FILES_DIRECTORY "tmp/"
 #define MAX_CONNECTIONS 100
 #define BACKLOG 3
+#define DEFAULT_CONFIG "config/c_file.conf"
 
 void	clnTmpDir() {
 	DIR* dir = opendir(TEMP_FILES_DIRECTORY);
@@ -34,13 +37,16 @@ void	clnTmpDir() {
 
 int	main(int argc, char *argv[])
 {
-	if (argc != 2)
+	if (argc > 2)
 	{
 		std::cerr << "Usage: " << argv[0] << " <config_file>" << std::endl;
 		return (EXIT_FAILURE);
 	}
-	const std::string configFile = argv[1];
-
+	std::string configFile;
+	if (argc == 2)
+		configFile = argv[1];
+	else
+		configFile = DEFAULT_CONFIG;
 	Config config(configFile);
 	try {
 		config.loadConfig();
@@ -49,9 +55,7 @@ int	main(int argc, char *argv[])
         return 1;
     }
 
-	typedef std::map<short, ServerConfig> ConfType;
-
-	const ConfType &allConfigs = config.getAllServerConfigs();
+	const ConfigList &allConfigs = config.getAllServerConfigs();
 	try {
 		clnTmpDir();
 	} catch (Server::InitialisationException& e) {
@@ -61,11 +65,16 @@ int	main(int argc, char *argv[])
 	std::vector<Server> servers(allConfigs.size());
 	size_t i = 0;
 	try {
-		for (ConfType::const_iterator it = allConfigs.begin(); it != allConfigs.end(); ++it) {
-			servers[i++].initEndpoint(it->second.hostnames, it->first, it->second);
+		for (ConfigList::const_iterator portIt = allConfigs.begin(); portIt != allConfigs.end(); ++portIt)
+		{
+			const short port = portIt->first;
+			const std::vector<ServerConfig>&hostConfigs = portIt->second;
+			Server server;
+			servers[i++].initEndpoint(port, hostConfigs);
 		}
 		Server::RUN(servers);
 		clnTmpDir();
+
 	} catch (Server::InitialisationException& e) {
 		std::cerr << RED << e.what() << " (on exit)" << RESET << std::endl;
 		return 1;
@@ -73,5 +82,5 @@ int	main(int argc, char *argv[])
 		std::cerr << RED << e.what() << RESET << std::endl;
 		return 2;
 	}
-	return (0);
 }
+

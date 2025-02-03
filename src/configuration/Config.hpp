@@ -10,8 +10,10 @@
 #include <sstream>
 
 typedef std::vector<std::string> HostList;
+struct ServerConfig;
+typedef std::map<short, std::vector<ServerConfig> > ConfigList;
 
-struct			RouteConfig
+struct RouteConfig
 {
 	std::string root;
 	std::string default_file;
@@ -30,7 +32,7 @@ struct			RouteConfig
 
 struct			ServerConfig
 {
-	HostList	hostnames;
+	HostList hostnames;
 	std::string root;
 	std::map<int, std::string> error_pages;
 	int			body_limit;
@@ -52,9 +54,9 @@ class Config
 	Config &operator=(const Config &other);
 
 	void loadConfig();
-	const ServerConfig &getServerConfig(short port) const;
-	const std::map<short, ServerConfig> &getAllServerConfigs() const;
-	void addServerConfig(short port, const ServerConfig &serverConfig);
+    const ServerConfig& getServerConfig(short port, const std::string& hostname) const;
+	const ConfigList &getAllServerConfigs() const;
+	void addServerConfig(short port, const ServerConfig& serverConfig);
 	void validateServerConfig(const ServerConfig& config) const;
 	void validateRouteConfig(RouteConfig& route, const ServerConfig& server) const;
 
@@ -64,11 +66,11 @@ class Config
 	friend std::ostream& operator<<(std::ostream& os, const ServerConfig& config);
 	friend std::ostream& operator<<(std::ostream& os, const Config& config);
 
-	std::map<std::string, RouteConfig> routes;
+	// std::map<std::string, RouteConfig> routes;
 
   private:
 	std::string _filename;
-	std::map<short, ServerConfig> _servers;
+	ConfigList _servers;
 
 	void _parseRouteConfig(RouteConfig &config, const std::string &line);
 	void _parseServerConfig(ServerConfig &config, const std::string &line);

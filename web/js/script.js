@@ -18,3 +18,22 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => console.error('Error loading JSON:', error));
 });
+
+// Add the delete file handling function
+function handleDelete(event) {
+    event.preventDefault();
+    const filename = document.getElementById('filename').value;
+
+    fetch('/uploads/' + filename, {
+        method: 'DELETE'
+    })
+    .then(response => response.text())
+    .then(data => {
+        alert(data);
+        document.getElementById('deleteForm').reset();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error deleting file: ' + error.message);
+    });
+}

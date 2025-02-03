@@ -28,11 +28,11 @@ namespace utils {
 	std::string	chunkFileName(int socket);
 	char		*strstr(const char *haystack, const char *needle, ssize_t len);
 	int			stoi(const std::string &str, int sys);
-	// std::string generateDirectoryListing(const std::string& directoryPath);
-	std::time_t getCurrentTime();
 	std::string toString(int value);
 	bool		fileExists(const std::string& path);
 	std::string decodePercentEncoding(const std::string& encoded);
+	bool isValidEnvironmentVariable(const std::string &key, const std::string &value);
+	std::string sanitizeInput(const std::string &input, size_t maxLength);
 }
 
 #endif
