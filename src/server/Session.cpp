@@ -106,10 +106,8 @@ void Session::sendResponse()
     ssize_t bytes_sent = send(getSocket(), response.getContent(), response.getContentLength(), MSG_DONTWAIT);
 
     if (bytes_sent < 0) {
-        if (errno != EAGAIN && errno != EWOULDBLOCK) {
-            status = S_DONE;
-            return;
-        }
+        status = S_DONE;
+        return;
     } else {
         response.setContent(bytes_sent);
 
