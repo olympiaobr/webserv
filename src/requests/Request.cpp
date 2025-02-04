@@ -20,19 +20,19 @@ Request::Request(const Request &src, size_t extend)
 	_config = src._config;
 	_route_config = src._route_config;
 	buffer_length = src.buffer_length + extend;
-	buffer = new char[buffer_length];
+	buffer = new char[buffer_length + 1];
 	std::copy(src.buffer, src.buffer + src.buffer_length, buffer);
 }
 
 Request::Request(): buffer_length(2048) {
 	total_read = 0;
-	buffer = new char[buffer_length];
+	buffer = new char[buffer_length + 1];
 }
 
 Request::Request(int clientSocket) : buffer_length(2048)
 {
 	total_read = 0;
-	buffer = new char[buffer_length];
+	buffer = new char[buffer_length + 1];
 	_clientSocket = clientSocket;
 }
 
@@ -54,7 +54,7 @@ Request &Request::operator=(const Request &src)
 	_route_config = src._route_config;
 	buffer_length = src.buffer_length;
 	delete[] buffer;
-	buffer = new char[buffer_length];
+	buffer = new char[buffer_length + 1];
 	std::copy(src.buffer, src.buffer + buffer_length, buffer);
 	return *this;
 }

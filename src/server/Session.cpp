@@ -28,7 +28,7 @@ Session::Session(const Session &src)
 {
     request = src.request;
     response = src.response;
-
+    status = src.status;
     std::time_t now = std::time(0);
     std::srand(now);
     std::memset(_sessionId, 0, 100);
@@ -43,7 +43,7 @@ Session &Session::operator=(const Session &src)
 {
     request = src.request;
     response = src.response;
-
+    status = src.status;
     std::time_t now = std::time(0);
     std::srand(now);
     std::memset(_sessionId, 0, 100);
@@ -106,10 +106,8 @@ void Session::sendResponse()
     ssize_t bytes_sent = send(getSocket(), response.getContent(), response.getContentLength(), MSG_DONTWAIT);
 
     if (bytes_sent < 0) {
-        if (errno != EAGAIN && errno != EWOULDBLOCK) {
-            status = S_DONE;
-            return;
-        }
+        status = S_DONE;
+        return;
     } else {
         response.setContent(bytes_sent);
 

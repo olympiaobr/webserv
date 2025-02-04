@@ -1,4 +1,12 @@
 #include "Server.hpp"
+#include <signal.h>
+int g_sig = 0;
+
+
+void signal_handler(int sig) {
+  g_sig = sig;
+  signal(SIGINT, SIG_DFL);  // Restore default behavior
+}
 
 Server::Server() {
 }
@@ -267,12 +275,13 @@ const std::vector<pollfd> &Server::getSockets() const {
 }
 
 void Server::RUN(std::vector<Server> servers) {
+  signal(SIGINT, signal_handler);
 	for (size_t i = 0; i < servers.size(); ++i) {
 		servers[i].listenPort(BACKLOG);
 		std::cout << BLUE << "Server " << i + 1 << " is listening on port "
 			<< servers[i].getPort() << RESET << std::endl;
 	}
-	while (true)
+	while (true && !g_sig)
 	{
 		for (size_t i = 0; i < servers.size(); ++i) {
 			try {
