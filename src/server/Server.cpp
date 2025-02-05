@@ -39,7 +39,7 @@ void Server::_serveExistingClient(Session &client, size_t i)
 		client.recieveData();
 		if (client.status == client.S_NEW || client.status == client.S_DONE)
 			client.newRequest(_configs);
-		else if (client.status == client.S_REQUEST) {
+		if (client.status == client.S_REQUEST) {
 			if (client.request.total_read > client.request.getRouteConfig()->body_limit)
 				throw Request::ParsingErrorException(Request::CONTENT_LENGTH, "content length is above the limit");
 			if (client.request.getHeader("Transfer-Encoding") == "chunked") {
@@ -211,7 +211,7 @@ void Server::pollLoop() {
 				throw PollingErrorException("error from poll() function");
 		}
 		int client_socket = _fds[i].fd;
-		if ((_fds[i].revents & POLLIN) || _sessions[client_socket].status == _sessions[client_socket].S_NEW) {
+		if ((_fds[i].revents & POLLIN) || (client_socket != _main_socketfd && _sessions[client_socket].status == _sessions[client_socket].S_NEW)) {
 			if (client_socket == _main_socketfd) {
 				_addNewClient(client_socket);
 			} else {
