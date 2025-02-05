@@ -52,7 +52,7 @@ void Server::_serveExistingClient(Session &client, size_t i)
 				} catch (const Request::ParsingErrorException& e) {
 					throw;
 				}
-			} else if (client.request.total_read == atoi(client.request.getHeader("content-length").c_str())) {
+			} else if (client.request.total_read >= atoi(client.request.getHeader("content-length").c_str())) {
 				client.status = client.S_PROCESS;
 			}
 			std::cout << "recieved more data" << std::endl;
@@ -205,13 +205,13 @@ void Server::pollLoop() {
 			std::cerr << "Polling error: " << errno << std::endl;
 			_cleanChunkFiles(_fds[i].fd);
 			close(_fds[i].fd);
-			_fds.erase(_fds.begin() + i);
 			_sessions.erase(_fds[i].fd);
+			_fds.erase(_fds.begin() + i);
 			if (_fds[i].fd == _main_socketfd)
 				throw PollingErrorException("error from poll() function");
 		}
 		int client_socket = _fds[i].fd;
-		if (_fds[i].revents & POLLIN) {
+		if ((_fds[i].revents & POLLIN) || _sessions[client_socket].status == _sessions[client_socket].S_NEW) {
 			if (client_socket == _main_socketfd) {
 				_addNewClient(client_socket);
 			} else {

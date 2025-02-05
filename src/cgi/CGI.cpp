@@ -55,7 +55,7 @@ std::string normalizePath(const std::string& path) {
 
 void CGIHandler::setupEnvironment() {
     // std::string contentLength = utils::toString(request.getBody().length());
-    std::string contentLength = utils::toString(request.total_read);
+    std::string contentLength = request.getHeader("Content-Length");
     std::string normalizedScriptPath = normalizePath(scriptPath);
 
     environment["REQUEST_METHOD"] = request.getMethod();
@@ -69,7 +69,7 @@ void CGIHandler::setupEnvironment() {
         }
     }
     if (scriptPath.find("save_chunks.py") == std::string::npos) {
-        environment["CONTENT_LENGTH"] = utils::toString(request.total_read);
+        environment["CONTENT_LENGTH"] = request.getHeader("Content-Length");
     }
     environment["CONTENT_TYPE"] = request.getHeader("Content-Type");
     std::string serverPort = (serverConfig.port > 0) ? utils::toString(serverConfig.port) : "8000";
@@ -183,7 +183,7 @@ std::string CGIHandler::execute() {
         pipes[2] = -1;
 
         // Write request body
-        write(pipes[3], request.getBuffer(), request.total_read);
+        write(pipes[3], request.getBuffer(), atoi(request.getHeader("Content-Length").c_str()));
         close(pipes[3]); // Close write end after writing
         pipes[3] = -1;
 

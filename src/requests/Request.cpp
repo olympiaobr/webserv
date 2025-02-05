@@ -10,6 +10,7 @@
 
 Request::Request(const Request &src, size_t extend)
 {
+  total_read = src.total_read;
 	_session_id = src._session_id;
 	_clientSocket = src._clientSocket;
 	_method = src._method;
