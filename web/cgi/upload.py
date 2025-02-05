@@ -59,7 +59,8 @@ def main():
 
             # Limit file size (100MB)
             MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
-            file_size = os.fstat(file_item.file.fileno()).st_size
+            file_size = len(file_item.file.read())
+            file_item.file.seek(0)  # Reset the file pointer
             if file_size > MAX_FILE_SIZE:
                 errors.append(f"File '{file_name}' exceeds the maximum allowed size of 100MB.")
                 continue
