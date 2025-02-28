@@ -1,13 +1,6 @@
 #include "Request.hpp"
 #include "../server/Server.hpp"
 
-// Request::Request(int clientSocket, ServerConfig *config, int buffer_len)
-// 	: buffer_length(buffer_len), _clientSocket(clientSocket), _config(config)
-// {
-// 	buffer = new char[buffer_length];
-// 	total_read = 0;
-// }
-
 Request::Request(const Request &src, size_t extend)
 {
   total_read = src.total_read;
@@ -106,12 +99,11 @@ RouteConfig* Request::_findMostSpecificRouteConfig(const std::string& uri)
 			basePath.erase(basePath.begin());
 			basePath.erase(basePath.begin());
 			basePath.erase(basePath.end() - 1);
-			// std::cout << uri.rfind(basePath)  << std::endl;
-			// std::cout << uri.length() - 1 << std::endl;
+
 			if (uri.length() > 1 && uri.rfind(basePath) == uri.length() - basePath.length())
 			{
 				bestMatch = &it->second;
-				longestMatchLength = 1; // >>??
+				longestMatchLength = 1; 
 				break;
 			}		}
 		else if (uri.find(basePath) == 0 && basePath.length() > longestMatchLength) {

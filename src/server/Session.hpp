@@ -40,7 +40,6 @@ class Session
 		void handleCGI(const std::string& script_path);
 		Response& createErrorResponse(const std::string& error_msg, const ServerConfig* config);
 
-		void ensureSession(Request& req);
 
 	private:
 

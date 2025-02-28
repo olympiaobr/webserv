@@ -21,56 +21,6 @@ Response::~Response()
     delete[] _buffer;
 }
 
-// Response::Response(ServerConfig *config, int buffer_size) : _config(config), _statusCode(-1), _buffer_size(buffer_size), _content_length(0)
-// {
-//     _statusCode = 0;
-//     initializeHttpErrors();
-//     _buffer = new char[_buffer_size];
-// }
-
-// Response::Response(ServerConfig* config, int errorCode, int buffer_size)
-// 	: _httpVersion("HTTP/1.1"), _config(config), _buffer_size(buffer_size), _content_length(0) {
-//     _statusCode = 0;
-//     initializeHttpErrors();
-// 	setError(errorCode);
-//     _buffer = new char[_buffer_size];
-// }
-
-// Response::Response(const Request& req, ServerConfig* config, int buffer_size)
-//     : _httpVersion("HTTP/1.1"), _config(config), _buffer_size(buffer_size), _content_length(0) {
-
-//     _buffer = new char[_buffer_size];
-
-//     initializeHttpErrors();
-
-//     if (req.getHttpVersion() != "HTTP/1.1") {
-//         setError(505);
-//         return;
-//     }
-//     if (std::find(
-//             config->hostnames.begin(),
-//             config->hostnames.end(),
-//             req.getHost()
-//         ) == config->hostnames.end()) {
-//         setError(400);
-//         return;
-//     }
-//     // const RouteConfig* route_config = _findMostSpecificRouteConfig(req.getUri());
-//     const RouteConfig* route_config = req.getRouteConfig();
-//     if (!route_config) {
-//         setError(404);
-//         return;
-//     }
-// 	if (this->_handleRedir(route_config->redirect_status_code, route_config->redirect_url)) {
-//         return;
-//     }
-//     if (std::find(route_config->allowed_methods.begin(), route_config->allowed_methods.end(), req.getMethod()) == route_config->allowed_methods.end()) {
-//         setError(405);
-//         return;
-//     }
-//     _dispatchMethodHandler(req, route_config);
-// }
-
 bool Response::_handleRedir(int redirect_status_code, const std::string& redirect_url) {
 
     if (redirect_status_code == 0 || redirect_url.empty()) {
@@ -179,17 +129,14 @@ void Response::_handleGetRequest(const Request& req, const RouteConfig* route_co
                 addHeader("Set-Cookie", req.getSession());
                 generateResponse(indexPath);
             } else if (route_config->autoindex) {
-                // std::cout << "Autoindex is enabled, generating directory listing." << std::endl;
                 setStatus(200);
                 addHeader("Content-Type", "text/html");
                 addHeader("Set-Cookie", req.getSession());
                 generateDirectoryListing(path);
             } else {
-                // std::cout << "No index file found, and autoindex is off, returning 404." << std::endl;
                 setError(404);
             }
         } else {
-            // std::cout << "Serving regular file: " << path << std::endl;
             setStatus(200);
             addHeader("Content-Type", _getMimeType(path));
             addHeader("Set-Cookie", req.getSession());
@@ -200,7 +147,6 @@ void Response::_handleGetRequest(const Request& req, const RouteConfig* route_co
         }
     }
     else {
-        // std::cout << "File or directory not found: " << path << std::endl;
         setError(404);
 
         if (req.getMethod() == "HEAD") {
@@ -209,7 +155,6 @@ void Response::_handleGetRequest(const Request& req, const RouteConfig* route_co
     }
 }
 
-/* send page ? */
 void Response::_handlePostRequest(const Request& req, const RouteConfig* route_config) {
     setStatus(200);
     addHeader("Content-Type", "text/html");
@@ -256,7 +201,6 @@ void Response::_handleDeleteRequest(const Request& req, const RouteConfig* route
     std::string uri = req.getUri();
     std::string filePath = _config->root + uri;
 
-    // Check if the file exists
     struct stat buffer;
     if (stat(filePath.c_str(), &buffer) != 0) {
         setError(404);
@@ -291,19 +235,25 @@ int Response::getStatusCode() {
 	return _statusCode;
 }
 
-/* We need plan B if original function won't work */
 void Response::setError(int code) {
 	std::string path;
-	std::map<int, std::string>::const_iterator it = _config->error_pages.find(code);
+    std::string filename;
 
-	if (it != _config->error_pages.end())
-		path = it->second;
-	else {
-        std::cerr << code << std::endl;
-		throw std::logic_error("Error code not found in configuration");
+    if (_config == NULL) {
+        filename = "./web/error/400.html";
     }
-	std::string filename = _config->root + path;
+    else {
+    	std::map<int, std::string>::const_iterator it = _config->error_pages.find(code);
 
+    	if (it != _config->error_pages.end())
+    		path = it->second;
+    	else {
+            std::cerr << code << std::endl;
+    		throw std::logic_error("Error code not found in configuration");
+        }
+
+    	filename = _config->root + path;
+    }
 	try
 	{
         setStatus(code);
@@ -436,7 +386,6 @@ ssize_t Response::getContentLength()
 ServerConfig *Response::getConfig()
 {
     return _config;
-    // TODO: insert return statement here
 }
 
 void Response::setContent(ssize_t move)
@@ -460,7 +409,6 @@ void Response::initialize(const Request &req)
         setError(400);
         return;
     }
-    // const RouteConfig* route_config = _findMostSpecificRouteConfig(req.getUri());
     const RouteConfig *route_config = req.getRouteConfig();
     if (!route_config)
     {

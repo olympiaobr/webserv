@@ -64,10 +64,11 @@ void Server::_serveExistingClient(Session &client, size_t i)
 		_sessions.erase(client_socket);
 		std::cout << "socket closed on " << client_socket << std::endl;
 		return ;
-	} catch (Request::ParsingErrorException& e) {
+	}
+	catch (Request::ParsingErrorException& e) {
 		client.status = client.S_RESPONSE;
 		if (e.type == Request::BAD_REQUEST) {
-			if (res.getConfig() == NULL) {
+			if (res._config == NULL) {
 				_cleanChunkFiles(client_socket);
 				close(client_socket);
 				_fds.erase(_fds.begin() + i);
@@ -288,9 +289,9 @@ void Server::RUN(std::vector<Server> servers) {
 				servers[i].pollfds();
 				servers[i].pollLoop();
 			} catch (PollingErrorException& e) {
-				std::cout << RED << e.what() << RESET << std::endl;
-				std::cout << RED << "Server " << i + 1 << " on port "
-					<< servers[i].getPort() << " stoped" << RESET << std::endl;
+				// std::cout << RED << e.what() << RESET << std::endl;
+				// std::cout << RED << "Server " << i + 1 << " on port "
+				// 	<< servers[i].getPort() << " stopped" << RESET << std::endl;
 				servers.erase(servers.begin() + i);
 			}
 		}

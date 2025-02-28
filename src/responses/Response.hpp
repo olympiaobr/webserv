@@ -72,7 +72,6 @@ public:
 			char _error[256];
 	};
 
-private:
     std::string 						_httpVersion;
 	ServerConfig*						_config;
     int									_statusCode;

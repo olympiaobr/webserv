@@ -112,19 +112,6 @@ void CGIHandler::setupEnvironment() {
     }
 }
 
-// std::string CGIHandler::getInterpreter(const std::string& scriptPath) {
-//     const std::string pythonInterpreter = "./web/cgi/.venv/bin/python3";
-
-//     size_t extPos = scriptPath.find_last_of(".");
-//     if (extPos != std::string::npos) {
-//         std::string ext = scriptPath.substr(extPos);
-//         if (ext == ".py") {
-//             return pythonInterpreter;
-//         }
-//     }
-//     return "";
-// }
-
 void CGIHandler::cleanupProcess(pid_t pid, int* pipes) {
     if (pipes[0] != -1) close(pipes[0]);
     if (pipes[1] != -1) close(pipes[1]);

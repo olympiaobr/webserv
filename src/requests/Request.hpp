@@ -88,7 +88,6 @@ public:
 	size_t buffer_length;
 	int total_read;
 
-private:
 	std::string _session_id;
 	int _clientSocket;
 	std::string _method;

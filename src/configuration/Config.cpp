@@ -129,26 +129,18 @@ void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
         if (allowGet || allowPost) {
             config.allowed_methods.push_back("HEAD");
         }
-        // std::cout << "Parsed allow_methods: ";
-        // for (size_t i = 0; i < config.allowed_methods.size(); ++i)
-        //     std::cout << config.allowed_methods[i] << " ";
-        // std::cout << std::endl;
     }
     else if (key == "index") {
         config.default_file = value;
-        // std::cout << "Parsed index: " << config.default_file << std::endl;
     }
     else if (key == "autoindex") {
         config.autoindex = (value == "on");
-        // std::cout << "Parsed autoindex: " << (config.autoindex ? "on" : "off") << std::endl;
     }
     else if (key == "cgi") {
         config.is_cgi = (value == "on");
-        // std::cout << "Parsed CGI: " << (config.is_cgi ? "on" : "off") << std::endl;
     }
     else if (key == "root") {
         config.root = value;
-        // std::cout << "Parsed root: " << config.root << std::endl;
     }
     else if (key == "client_max_body_size") {
         size_t pos = value.find_first_not_of("0123456789");
@@ -166,7 +158,6 @@ void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
             sizeValue = atoi(value.c_str());
         }
         config.body_limit = sizeValue * factor;
-        // std::cout << "Parsed body limit for route: " << config.body_limit << " bytes" << std::endl;
     }
     else if (key == "return") {
         std::istringstream redirectStream(value);
@@ -178,7 +169,6 @@ void Config::_parseRouteConfig(RouteConfig& config, const std::string& line)
             }
             config.redirect_status_code = statusCode;
             config.redirect_url = redirectUrl;
-            // std::cout << "Parsed redirection: " << statusCode << " -> " << redirectUrl << std::endl;
         }
         else {
             throw std::runtime_error("Invalid return directive in config");
@@ -296,8 +286,6 @@ void Config::loadConfig() {
         if (inServerBlock && !inLocationBlock) {
             if (key == "listen") {
                 iss >> currentPort;
-            // } else if (key == "server_name") {
-            //     iss >> currentHostname;
             } else {
                 _parseServerConfig(currentServerConfig, line);
             }
@@ -369,25 +357,6 @@ std::ostream& operator<<(std::ostream& os, const ServerConfig& config) {
     }
     return os;
 }
-
-// std::ostream& operator<<(std::ostream& os, const Config& config) {
-//     os << std::endl
-//        << "Config:\n"
-//        << "  Filename: " << config._filename << "\n"
-//        << std::endl;
-
-//     ServerList::const_iterator it;
-//     for (it = config.getAllServerConfigs().begin(); it != config.getAllServerConfigs().end(); ++it) {
-//         os << "Port " << it->first << ":\n";
-//         const std::vector<ServerConfig>& servers = it->second;
-//         for (std::vector<ServerConfig>::const_iterator hostIt = servers.begin();
-//              hostIt != servers.end(); ++hostIt)
-//         {
-//             os << "  Hostnames: " << hostIt->hostnames << "\n" << hostIt->second << std::endl;
-//         }
-//     }
-//     return os;
-// }
 
 std::string Config::formatSize(int bytes) {
     static const char* sizes[] = {"Bytes", "KB", "MB", "GB"};
